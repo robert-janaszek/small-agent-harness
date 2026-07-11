@@ -66,7 +66,7 @@ const toolsDefinition: SmartHomeTool[] = [
 
 // 3. GŁÓWNA PĘTLA AGENTOWA (Agentic Loop)
 async function runAgent(userCommand: string): Promise<string> {
-  console.log(`\n\x1b[36m[Użytkownik]: ${userCommand}\x1b[0m`);
+  console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
 
   // Tablica przechowująca historię z zachowaniem odpowiednich typów OpenAI
   const messages: ChatCompletionMessageParam[] = [
@@ -82,7 +82,6 @@ async function runAgent(userCommand: string): Promise<string> {
 
   while (iteration < MAX_ITERATIONS) {
     iteration++;
-    console.log(`\n--- Obieg pętli agenta #${iteration} ---`);
 
     const response = await openai.chat.completions.create({
       model: MODEL_NAME,
@@ -110,7 +109,7 @@ async function runAgent(userCommand: string): Promise<string> {
 
         let toolResult: string;
         try {
-          console.log(`\x1b[33m[Wykonuję narzędzie]: ${toolName} z argumentami: ${JSON.stringify(toolArgs)}\x1b[0m`);
+          console.log(`\x1b[33m[Tool call]: ${toolName}(${JSON.stringify(toolArgs)})\x1b[0m`);
           toolResult = await tool.call(toolArgs);
         } catch (error: any) {
           toolResult = JSON.stringify({ error: error.message });
@@ -129,12 +128,12 @@ async function runAgent(userCommand: string): Promise<string> {
     }
 
     // Jeśli brak wywołań narzędzi -> model sformułował odpowiedź końcową
-    console.log(`\n\x1b[32m[Agent osiągnął sukces]: ${responseMessage.content}\x1b[0m`);
+    console.log(`\n\x1b[32m[Agent]: ${responseMessage.content}\x1b[0m`);
     return responseMessage.content ?? '';
   }
 
-  console.log('\n\x1b[31m[Bezpiecznik]: Osiągnięto limit maksymalnych iteracji.\x1b[0m');
-  return 'Przepraszam, nie udało mi się ukończyć zadania w przewidzianej liczbie kroków.';
+  console.log('\n\x1b[31m[Safety]: Max iterations reached\x1b[0m');
+  return 'Sorry, I could not complete the task in the allowed number of steps.';
 }
 
 // 4. Uruchomienie deweloperskie
