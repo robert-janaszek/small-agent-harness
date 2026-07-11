@@ -3,6 +3,7 @@ import {
   ChatCompletionTool, 
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
+  ChatCompletionFunctionTool,
 } from 'openai/resources/chat/completions';
 
 // 1. Konfiguracja klienta OpenAI skierowanego na lokalną Ollamę
@@ -13,18 +14,13 @@ const openai = new OpenAI({
 
 const MODEL_NAME = 'qwen3:7b';
 
-// Interfejsy dla argumentów naszych funkcji smart home
-interface GetStatusArgs {
-  entity_id: string;
+// Interfejs dla narzędzia z własną metodą wykonawczą
+interface SmartHomeTool extends ChatCompletionFunctionTool {
+  call: (args: any) => Promise<string>;
 }
 
-interface ControlDeviceArgs {
-  entity_id: string;
-  action: 'turn_on' | 'turn_off';
-}
-
-// 2. DEFINICJE NARZĘDZI (Ścisłe typowanie z biblioteki OpenAI)
-const toolsDefinition: ChatCompletionTool[] = [
+// 2. DEFINICJE NARZĘDZI z ciałem wykonawczym w `call`
+const toolsDefinition: SmartHomeTool[] = [
   {
     type: 'function',
     function: {
@@ -37,6 +33,12 @@ const toolsDefinition: ChatCompletionTool[] = [
         },
         required: ['entity_id']
       }
+    },
+    async call(args: { entity_id: string }) {
+      if (args.entity_id === 'light.salon') {
+        return JSON.stringify({ status: 'off', brightness: 0 });
+      }
+      return JSON.stringify({ error: `Urządzenie ${args.entity_id} jest offline.` });
     }
   },
   {
@@ -52,35 +54,15 @@ const toolsDefinition: ChatCompletionTool[] = [
         },
         required: ['entity_id', 'action']
       }
+    },
+    async call(args: { entity_id: string; action: 'turn_on' | 'turn_off' }) {
+      return JSON.stringify({ 
+        success: true, 
+        message: `Urządzenie ${args.entity_id} zmieniło stan na ${args.action}` 
+      });
     }
   }
 ];
-
-// Silnik wykonawczy wykonujący mockowane operacje
-async function executeTool(name: string, args: any): Promise<string> {
-  console.log(`\x1b[33m[Wykonuję narzędzie]: ${name} z argumentami: ${JSON.stringify(args)}\x1b[0m`);
-  
-  switch (name) {
-    case 'get_device_status': {
-      const typedArgs = args as GetStatusArgs;
-      if (typedArgs.entity_id === 'light.salon') {
-        return JSON.stringify({ status: 'off', brightness: 0 });
-      }
-      return JSON.stringify({ error: `Urządzenie ${typedArgs.entity_id} jest offline.` });
-    }
-    
-    case 'control_device': {
-      const typedArgs = args as ControlDeviceArgs;
-      return JSON.stringify({ 
-        success: true, 
-        message: `Urządzenie ${typedArgs.entity_id} zmieniło stan na ${typedArgs.action}` 
-      });
-    }
-    
-    default:
-      throw new Error(`Nieznane narzędzie: ${name}`);
-  }
-}
 
 // 3. GŁÓWNA PĘTLA AGENTOWA (Agentic Loop)
 async function runAgent(userCommand: string): Promise<string> {
@@ -105,7 +87,7 @@ async function runAgent(userCommand: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: MODEL_NAME,
       messages: messages,
-      tools: toolsDefinition,
+      tools: toolsDefinition as ChatCompletionTool[],
       tool_choice: 'auto',
     });
 
@@ -123,9 +105,13 @@ async function runAgent(userCommand: string): Promise<string> {
         const toolName = toolCall.function.name;
         const toolArgs = JSON.parse(toolCall.function.arguments);
         
+        const tool = toolsDefinition.find(t => t.function.name === toolName);
+        if (!tool) throw new Error(`Nieznane narzędzie: ${toolName}`);
+
         let toolResult: string;
         try {
-          toolResult = await executeTool(toolName, toolArgs);
+          console.log(`\x1b[33m[Wykonuję narzędzie]: ${toolName} z argumentami: ${JSON.stringify(toolArgs)}\x1b[0m`);
+          toolResult = await tool.call(toolArgs);
         } catch (error: any) {
           toolResult = JSON.stringify({ error: error.message });
         }
