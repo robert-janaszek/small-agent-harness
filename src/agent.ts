@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
-import { 
-  ChatCompletionTool, 
+import {
+  ChatCompletionTool,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
   ChatCompletionFunctionTool,
@@ -9,7 +9,7 @@ import {
 // 1. Konfiguracja klienta OpenAI skierowanego na lokalną Ollamę
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',
-  apiKey: 'ollama', 
+  apiKey: 'ollama',
 });
 
 const MODEL_NAME = 'qwen3:7b';
@@ -17,6 +17,20 @@ const MODEL_NAME = 'qwen3:7b';
 // Interfejs dla narzędzia z własną metodą wykonawczą
 interface SmartHomeTool extends ChatCompletionFunctionTool {
   call: (args: any) => Promise<string>;
+}
+
+const knownDevices = [
+  'light.salon.1',
+  'light.salon.2',
+  'light.salon.3',
+  'light.lazienka',
+];
+
+const deviceState: Record<string, string> = {
+  'light.salon.1': 'ON',
+  'light.salon.2': 'ON',
+  'light.salon.3': 'ON',
+  'light.lazienka': 'ON',
 }
 
 // 2. DEFINICJE NARZĘDZI z ciałem wykonawczym w `call`
@@ -35,10 +49,48 @@ const toolsDefinition: SmartHomeTool[] = [
       }
     },
     async call(args: { entity_id: string }) {
-      if (args.entity_id === 'light.salon') {
-        return JSON.stringify({ status: 'off', brightness: 0 });
+      if (!knownDevices.includes(args.entity_id)) {
+        const knownDevicesList = knownDevices.length > 0 ? '* ' + knownDevices.join('\n* ') : '';
+        return JSON.stringify({ error: `Urządzenie ${args.entity_id} nie zostało rozpoznane. Dostępne urządzenia: \n${knownDevicesList}`});
       }
-      return JSON.stringify({ error: `Urządzenie ${args.entity_id} jest offline.` });
+
+      return deviceState[args.entity_id];
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'control_all_devices_in_room',
+      description: 'Włącza lub wyłącza wszystkie urządzenia w pokoju.',
+      parameters: {
+        type: 'object',
+        properties: {
+          room: { type: 'string', description: 'Identyfikator pokoju np. salon' },
+          action: { type: 'string', enum: ['turn_on', 'turn_off'], description: 'Akcja do wykonania' }
+        },
+        required: ['room', 'action']
+      }
+    },
+    async call(args: { entity_id: string; action: 'turn_on' | 'turn_off' }) {
+      return 'pracuję'
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_devices',
+      description: 'Lists all known devices, optionally filtered by state (ON/OFF).',
+      parameters: {
+        type: 'object',
+        properties: {
+          state_filter: { type: 'string', enum: ['ON', 'OFF'], description: 'Optional filter by device state' }
+        },
+      }
+    },
+    async call(args: { state_filter?: 'ON' | 'OFF' }) {
+      const entries = Object.entries(deviceState);
+      const filtered = args.state_filter ? entries.filter(([_, s]) => s === args.state_filter) : entries;
+      return JSON.stringify(filtered.map(([id, state]) => ({ id, state })));
     }
   },
   {
@@ -56,9 +108,19 @@ const toolsDefinition: SmartHomeTool[] = [
       }
     },
     async call(args: { entity_id: string; action: 'turn_on' | 'turn_off' }) {
-      return JSON.stringify({ 
-        success: true, 
-        message: `Urządzenie ${args.entity_id} zmieniło stan na ${args.action}` 
+      const entity = args.entity_id as keyof typeof deviceState;
+      if (entity in deviceState) {
+        deviceState[entity] = args.action === 'turn_on' ? 'ON' : 'OFF';
+      } else {
+        return JSON.stringify({
+          error: true,
+          message: 'To urządzenie nie istnieje',
+        });
+      }
+
+      return JSON.stringify({
+        success: true,
+        message: `Urządzenie ${args.entity_id} zmieniło stan na ${args.action}`
       });
     }
   }
@@ -70,14 +132,20 @@ async function runAgent(userCommand: string): Promise<string> {
 
   // Tablica przechowująca historię z zachowaniem odpowiednich typów OpenAI
   const messages: ChatCompletionMessageParam[] = [
-    { 
-      role: 'system', 
-      content: 'Jesteś autonomicznym zarządcą smart home. Po wykonaniu każdego narzędzia zweryfikuj wynik — jeśli operacja się nie powiodła (np. błąd w odpowiedzi), spróbuj ponownie lub zastosuj alternatywne podejście. Nie kończ dopóki nie potwierdzisz, że zadanie zostało poprawnie wykonane.' 
+    {
+      role: 'system',
+      content: `You are a proactive smart home manager running in a loop.
+Always verify that every command actually succeeded by checking device state after executing an action.
+If something fails, retry or try an alternative approach.
+There is no human-in-the-loop.
+Do not ask it any questions (even for permission).
+Focus on actions, not conversation.
+Do not finish until you have confirmed the task is fully and correctly done.`
     },
     { role: 'user', content: userCommand }
   ];
 
-  const MAX_ITERATIONS = 5;
+  const MAX_ITERATIONS = 15;
   let iteration = 0;
 
   while (iteration < MAX_ITERATIONS) {
@@ -91,19 +159,19 @@ async function runAgent(userCommand: string): Promise<string> {
     });
 
     const responseMessage = response.choices[0].message;
-    
+
     // Dodajemy surową odpowiedź asystenta do historii
     messages.push(responseMessage);
 
     // Jeśli model chce uruchomić toole
     if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-      
+
       for (const toolCall of responseMessage.tool_calls) {
         if (toolCall.type !== 'function') continue;
 
         const toolName = toolCall.function.name;
         const toolArgs = JSON.parse(toolCall.function.arguments);
-        
+
         const tool = toolsDefinition.find(t => t.function.name === toolName);
         if (!tool) throw new Error(`Nieznane narzędzie: ${toolName}`);
 
@@ -122,7 +190,7 @@ async function runAgent(userCommand: string): Promise<string> {
           content: toolResult,
         });
       }
-      
+
       // Kontynuuj pętlę, dając modelowi szansę na przeanalizowanie zwrotki z narzędzi
       continue;
     }
@@ -137,4 +205,4 @@ async function runAgent(userCommand: string): Promise<string> {
 }
 
 // 4. Uruchomienie deweloperskie
-runAgent("wyłącz światło w salonie");
+runAgent("wyłącz wszystkie światła w salonie");
