@@ -1,6 +1,8 @@
 import { ToolFactory } from './types';
 
-export const controlAllDevicesInRoom: ToolFactory = (context) => ({
+type Props = { entity_id: string; action: 'turn_on' | 'turn_off' }
+
+export const controlAllDevicesInRoom: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
     name: 'control_all_devices_in_room',
@@ -14,7 +16,7 @@ export const controlAllDevicesInRoom: ToolFactory = (context) => ({
       required: ['room', 'action']
     }
   },
-  async call(args: { entity_id: string; action: 'turn_on' | 'turn_off' }) {
+  async call(args) {
     return 'working'
   }
 });

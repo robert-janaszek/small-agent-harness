@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx src/agent.ts",
     "build": "tsc",
-    "start": "node dist/agent.js"
+    "start": "tsx src/agent.ts"
   },
   "keywords": [],
   "author": "",

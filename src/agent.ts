@@ -6,6 +6,7 @@ import {
 
 import { createTools } from './tools/registry';
 import { ToolContext } from './tools/types';
+import { hasToolCalls, runTools } from './runTools';
 
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',
@@ -31,8 +32,7 @@ const context: ToolContext = {
 
 const toolsDefinition = createTools(context);
 
-// 3. MAIN AGENTIC LOOP
-async function runAgent(userCommand: string): Promise<string> {
+async function runAgent(userCommand: string): Promise<void> {
   console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
 
   const messages: ChatCompletionMessageParam[] = [
@@ -66,40 +66,17 @@ Do not finish until you have confirmed the task is fully and correctly done.`
 
     messages.push(responseMessage);
 
-    if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-      for (const toolCall of responseMessage.tool_calls) {
-        if (toolCall.type !== 'function') continue;
-
-        const toolName = toolCall.function.name;
-        const toolArgs = JSON.parse(toolCall.function.arguments);
-
-        const tool = toolsDefinition.find(t => t.function.name === toolName);
-        if (!tool) throw new Error(`Unknown tool: ${toolName}`);
-
-        let toolResult: string;
-        try {
-          console.log(`\x1b[33m[Tool call]: ${toolName}(${JSON.stringify(toolArgs)})\x1b[0m`);
-          toolResult = await tool.call(toolArgs);
-        } catch (error: any) {
-          toolResult = JSON.stringify({ error: error.message });
-        }
-
-        messages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: toolResult,
-        });
-      }
+    if (hasToolCalls(responseMessage)) {
+      await runTools(responseMessage, toolsDefinition);
 
       continue;
     }
 
     console.log(`\x1b[32m[Agent]: ${responseMessage.content}\x1b[0m\n`);
-    return responseMessage.content ?? '';
+    return;
   }
 
   console.log('\x1b[31m[Safety]: Max iterations reached\x1b[0m');
-  return 'Sorry, I could not complete the task in the allowed number of steps.';
 }
 
 void runAgent("turn off all lights in the living room");

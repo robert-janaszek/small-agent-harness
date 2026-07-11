@@ -1,7 +1,9 @@
 import { listDevices } from './list-devices';
 import { ToolFactory } from './types';
 
-export const getDeviceStatus: ToolFactory = (context) => ({
+type Props = { entity_id: string }
+
+export const getDeviceStatus: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
     name: 'get_device_status',
@@ -14,10 +16,10 @@ export const getDeviceStatus: ToolFactory = (context) => ({
       required: ['entity_id']
     }
   },
-  async call(args: { entity_id: string }) {
+  async call(args) {
     if (!context.knownDevices.includes(args.entity_id)) {
       const listDevicesTool = listDevices(context);
-      const knownDevices = listDevicesTool.call();
+      const knownDevices = listDevicesTool.call({});
       return `Error: Device ${args.entity_id} not recognized. Available devices:\n${knownDevices}`;
     }
 

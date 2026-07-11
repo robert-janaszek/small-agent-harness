@@ -1,6 +1,8 @@
 import { ToolFactory } from './types';
 
-export const listDevices: ToolFactory = (context) => ({
+type Props = { state_filter?: 'ON' | 'OFF' }
+
+export const listDevices: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
     name: 'list_devices',
@@ -12,7 +14,7 @@ export const listDevices: ToolFactory = (context) => ({
       },
     }
   },
-  async call(args: { state_filter?: 'ON' | 'OFF' }) {
+  async call(args) {
     const entries = Object.entries(context.deviceState);
     const filtered = args.state_filter ? entries.filter(([_, s]) => s === args.state_filter) : entries;
     return filtered.map(([id, state]) => `${id}: ${state}`).join('\n');

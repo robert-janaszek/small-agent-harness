@@ -1,6 +1,8 @@
 import { ToolFactory } from './types';
 
-export const controlDevice: ToolFactory = (context) => ({
+type Props = { entity_id: string; action: 'turn_on' | 'turn_off' }
+
+export const controlDevice: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
     name: 'control_device',
@@ -14,7 +16,7 @@ export const controlDevice: ToolFactory = (context) => ({
       required: ['entity_id', 'action']
     }
   },
-  async call(args: { entity_id: string; action: 'turn_on' | 'turn_off' }) {
+  async call(args) {
     const entity = args.entity_id as keyof typeof context.deviceState;
     if (entity in context.deviceState) {
       context.deviceState[entity] = args.action === 'turn_on' ? 'ON' : 'OFF';
