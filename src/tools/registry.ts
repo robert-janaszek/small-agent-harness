@@ -4,13 +4,13 @@ import { controlAllDevicesInRoom } from './control-all-devices-in-room';
 import { listDevices } from './list-devices';
 import { controlDevice } from './control-device';
 
-const toolFactories: ToolFactory<any>[] = [
+const toolFactories = [
   getDeviceStatus,
   controlAllDevicesInRoom,
   listDevices,
   controlDevice,
 ];
 
-export function createTools(context: ToolContext): SmartHomeTool<any>[] {
+export function createTools(context: ToolContext) {
   return toolFactories.map(factory => factory(context));
 }

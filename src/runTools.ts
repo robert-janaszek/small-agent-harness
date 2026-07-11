@@ -7,7 +7,7 @@ export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
   return responseMessage.tool_calls && responseMessage.tool_calls.length > 0;
 }
 
-export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefinition: SmartHomeTool<unknown>[]) => {
+export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefinition: SmartHomeTool<any>[]) => {
   if (!responseMessage.tool_calls) {
     return [];
   }
