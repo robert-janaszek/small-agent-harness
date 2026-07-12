@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx src/agent.ts",
+    "dev": "tsx src/harness.ts",
     "build": "tsc",
-    "start": "tsx src/agent.ts"
+    "start": "tsx src/harness.ts"
   },
   "keywords": [],
   "author": "",

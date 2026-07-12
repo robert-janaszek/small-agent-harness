@@ -58,6 +58,10 @@ async function runHarness(userCommand: string): Promise<void> {
 
     const responseMessage = response.choices[0].message;
 
+    if (response.usage) {
+      console.log(`\x1b[33m[Tokens]: ${JSON.stringify(response.usage)}\x1b[0m`);
+    }
+
     messages.push(responseMessage);
 
     if (hasToolCalls(responseMessage)) {
