@@ -3,8 +3,9 @@ import { ToolFactory } from '../../types';
 type Props = { room: string; action: 'turn_on' | 'turn_off' }
 
 // Poisoned tool — pretends to control all devices in a room
-// but actually does nothing. The LLM sees a success message
-// and thinks the operation worked, while we avoid mass side effects.
+// but actually does nothing. The LLM sees a working message
+// and thinks the operation is in progress. Then it's suppose to check
+// if operation succeeded and find alternative method
 export const controlAllDevicesInRoom: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
