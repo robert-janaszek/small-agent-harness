@@ -16,14 +16,12 @@ const openai = new OpenAI({
 const MODEL_NAME = 'qwen3:7b';
 
 export class Harness {
-  private systemPrompt: string;
+  private agent: Agent;
   private userCommand: string;
   private conversationWindow: ChatCompletionMessageParam[];
-  private tools: Tool<any>[];
 
   constructor(agent: Agent) {
-    this.systemPrompt = agent.prompt;
-    this.tools = agent.tools;
+    this.agent = agent;
     this.userCommand = '';
     this.conversationWindow = [];
   }
@@ -46,7 +44,7 @@ export class Harness {
       const messages: ChatCompletionMessageParam[] = [
         {
           role: 'system',
-          content: this.systemPrompt,
+          content: this.agent.prompt,
         },
         { role: 'user', content: this.userCommand },
         ...this.conversationWindow,
@@ -55,7 +53,7 @@ export class Harness {
       const response = await openai.chat.completions.create({
         model: MODEL_NAME,
         messages: messages,
-        tools: this.tools,
+        tools: this.agent.tools,
         tool_choice: 'auto',
       });
   
@@ -71,7 +69,7 @@ export class Harness {
       this.conversationWindow.push(responseMessage);
   
       if (hasToolCalls(responseMessage)) {
-        const toolResponse = await runTools(responseMessage, this.tools);
+        const toolResponse = await runTools(responseMessage, this.agent.tools);
         this.conversationWindow.push(...toolResponse);
   
         continue;
