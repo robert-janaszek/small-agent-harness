@@ -4,9 +4,10 @@ import {
   ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
 
-import { createTools } from './tools/registry';
-import { ToolContext } from './tools/types';
 import { hasToolCalls, runTools } from './runTools';
+import { smartHomeAgent } from './modules/smartHome/agent';
+import { toolsDefinition } from './modules/smartHome/context';
+import { Agent } from './modules/agent.type';
 
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',
@@ -15,36 +16,29 @@ const openai = new OpenAI({
 
 const MODEL_NAME = 'qwen3:7b';
 
-const context: ToolContext = {
-  knownDevices: [
-    'light.salon.1',
-    'light.salon.2',
-    'light.salon.3',
-    'light.lazienka',
-  ],
-  deviceState: {
-    'light.salon.1': 'ON',
-    'light.salon.2': 'ON',
-    'light.salon.3': 'ON',
-    'light.lazienka': 'ON',
-  },
-};
+export class Harness {
+  private systemPrompt: string;
+  private userCommand: string;
+  private conversationWindow: string[];
 
-const toolsDefinition = createTools(context);
+  constructor(agent: Agent) {
+    this.systemPrompt = agent.prompt;
+    this.userCommand = '';
+    this.conversationWindow = [];
+  }
 
-async function runAgent(userCommand: string): Promise<void> {
+  public run(userCommand: string) {
+
+  }
+}
+
+async function runHarness(userCommand: string): Promise<void> {
   console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
 
   const messages: ChatCompletionMessageParam[] = [
     {
       role: 'system',
-      content: `You are a proactive smart home manager running in a loop.
-Always verify that every command actually succeeded by checking device state after executing an action.
-If something fails, retry or try an alternative approach.
-There is no human-in-the-loop.
-Do not ask it any questions (even for permission).
-Focus on actions, not conversation.
-Do not finish until you have confirmed the task is fully and correctly done.`
+      content: smartHomeAgent.prompt
     },
     { role: 'user', content: userCommand }
   ];
@@ -79,4 +73,4 @@ Do not finish until you have confirmed the task is fully and correctly done.`
   console.log('\x1b[31m[Safety]: Max iterations reached\x1b[0m');
 }
 
-void runAgent("turn off all lights in the living room");
+void runHarness("turn off all lights in the living room");

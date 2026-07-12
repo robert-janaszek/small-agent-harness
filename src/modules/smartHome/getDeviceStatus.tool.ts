@@ -1,5 +1,5 @@
-import { listDevices } from './list-devices';
-import { ToolFactory } from './types';
+import { listDevices } from './listDevices.tool';
+import { ToolFactory } from '../types';
 
 type Props = { entity_id: string }
 

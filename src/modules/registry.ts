@@ -1,8 +1,8 @@
 import { ToolContext, Tool, ToolFactory } from './types';
-import { getDeviceStatus } from './get-device-status';
-import { controlAllDevicesInRoom } from './control-all-devices-in-room';
-import { listDevices } from './list-devices';
-import { controlDevice } from './control-device';
+import { getDeviceStatus } from './smartHome/getDeviceStatus.tool';
+import { controlAllDevicesInRoom } from './smartHome/controAllDevicesInRoom.tool';
+import { listDevices } from './smartHome/listDevices.tool';
+import { controlDevice } from './smartHome/controlDevice.tool';
 
 const toolFactories = [
   getDeviceStatus,

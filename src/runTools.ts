@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { Tool } from "./tools/types";
+import { Tool } from "./modules/types";
 
 type ChatCompletionMessage = OpenAI.Chat.Completions.ChatCompletionMessage;
 
