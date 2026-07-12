@@ -27,54 +27,56 @@ export class Harness {
     this.conversationWindow = [];
   }
 
-  public run(userCommand: string) {
+  public async run(userCommand: string) {
+    console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
 
+    const messages: ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: this.systemPrompt,
+      },
+      { role: 'user', content: userCommand }
+    ];
+  
+    const MAX_ITERATIONS = 15;
+    let iteration = 0;
+  
+    while (iteration < MAX_ITERATIONS) {
+      iteration++;
+  
+      const response = await openai.chat.completions.create({
+        model: MODEL_NAME,
+        messages: messages,
+        tools: toolsDefinition as ChatCompletionTool[],
+        tool_choice: 'auto',
+      });
+  
+      const responseMessage = response.choices[0].message;
+  
+      if (response.usage) {
+        console.log(`\x1b[33m[Tokens]: ${JSON.stringify(response.usage)}\x1b[0m`);
+      }
+  
+      messages.push(responseMessage);
+  
+      if (hasToolCalls(responseMessage)) {
+        const toolResponse = await runTools(responseMessage, toolsDefinition);
+        messages.push(...toolResponse);
+  
+        continue;
+      }
+  
+      console.log(`\x1b[32m[Agent]: ${responseMessage.content}\x1b[0m\n`);
+      return;
+    }
+  
+    console.log('\x1b[31m[Safety]: Max iterations reached\x1b[0m');
   }
 }
 
 async function runHarness(userCommand: string): Promise<void> {
-  console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: 'system',
-      content: smartHomeAgent.prompt
-    },
-    { role: 'user', content: userCommand }
-  ];
-
-  const MAX_ITERATIONS = 15;
-  let iteration = 0;
-
-  while (iteration < MAX_ITERATIONS) {
-    iteration++;
-
-    const response = await openai.chat.completions.create({
-      model: MODEL_NAME,
-      messages: messages,
-      tools: toolsDefinition as ChatCompletionTool[],
-      tool_choice: 'auto',
-    });
-
-    const responseMessage = response.choices[0].message;
-
-    if (response.usage) {
-      console.log(`\x1b[33m[Tokens]: ${JSON.stringify(response.usage)}\x1b[0m`);
-    }
-
-    messages.push(responseMessage);
-
-    if (hasToolCalls(responseMessage)) {
-      await runTools(responseMessage, toolsDefinition);
-
-      continue;
-    }
-
-    console.log(`\x1b[32m[Agent]: ${responseMessage.content}\x1b[0m\n`);
-    return;
-  }
-
-  console.log('\x1b[31m[Safety]: Max iterations reached\x1b[0m');
+  const harness = new Harness(smartHomeAgent);
+  return harness.run(userCommand);
 }
 
 void runHarness("turn off all lights in the living room");

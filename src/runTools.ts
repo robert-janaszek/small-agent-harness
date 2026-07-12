@@ -7,7 +7,7 @@ export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
   return responseMessage.tool_calls && responseMessage.tool_calls.length > 0;
 }
 
-export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefinition: Tool<any>[]) => {
+export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefinition: Tool<any>[]): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> => {
   if (!responseMessage.tool_calls) {
     return [];
   }
@@ -22,7 +22,11 @@ export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefi
 
     const tool = toolsDefinition.find(t => t.function.name === toolName);
     if (!tool) {
-      toolMessages.push(`Unknown tool: ${toolName}, called with arguments ${toolCall.function.arguments}. Use correct tool name`);
+      toolMessages.push({
+        role: 'tool' as const,
+        tool_call_id: toolCall.id,
+        content: `Unknown tool: ${toolName}, called with arguments ${toolCall.function.arguments}. Use correct tool name`
+      });
       continue;
     }
 
@@ -35,7 +39,7 @@ export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefi
     }
 
     toolMessages.push({
-      role: 'tool',
+      role: 'tool' as const,
       tool_call_id: toolCall.id,
       content: toolResult,
     });
