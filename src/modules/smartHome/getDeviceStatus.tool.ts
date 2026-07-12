@@ -1,7 +1,8 @@
 import { listDevices } from './listDevices.tool';
 import { ToolFactory } from '../../types';
+import { formatDeviceLabel, getDeviceState } from './devices';
 
-type Props = { entityId: string }
+type Props = { controlGroup: string; room: string; deviceId: string };
 
 export const getDeviceStatus: ToolFactory<Props> = (context) => ({
   type: 'function',
@@ -11,18 +12,21 @@ export const getDeviceStatus: ToolFactory<Props> = (context) => ({
     parameters: {
       type: 'object',
       properties: {
-        entityId: { type: 'string', description: 'Entity identifier, e.g. light.salon, switch.pompa' }
+        controlGroup: { type: 'string', description: 'Control group, e.g. light, switch' },
+        room: { type: 'string', description: 'Room identifier, e.g. livingRoom' },
+        deviceId: { type: 'string', description: 'Device identifier within the room, e.g. 1' },
       },
-      required: ['entityId']
-    }
+      required: ['controlGroup', 'room', 'deviceId'],
+    },
   },
   async call(args) {
-    if (!Object.keys(context.deviceState).includes(args.entityId)) {
+    const state = getDeviceState(context, args);
+    if (state === undefined) {
       const listDevicesTool = listDevices(context);
       const knownDevices = await listDevicesTool.call({});
-      return `Error: Device ${args.entityId} not recognized. Available devices:\n${knownDevices}`;
+      return `Error: Device ${formatDeviceLabel(args)} not recognized. Available devices:\n${knownDevices}`;
     }
 
-    return context.deviceState[args.entityId];
-  }
+    return state;
+  },
 });

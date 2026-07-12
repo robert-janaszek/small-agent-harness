@@ -1,6 +1,7 @@
 import { ToolFactory } from '../../types';
+import { formatDeviceLabel, listDeviceEntries } from './devices';
 
-type Props = { stateFilter?: 'ON' | 'OFF' }
+type Props = { stateFilter?: 'ON' | 'OFF' };
 
 export const listDevices: ToolFactory<Props> = (context) => ({
   type: 'function',
@@ -10,13 +11,13 @@ export const listDevices: ToolFactory<Props> = (context) => ({
     parameters: {
       type: 'object',
       properties: {
-        stateFilter: { type: 'string', enum: ['ON', 'OFF'], description: 'Optional filter by device state' }
+        stateFilter: { type: 'string', enum: ['ON', 'OFF'], description: 'Optional filter by device state' },
       },
-    }
+    },
   },
   async call(args) {
-    const entries = Object.entries(context.deviceState);
-    const filtered = args.stateFilter ? entries.filter(([_, s]) => s === args.stateFilter) : entries;
-    return filtered.map(([id, state]) => `${id}: ${state}`).join('\n');
-  }
+    return listDeviceEntries(context, args.stateFilter)
+      .map((entry) => `${formatDeviceLabel(entry)}: ${entry.state}`)
+      .join('\n');
+  },
 });

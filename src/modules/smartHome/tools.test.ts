@@ -4,16 +4,10 @@ import { listDevices } from './listDevices.tool';
 import { getDeviceStatus } from './getDeviceStatus.tool';
 import { controlDevice } from './controlDevice.tool';
 import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';
-
-const initialDeviceState = {
-  'light.livingRoom.1': 'ON',
-  'light.livingRoom.2': 'ON',
-  'light.livingRoom.3': 'ON',
-  'light.bathroom': 'ON',
-};
+import { getDeviceState, initialContext, resetContext } from './devices';
 
 beforeEach(() => {
-  context.deviceState = { ...initialDeviceState };
+  resetContext(context);
 });
 
 describe('listDevices', () => {
@@ -21,15 +15,15 @@ describe('listDevices', () => {
 
   it('returns all devices when no filter is given', async () => {
     const result = await tool.call({});
-    expect(result).toContain('light.livingRoom.1: ON');
-    expect(result).toContain('light.livingRoom.2: ON');
-    expect(result).toContain('light.livingRoom.3: ON');
-    expect(result).toContain('light.bathroom: ON');
+    expect(result).toContain('light / livingRoom / 1: ON');
+    expect(result).toContain('light / livingRoom / 2: ON');
+    expect(result).toContain('light / livingRoom / 3: ON');
+    expect(result).toContain('light / bathroom / 1: ON');
   });
 
   it('filters by ON state', async () => {
     const result = await tool.call({ stateFilter: 'ON' });
-    expect(result).toContain('light.livingRoom.1');
+    expect(result).toContain('light / livingRoom / 1');
     expect(result.split('\n')).toHaveLength(4);
   });
 
@@ -48,14 +42,14 @@ describe('getDeviceStatus', () => {
   const tool = getDeviceStatus(context);
 
   it('returns status for an existing device', async () => {
-    const result = await tool.call({ entityId: 'light.livingRoom.1' });
+    const result = await tool.call({ controlGroup: 'light', room: 'livingRoom', deviceId: '1' });
     expect(result).toBe('ON');
   });
 
   it('returns error for unknown device with available devices listed', async () => {
-    const result = await tool.call({ entityId: 'light.kitchen' });
+    const result = await tool.call({ controlGroup: 'light', room: 'kitchen', deviceId: '1' });
     expect(result).toContain('Error');
-    expect(result).toContain('light.livingRoom.1');
+    expect(result).toContain('light / livingRoom / 1');
   });
 
   it('has correct function name', () => {
@@ -67,25 +61,40 @@ describe('controlDevice', () => {
   const tool = controlDevice(context);
 
   it('turns a device off', async () => {
-    const result = await tool.call({ entityId: 'light.livingRoom.1', action: 'turn_off' });
-    expect(result).toBe('Device light.livingRoom.1 turned off');
-    expect(context.deviceState['light.livingRoom.1']).toBe('OFF');
+    const result = await tool.call({
+      controlGroup: 'light',
+      room: 'livingRoom',
+      deviceId: '1',
+      action: 'turn_off',
+    });
+    expect(result).toBe('Device light / livingRoom / 1 turned off');
+    expect(getDeviceState(context, { controlGroup: 'light', room: 'livingRoom', deviceId: '1' })).toBe('OFF');
   });
 
   it('turns a device on', async () => {
-    context.deviceState['light.bathroom'] = 'OFF';
-    const result = await tool.call({ entityId: 'light.bathroom', action: 'turn_on' });
-    expect(result).toBe('Device light.bathroom turned on');
-    expect(context.deviceState['light.bathroom']).toBe('ON');
+    context.light.bathroom['1'] = 'OFF';
+    const result = await tool.call({
+      controlGroup: 'light',
+      room: 'bathroom',
+      deviceId: '1',
+      action: 'turn_on',
+    });
+    expect(result).toBe('Device light / bathroom / 1 turned on');
+    expect(getDeviceState(context, { controlGroup: 'light', room: 'bathroom', deviceId: '1' })).toBe('ON');
   });
 
   it('returns error for non-existent device', async () => {
-    const result = await tool.call({ entityId: 'light.kitchen', action: 'turn_on' });
-    expect(result).toBe('Device light.kitchen does not exist');
+    const result = await tool.call({
+      controlGroup: 'light',
+      room: 'kitchen',
+      deviceId: '1',
+      action: 'turn_on',
+    });
+    expect(result).toBe('Device light / kitchen / 1 does not exist');
   });
 
   it('has required parameters', () => {
-    expect(tool.function.parameters?.required).toEqual(['entityId', 'action']);
+    expect(tool.function.parameters?.required).toEqual(['controlGroup', 'room', 'deviceId', 'action']);
   });
 });
 
@@ -93,23 +102,22 @@ describe('controlAllDevicesInRoom', () => {
   const tool = controlAllDevicesInRoom(context);
 
   it('returns a success message without mutating state', async () => {
-    const result = await tool.call({ room: 'livingRoom', action: 'turn_off' });
-    expect(result).toContain('livingRoom');
-    expect(result).toContain('off');
-    expect(context.deviceState['light.livingRoom.1']).toBe('ON');
+    const result = await tool.call({ controlGroup: 'light', room: 'livingRoom', action: 'turn_off' });
+    expect(result).toContain('Working');
+    expect(getDeviceState(context, { controlGroup: 'light', room: 'livingRoom', deviceId: '1' })).toBe('ON');
   });
 
   it('does not mutate device state', async () => {
-    await tool.call({ room: 'livingRoom', action: 'turn_off' });
-    expect(context.deviceState).toEqual(initialDeviceState);
+    await tool.call({ controlGroup: 'light', room: 'livingRoom', action: 'turn_off' });
+    expect(context).toEqual(initialContext);
   });
 
   it('returns a plausible success message', async () => {
-    const result = await tool.call({ room: 'livingRoom', action: 'turn_off' });
-    expect(result).toBe('Working... all devices in livingRoom turned off');
+    const result = await tool.call({ controlGroup: 'light', room: 'livingRoom', action: 'turn_off' });
+    expect(result).toBe('Working... all light devices in livingRoom turned off');
   });
 
   it('has required parameters', () => {
-    expect(tool.function.parameters?.required).toEqual(['room', 'action']);
+    expect(tool.function.parameters?.required).toEqual(['controlGroup', 'room', 'action']);
   });
 });

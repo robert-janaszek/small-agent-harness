@@ -1,6 +1,12 @@
 import { ToolFactory } from '../../types';
+import { formatDeviceLabel, setDeviceState } from './devices';
 
-type Props = { entityId: string; action: 'turn_on' | 'turn_off' }
+type Props = {
+  controlGroup: string;
+  room: string;
+  deviceId: string;
+  action: 'turn_on' | 'turn_off';
+};
 
 export const controlDevice: ToolFactory<Props> = (context) => ({
   type: 'function',
@@ -10,20 +16,20 @@ export const controlDevice: ToolFactory<Props> = (context) => ({
     parameters: {
       type: 'object',
       properties: {
-        entityId: { type: 'string', description: 'Entity identifier, e.g. light.salon' },
-        action: { type: 'string', enum: ['turn_on', 'turn_off'], description: 'Action to perform' }
+        controlGroup: { type: 'string', description: 'Control group, e.g. light, switch' },
+        room: { type: 'string', description: 'Room identifier, e.g. livingRoom' },
+        deviceId: { type: 'string', description: 'Device identifier within the room, e.g. 1' },
+        action: { type: 'string', enum: ['turn_on', 'turn_off'], description: 'Action to perform' },
       },
-      required: ['entityId', 'action']
-    }
+      required: ['controlGroup', 'room', 'deviceId', 'action'],
+    },
   },
   async call(args) {
-    const entity = args.entityId as keyof typeof context.deviceState;
-    if (entity in context.deviceState) {
-      context.deviceState[entity] = args.action === 'turn_on' ? 'ON' : 'OFF';
-    } else {
-      return `Device ${args.entityId} does not exist`;
+    const nextState = args.action === 'turn_on' ? 'ON' : 'OFF';
+    if (!setDeviceState(context, args, nextState)) {
+      return `Device ${formatDeviceLabel(args)} does not exist`;
     }
 
-    return `Device ${args.entityId} turned ${args.action === 'turn_on' ? 'on' : 'off'}`;
-  }
+    return `Device ${formatDeviceLabel(args)} turned ${args.action === 'turn_on' ? 'on' : 'off'}`;
+  },
 });

@@ -3,19 +3,13 @@ import OpenAI from 'openai';
 import { runTools } from '../../runTools';
 import { smartHomeAgent } from './agent';
 import { context } from './context';
+import { DeviceRef, getDeviceState, initialContext, resetContext } from './devices';
 
-const initialDeviceState = {
-  'light.livingRoom.1': 'ON',
-  'light.livingRoom.2': 'ON',
-  'light.livingRoom.3': 'ON',
-  'light.bathroom': 'ON',
-};
-
-const livingRoomLights = [
-  'light.livingRoom.1',
-  'light.livingRoom.2',
-  'light.livingRoom.3',
-] as const;
+const livingRoomLights: DeviceRef[] = [
+  { controlGroup: 'light', room: 'livingRoom', deviceId: '1' },
+  { controlGroup: 'light', room: 'livingRoom', deviceId: '2' },
+  { controlGroup: 'light', room: 'livingRoom', deviceId: '3' },
+];
 
 function makeToolCallMessage(
   toolName: string,
@@ -40,13 +34,14 @@ function makeToolCallMessage(
 }
 
 beforeEach(() => {
-  context.deviceState = { ...initialDeviceState };
+  resetContext(context);
 });
 
 describe('smart home integration', () => {
   it('ignores poisoned controlAllDevicesInRoom and turns off living room lights individually', async () => {
     const poisonedToolResponse = await runTools(
       makeToolCallMessage('controlAllDevicesInRoom', {
+        controlGroup: 'light',
         room: 'livingRoom',
         action: 'turn_off',
       }),
@@ -55,25 +50,29 @@ describe('smart home integration', () => {
 
     expect(poisonedToolResponse).toHaveLength(1);
     expect(poisonedToolResponse[0].content).toContain('livingRoom');
-    expect(context.deviceState).toEqual(initialDeviceState);
+    expect(context).toEqual(initialContext);
 
-    for (const entityId of livingRoomLights) {
+    for (const device of livingRoomLights) {
       const toolResponse = await runTools(
         makeToolCallMessage('controlDevice', {
-          entityId,
+          controlGroup: device.controlGroup,
+          room: device.room,
+          deviceId: device.deviceId,
           action: 'turn_off',
         }),
         smartHomeAgent.tools,
       );
 
       expect(toolResponse).toHaveLength(1);
-      expect(toolResponse[0].content).toBe(`Device ${entityId} turned off`);
+      expect(toolResponse[0].content).toBe(
+        `Device ${device.controlGroup} / ${device.room} / ${device.deviceId} turned off`,
+      );
     }
 
-    for (const entityId of livingRoomLights) {
-      expect(context.deviceState[entityId]).toBe('OFF');
+    for (const device of livingRoomLights) {
+      expect(getDeviceState(context, device)).toBe('OFF');
     }
 
-    expect(context.deviceState['light.bathroom']).toBe('ON');
+    expect(getDeviceState(context, { controlGroup: 'light', room: 'bathroom', deviceId: '1' })).toBe('ON');
   });
 });
