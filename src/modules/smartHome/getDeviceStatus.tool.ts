@@ -11,9 +11,9 @@ export const getDeviceStatus: ToolFactory<Props> = (context) => ({
     parameters: {
       type: 'object',
       properties: {
-        entity_id: { type: 'string', description: 'Entity identifier, e.g. light.salon, switch.pompa' }
+        entityId: { type: 'string', description: 'Entity identifier, e.g. light.salon, switch.pompa' }
       },
-      required: ['entity_id']
+      required: ['entityId']
     }
   },
   async call(args) {

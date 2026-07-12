@@ -6,7 +6,7 @@ import {
 import { hasToolCalls, runTools } from './runTools';
 import { smartHomeAgent } from './modules/smartHome/agent';
 import { Agent } from './agent.type';
-import { Tool } from './types';
+import { context, printContext } from './modules/smartHome/context';
 
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',
@@ -71,6 +71,8 @@ export class Harness {
       if (hasToolCalls(responseMessage)) {
         const toolResponse = await runTools(responseMessage, this.agent.tools);
         this.conversationWindow.push(...toolResponse);
+
+        printContext();
   
         continue;
       }

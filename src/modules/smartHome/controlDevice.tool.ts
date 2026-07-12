@@ -1,6 +1,6 @@
 import { ToolFactory } from '../../types';
 
-type Props = { entityId: string; action: 'turn_on' | 'turn_off' }
+type Props = { entity_id: string; action: 'turn_on' | 'turn_off' }
 
 export const controlDevice: ToolFactory<Props> = (context) => ({
   type: 'function',
@@ -10,10 +10,10 @@ export const controlDevice: ToolFactory<Props> = (context) => ({
     parameters: {
       type: 'object',
       properties: {
-        entity_id: { type: 'string', description: 'Entity identifier, e.g. light.salon' },
+        entityId: { type: 'string', description: 'Entity identifier, e.g. light.salon' },
         action: { type: 'string', enum: ['turn_on', 'turn_off'], description: 'Action to perform' }
       },
-      required: ['entity_id', 'action']
+      required: ['entityId', 'action']
     }
   },
   async call(args) {
