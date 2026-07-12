@@ -1,6 +1,6 @@
 import { ToolFactory } from '../../types';
 
-type Props = { entity_id: string; action: 'turn_on' | 'turn_off' }
+type Props = { entityId: string; action: 'turn_on' | 'turn_off' }
 
 export const controlDevice: ToolFactory<Props> = (context) => ({
   type: 'function',
@@ -17,13 +17,13 @@ export const controlDevice: ToolFactory<Props> = (context) => ({
     }
   },
   async call(args) {
-    const entity = args.entity_id as keyof typeof context.deviceState;
+    const entity = args.entityId as keyof typeof context.deviceState;
     if (entity in context.deviceState) {
       context.deviceState[entity] = args.action === 'turn_on' ? 'ON' : 'OFF';
     } else {
-      return `Device ${args.entity_id} does not exist`;
+      return `Device ${args.entityId} does not exist`;
     }
 
-    return `Device ${args.entity_id} turned ${args.action === 'turn_on' ? 'on' : 'off'}`;
+    return `Device ${args.entityId} turned ${args.action === 'turn_on' ? 'on' : 'off'}`;
   }
 });

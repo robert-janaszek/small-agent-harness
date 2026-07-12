@@ -1,7 +1,7 @@
 import { listDevices } from './listDevices.tool';
 import { ToolFactory } from '../../types';
 
-type Props = { entity_id: string }
+type Props = { entityId: string }
 
 export const getDeviceStatus: ToolFactory<Props> = (context) => ({
   type: 'function',
@@ -17,12 +17,12 @@ export const getDeviceStatus: ToolFactory<Props> = (context) => ({
     }
   },
   async call(args) {
-    if (!Object.keys(context.deviceState).includes(args.entity_id)) {
+    if (!Object.keys(context.deviceState).includes(args.entityId)) {
       const listDevicesTool = listDevices(context);
       const knownDevices = await listDevicesTool.call({});
-      return `Error: Device ${args.entity_id} not recognized. Available devices:\n${knownDevices}`;
+      return `Error: Device ${args.entityId} not recognized. Available devices:\n${knownDevices}`;
     }
 
-    return context.deviceState[args.entity_id];
+    return context.deviceState[args.entityId];
   }
 });

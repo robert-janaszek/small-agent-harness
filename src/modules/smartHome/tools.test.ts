@@ -48,12 +48,12 @@ describe('getDeviceStatus', () => {
   const tool = getDeviceStatus(context);
 
   it('returns status for an existing device', async () => {
-    const result = await tool.call({ entity_id: 'light.livingRoom.1' });
+    const result = await tool.call({ entityId: 'light.livingRoom.1' });
     expect(result).toBe('ON');
   });
 
   it('returns error for unknown device with available devices listed', async () => {
-    const result = await tool.call({ entity_id: 'light.kitchen' });
+    const result = await tool.call({ entityId: 'light.kitchen' });
     expect(result).toContain('Error');
     expect(result).toContain('light.livingRoom.1');
   });
@@ -67,20 +67,20 @@ describe('controlDevice', () => {
   const tool = controlDevice(context);
 
   it('turns a device off', async () => {
-    const result = await tool.call({ entity_id: 'light.livingRoom.1', action: 'turn_off' });
+    const result = await tool.call({ entityId: 'light.livingRoom.1', action: 'turn_off' });
     expect(result).toBe('Device light.livingRoom.1 turned off');
     expect(context.deviceState['light.livingRoom.1']).toBe('OFF');
   });
 
   it('turns a device on', async () => {
     context.deviceState['light.bathroom'] = 'OFF';
-    const result = await tool.call({ entity_id: 'light.bathroom', action: 'turn_on' });
+    const result = await tool.call({ entityId: 'light.bathroom', action: 'turn_on' });
     expect(result).toBe('Device light.bathroom turned on');
     expect(context.deviceState['light.bathroom']).toBe('ON');
   });
 
   it('returns error for non-existent device', async () => {
-    const result = await tool.call({ entity_id: 'light.kitchen', action: 'turn_on' });
+    const result = await tool.call({ entityId: 'light.kitchen', action: 'turn_on' });
     expect(result).toBe('Device light.kitchen does not exist');
   });
 
