@@ -28,6 +28,7 @@ export class Harness {
   }
 
   public async run(userCommand: string) {
+    this.userCommand = userCommand;
     console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
 
     const messages: ChatCompletionMessageParam[] = [
@@ -35,10 +36,15 @@ export class Harness {
         role: 'system',
         content: this.systemPrompt,
       },
-      { role: 'user', content: userCommand }
+      { role: 'user', content: this.userCommand }
     ];
   
     const MAX_ITERATIONS = 15;
+    const tokenUsage = {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+    }
     let iteration = 0;
   
     while (iteration < MAX_ITERATIONS) {
@@ -54,7 +60,10 @@ export class Harness {
       const responseMessage = response.choices[0].message;
   
       if (response.usage) {
-        console.log(`\x1b[33m[Tokens]: ${JSON.stringify(response.usage)}\x1b[0m`);
+        tokenUsage.prompt_tokens += response.usage.prompt_tokens;
+        tokenUsage.completion_tokens += response.usage.completion_tokens;
+        tokenUsage.total_tokens += response.usage.total_tokens;
+        console.log(`\x1b[33m[Tokens]: ${JSON.stringify(tokenUsage)}\x1b[0m`);
       }
   
       messages.push(responseMessage);
