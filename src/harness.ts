@@ -6,8 +6,8 @@ import {
 
 import { hasToolCalls, runTools } from './runTools';
 import { smartHomeAgent } from './modules/smartHome/agent';
-import { toolsDefinition } from './modules/smartHome/context';
 import { Agent } from './modules/agent.type';
+import { Tool } from './modules/types';
 
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',
@@ -20,9 +20,11 @@ export class Harness {
   private systemPrompt: string;
   private userCommand: string;
   private conversationWindow: ChatCompletionMessageParam[];
+  private tools: Tool<any>[];
 
   constructor(agent: Agent) {
     this.systemPrompt = agent.prompt;
+    this.tools = agent.tools;
     this.userCommand = '';
     this.conversationWindow = [];
   }
@@ -54,7 +56,7 @@ export class Harness {
       const response = await openai.chat.completions.create({
         model: MODEL_NAME,
         messages: messages,
-        tools: toolsDefinition as ChatCompletionTool[],
+        tools: this.tools,
         tool_choice: 'auto',
       });
   
@@ -70,7 +72,7 @@ export class Harness {
       this.conversationWindow.push(responseMessage);
   
       if (hasToolCalls(responseMessage)) {
-        const toolResponse = await runTools(responseMessage, toolsDefinition);
+        const toolResponse = await runTools(responseMessage, this.tools);
         this.conversationWindow.push(...toolResponse);
   
         continue;

@@ -1,4 +1,3 @@
-import { createTools } from "../registry";
 import { ToolContext } from "../types";
 
 export const context: ToolContext = {
@@ -9,5 +8,3 @@ export const context: ToolContext = {
     'light.bathroom': 'ON',
   },
 };
-
-export const toolsDefinition = createTools(context);
