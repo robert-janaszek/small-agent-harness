@@ -1,4 +1,4 @@
-import { ToolContext } from "../types";
+import { ToolContext } from "../../types";
 
 export const context: ToolContext = {
   deviceState: {

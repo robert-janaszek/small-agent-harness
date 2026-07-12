@@ -6,8 +6,8 @@ import {
 
 import { hasToolCalls, runTools } from './runTools';
 import { smartHomeAgent } from './modules/smartHome/agent';
-import { Agent } from './modules/agent.type';
-import { Tool } from './modules/types';
+import { Agent } from './agent.type';
+import { Tool } from './types';
 
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',

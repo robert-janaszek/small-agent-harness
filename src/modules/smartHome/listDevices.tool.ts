@@ -1,4 +1,4 @@
-import { ToolFactory } from '../types';
+import { ToolFactory } from '../../types';
 
 type Props = { stateFilter?: 'ON' | 'OFF' }
 

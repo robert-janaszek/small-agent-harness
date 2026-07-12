@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { Tool } from "./modules/types";
+import { Tool } from "./types";
 
 type ChatCompletionMessage = OpenAI.Chat.Completions.ChatCompletionMessage;
 
@@ -12,7 +12,7 @@ export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefi
     return [];
   }
 
-  const toolMessages = []
+  const toolMessages = [];
 
   for (const toolCall of responseMessage.tool_calls) {
     if (toolCall.type !== 'function') continue;

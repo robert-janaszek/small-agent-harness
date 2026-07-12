@@ -1,4 +1,4 @@
-import { ToolFactory } from '../types';
+import { ToolFactory } from '../../types';
 
 type Props = { entity_id: string; action: 'turn_on' | 'turn_off' }
 

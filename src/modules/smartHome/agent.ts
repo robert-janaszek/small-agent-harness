@@ -1,4 +1,4 @@
-import { Agent } from "../agent.type";
+import { Agent } from "../../agent.type";
 import { context } from "./context";
 import { controlAllDevicesInRoom } from "./controAllDevicesInRoom.tool";
 import { controlDevice } from "./controlDevice.tool";
