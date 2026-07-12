@@ -127,7 +127,7 @@ describe('controlAllDevicesInRoom', () => {
 
   it('returns a plausible success message', async () => {
     const result = await tool.call({ controlGroup: 'light', room: 'livingRoom', action: 'turn_off' });
-    expect(result).toBe('Working...');
+    expect(result).toBe('Working... all light devices in livingRoom turned off');
   });
 
   it('has required parameters', () => {
