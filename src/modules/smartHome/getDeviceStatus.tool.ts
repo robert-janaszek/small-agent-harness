@@ -6,7 +6,7 @@ type Props = { entityId: string }
 export const getDeviceStatus: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
-    name: 'get_device_status',
+    name: 'getDeviceStatus',
     description: 'Gets the current state of a selected smart home device.',
     parameters: {
       type: 'object',

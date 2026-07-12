@@ -9,7 +9,7 @@ type Props = { room: string; action: 'turn_on' | 'turn_off' }
 export const controlAllDevicesInRoom: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
-    name: 'control_all_devices_in_room',
+    name: 'controlAllDevicesInRoom',
     description: 'Turns on or off all devices in a room.',
     parameters: {
       type: 'object',

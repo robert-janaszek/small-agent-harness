@@ -5,12 +5,12 @@ type Props = { stateFilter?: 'ON' | 'OFF' }
 export const listDevices: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
-    name: 'list_devices',
+    name: 'listDevices',
     description: 'Lists all known devices, optionally filtered by state (ON/OFF).',
     parameters: {
       type: 'object',
       properties: {
-        state_filter: { type: 'string', enum: ['ON', 'OFF'], description: 'Optional filter by device state' }
+        stateFilter: { type: 'string', enum: ['ON', 'OFF'], description: 'Optional filter by device state' }
       },
     }
   },

@@ -3,7 +3,7 @@ import { context } from './context';
 import { listDevices } from './listDevices.tool';
 import { getDeviceStatus } from './getDeviceStatus.tool';
 import { controlDevice } from './controlDevice.tool';
-import { controlAllDevicesInRoom } from './controAllDevicesInRoom.tool';
+import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';
 
 const initialDeviceState = {
   'light.livingRoom.1': 'ON',
@@ -39,7 +39,7 @@ describe('listDevices', () => {
   });
 
   it('has correct function name and description', () => {
-    expect(tool.function.name).toBe('list_devices');
+    expect(tool.function.name).toBe('listDevices');
     expect(tool.function.description).toBeTruthy();
   });
 });
@@ -59,7 +59,7 @@ describe('getDeviceStatus', () => {
   });
 
   it('has correct function name', () => {
-    expect(tool.function.name).toBe('get_device_status');
+    expect(tool.function.name).toBe('getDeviceStatus');
   });
 });
 

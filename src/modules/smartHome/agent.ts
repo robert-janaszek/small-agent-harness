@@ -1,6 +1,6 @@
 import { Agent } from "../../agent.type";
 import { context } from "./context";
-import { controlAllDevicesInRoom } from "./controAllDevicesInRoom.tool";
+import { controlAllDevicesInRoom } from "./controlAllDevicesInRoom.tool";
 import { controlDevice } from "./controlDevice.tool";
 import { getDeviceStatus } from "./getDeviceStatus.tool";
 import { listDevices } from "./listDevices.tool";

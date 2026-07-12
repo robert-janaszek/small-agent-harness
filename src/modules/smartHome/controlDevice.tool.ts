@@ -1,11 +1,11 @@
 import { ToolFactory } from '../../types';
 
-type Props = { entity_id: string; action: 'turn_on' | 'turn_off' }
+type Props = { entityId: string; action: 'turn_on' | 'turn_off' }
 
 export const controlDevice: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
-    name: 'control_device',
+    name: 'controlDevice',
     description: 'Turns on or off a device (e.g. light, switch).',
     parameters: {
       type: 'object',
