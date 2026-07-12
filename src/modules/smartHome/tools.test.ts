@@ -85,7 +85,7 @@ describe('controlDevice', () => {
   });
 
   it('has required parameters', () => {
-    expect(tool.function.parameters.required).toEqual(['entity_id', 'action']);
+    expect(tool.function.parameters?.required).toEqual(['entity_id', 'action']);
   });
 });
 
@@ -110,6 +110,6 @@ describe('controlAllDevicesInRoom', () => {
   });
 
   it('has required parameters', () => {
-    expect(tool.function.parameters.required).toEqual(['room', 'action']);
+    expect(tool.function.parameters?.required).toEqual(['room', 'action']);
   });
 });

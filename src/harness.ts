@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import {
-  ChatCompletionTool,
   ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
 
@@ -11,7 +10,7 @@ import { Tool } from './types';
 
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',
-  apiKey: 'ollama',
+  apiKey: 'lmstudio',
 });
 
 const MODEL_NAME = 'qwen3:7b';
@@ -86,9 +85,9 @@ export class Harness {
   }
 }
 
-async function runHarness(userCommand: string): Promise<void> {
+async function runHarness(): Promise<void> {
   const harness = new Harness(smartHomeAgent);
-  return harness.run(userCommand);
+  return harness.run('turn off all lights in the living room');
 }
 
-void runHarness("turn off all lights in the living room");
+void runHarness();
