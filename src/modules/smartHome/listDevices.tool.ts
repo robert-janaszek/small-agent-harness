@@ -12,7 +12,7 @@ export const listDevices: ToolFactory<Props> = (context) => ({
   function: {
     name: 'listDevices',
     description:
-      'Lists known devices. A room can contain multiple devices (e.g. livingRoom may have deviceIds 1, 2, 3). Use controlGroup and room to list devices in a specific scope before and after bulk actions.',
+      'Lists known binary devices and AC units. A room can contain multiple devices. For AC temperature and power, use getAcStatus, controlAc and setAcTemperature.',
     parameters: {
       type: 'object',
       properties: {

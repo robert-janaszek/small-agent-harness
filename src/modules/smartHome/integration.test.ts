@@ -9,6 +9,7 @@ const livingRoomLights: DeviceRef[] = [
   { controlGroup: 'light', room: 'livingRoom', deviceId: '1' },
   { controlGroup: 'light', room: 'livingRoom', deviceId: '2' },
   { controlGroup: 'light', room: 'livingRoom', deviceId: '3' },
+  { controlGroup: 'light', room: 'livingRoom', deviceId: 'backlitCeiling' },
 ];
 
 function makeToolCallMessage(
@@ -73,6 +74,6 @@ describe('smart home integration', () => {
       expect(getDeviceState(context, device)).toBe('OFF');
     }
 
-    expect(getDeviceState(context, { controlGroup: 'light', room: 'bathroom', deviceId: '1' })).toBe('ON');
+    expect(getDeviceState(context, { controlGroup: 'light', room: 'bathroom', deviceId: 'mirror' })).toBe('ON');
   });
 });

@@ -1,6 +1,6 @@
 import { listDevices } from './listDevices.tool';
 import { ToolFactory } from '../../types';
-import { formatDeviceLabel, getDeviceState } from './devices';
+import { AC_CONTROL_GROUP, formatDeviceLabel, getDeviceState } from './devices';
 
 type Props = { controlGroup: string; room: string; deviceId: string };
 
@@ -20,6 +20,10 @@ export const getDeviceStatus: ToolFactory<Props> = (context) => ({
     },
   },
   async call(args) {
+    if (args.controlGroup === AC_CONTROL_GROUP) {
+      return `Error: Use getAcStatus for AC units instead of getDeviceStatus`;
+    }
+
     const state = getDeviceState(context, args);
     if (state === undefined) {
       const listDevicesTool = listDevices(context);
