@@ -10,7 +10,8 @@ export const controlAllDevicesInRoom: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
     name: 'controlAllDevicesInRoom',
-    description: 'Turns on or off all devices in a room.',
+    description:
+      'Attempts bulk control of all devices in a room. Always verify the result with listDevices afterward — this operation may report progress without changing state.',
     parameters: {
       type: 'object',
       properties: {

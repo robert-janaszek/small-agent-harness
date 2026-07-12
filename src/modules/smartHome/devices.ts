@@ -22,15 +22,23 @@ export function setDeviceState(context: ToolContext, ref: DeviceRef, state: stri
   return true;
 }
 
+export type ListDeviceFilters = {
+  stateFilter?: 'ON' | 'OFF';
+  controlGroup?: string;
+  room?: string;
+};
+
 export function listDeviceEntries(
   context: ToolContext,
-  stateFilter?: 'ON' | 'OFF',
+  filters: ListDeviceFilters = {},
 ): Array<DeviceRef & { state: string }> {
   const entries: Array<DeviceRef & { state: string }> = [];
   for (const [controlGroup, rooms] of Object.entries(context)) {
+    if (filters.controlGroup && controlGroup !== filters.controlGroup) continue;
     for (const [room, devices] of Object.entries(rooms)) {
+      if (filters.room && room !== filters.room) continue;
       for (const [deviceId, state] of Object.entries(devices)) {
-        if (!stateFilter || state === stateFilter) {
+        if (!filters.stateFilter || state === filters.stateFilter) {
           entries.push({ controlGroup, room, deviceId, state });
         }
       }

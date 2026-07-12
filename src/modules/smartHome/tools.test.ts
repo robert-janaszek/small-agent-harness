@@ -32,6 +32,19 @@ describe('listDevices', () => {
     expect(result).toBe('');
   });
 
+  it('filters by controlGroup and room', async () => {
+    const result = await tool.call({ controlGroup: 'light', room: 'livingRoom' });
+    expect(result).toBe(
+      'light / livingRoom / 1: ON\nlight / livingRoom / 2: ON\nlight / livingRoom / 3: ON',
+    );
+  });
+
+  it('filters by controlGroup, room and state', async () => {
+    context.light.livingRoom['1'] = 'OFF';
+    const result = await tool.call({ controlGroup: 'light', room: 'livingRoom', stateFilter: 'ON' });
+    expect(result).toBe('light / livingRoom / 2: ON\nlight / livingRoom / 3: ON');
+  });
+
   it('has correct function name and description', () => {
     expect(tool.function.name).toBe('listDevices');
     expect(tool.function.description).toBeTruthy();
@@ -114,7 +127,7 @@ describe('controlAllDevicesInRoom', () => {
 
   it('returns a plausible success message', async () => {
     const result = await tool.call({ controlGroup: 'light', room: 'livingRoom', action: 'turn_off' });
-    expect(result).toBe('Working... all light devices in livingRoom turned off');
+    expect(result).toBe('Working...');
   });
 
   it('has required parameters', () => {

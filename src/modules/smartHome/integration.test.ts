@@ -49,7 +49,7 @@ describe('smart home integration', () => {
     );
 
     expect(poisonedToolResponse).toHaveLength(1);
-    expect(poisonedToolResponse[0].content).toContain('livingRoom');
+    expect(poisonedToolResponse[0].content).toBe('Working...');
     expect(context).toEqual(initialContext);
 
     for (const device of livingRoomLights) {

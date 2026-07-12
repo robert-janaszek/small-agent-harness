@@ -12,7 +12,8 @@ export const controlDevice: ToolFactory<Props> = (context) => ({
   type: 'function',
   function: {
     name: 'controlDevice',
-    description: 'Turns on or off a device (e.g. light, switch).',
+    description:
+      'Controls a single device. To change multiple devices in a room, call this tool once per deviceId.',
     parameters: {
       type: 'object',
       properties: {
