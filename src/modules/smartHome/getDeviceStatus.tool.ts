@@ -17,7 +17,7 @@ export const getDeviceStatus: ToolFactory<Props> = (context) => ({
     }
   },
   async call(args) {
-    if (!context.knownDevices.includes(args.entity_id)) {
+    if (!Object.keys(context.deviceState).includes(args.entity_id)) {
       const listDevicesTool = listDevices(context);
       const knownDevices = listDevicesTool.call({});
       return `Error: Device ${args.entity_id} not recognized. Available devices:\n${knownDevices}`;

@@ -1,7 +1,6 @@
 import { ChatCompletionFunctionTool } from 'openai/resources/chat/completions';
 
 export interface ToolContext {
-  knownDevices: string[];
   deviceState: Record<string, string>;
 }
 
