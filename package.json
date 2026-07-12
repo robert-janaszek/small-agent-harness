@@ -4,12 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx src/harness.ts",
+    "dev": "tsx src/main.ts",
     "test": "vitest run",
     "test:system": "vitest run --config vitest.system.config.ts",
     "test:watch": "vitest",
     "build": "tsc",
-    "start": "tsx src/harness.ts"
+    "start": "tsx src/main.ts"
   },
   "keywords": [],
   "author": "",

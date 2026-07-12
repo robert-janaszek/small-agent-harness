@@ -4,9 +4,8 @@ import {
 } from 'openai/resources/chat/completions';
 
 import { hasToolCalls, runTools } from './runTools';
-import { smartHomeAgent } from './modules/smartHome/agent';
 import { Agent } from './agent.type';
-import { context, printContext } from './modules/smartHome/context';
+import { printContext } from './modules/smartHome/context';
 
 const openai = new OpenAI({
   baseURL: 'http://127.0.0.1:1234/v1',
@@ -14,6 +13,7 @@ const openai = new OpenAI({
 });
 
 const MODEL_NAME = 'qwen3:7b';
+// const MODEL_NAME = 'qwen/qwen3.6-35b-a3b';
 
 export class Harness {
   private agent: Agent;
@@ -84,10 +84,3 @@ export class Harness {
     console.log('\x1b[31m[Safety]: Max iterations reached\x1b[0m');
   }
 }
-
-async function runHarness(): Promise<void> {
-  const harness = new Harness(smartHomeAgent);
-  return harness.run('turn off all lights in the living room');
-}
-
-void runHarness();
