@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { SmartHomeTool } from "./tools/types";
+import { Tool } from "./tools/types";
 
 type ChatCompletionMessage = OpenAI.Chat.Completions.ChatCompletionMessage;
 
@@ -7,7 +7,7 @@ export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
   return responseMessage.tool_calls && responseMessage.tool_calls.length > 0;
 }
 
-export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefinition: SmartHomeTool<any>[]) => {
+export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefinition: Tool<any>[]) => {
   if (!responseMessage.tool_calls) {
     return [];
   }

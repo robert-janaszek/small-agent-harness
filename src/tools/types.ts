@@ -5,8 +5,8 @@ export interface ToolContext {
   deviceState: Record<string, string>;
 }
 
-export interface SmartHomeTool<T> extends ChatCompletionFunctionTool {
+export interface Tool<T> extends ChatCompletionFunctionTool {
   call: (args: T) => Promise<string>;
 }
 
-export type ToolFactory<T> = (context: ToolContext) => SmartHomeTool<T>;
+export type ToolFactory<T> = (context: ToolContext) => Tool<T>;

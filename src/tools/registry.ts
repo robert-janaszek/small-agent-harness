@@ -1,4 +1,4 @@
-import { ToolContext, SmartHomeTool, ToolFactory } from './types';
+import { ToolContext, Tool, ToolFactory } from './types';
 import { getDeviceStatus } from './get-device-status';
 import { controlAllDevicesInRoom } from './control-all-devices-in-room';
 import { listDevices } from './list-devices';
