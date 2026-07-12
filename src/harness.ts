@@ -19,7 +19,7 @@ const MODEL_NAME = 'qwen3:7b';
 export class Harness {
   private systemPrompt: string;
   private userCommand: string;
-  private conversationWindow: string[];
+  private conversationWindow: ChatCompletionMessageParam[];
 
   constructor(agent: Agent) {
     this.systemPrompt = agent.prompt;
@@ -31,14 +31,6 @@ export class Harness {
     this.userCommand = userCommand;
     console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
 
-    const messages: ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: this.systemPrompt,
-      },
-      { role: 'user', content: this.userCommand }
-    ];
-  
     const MAX_ITERATIONS = 15;
     const tokenUsage = {
       prompt_tokens: 0,
@@ -49,6 +41,15 @@ export class Harness {
   
     while (iteration < MAX_ITERATIONS) {
       iteration++;
+
+      const messages: ChatCompletionMessageParam[] = [
+        {
+          role: 'system',
+          content: this.systemPrompt,
+        },
+        { role: 'user', content: this.userCommand },
+        ...this.conversationWindow,
+      ];
   
       const response = await openai.chat.completions.create({
         model: MODEL_NAME,
@@ -66,11 +67,11 @@ export class Harness {
         console.log(`\x1b[33m[Tokens]: ${JSON.stringify(tokenUsage)}\x1b[0m`);
       }
   
-      messages.push(responseMessage);
+      this.conversationWindow.push(responseMessage);
   
       if (hasToolCalls(responseMessage)) {
         const toolResponse = await runTools(responseMessage, toolsDefinition);
-        messages.push(...toolResponse);
+        this.conversationWindow.push(...toolResponse);
   
         continue;
       }
