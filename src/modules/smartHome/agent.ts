@@ -1,5 +1,5 @@
 import { Agent } from "../../agent.type";
-import { context } from "./context";
+import { context, printContext } from "./context";
 import { controlAc } from "./controlAc.tool";
 import { controlAllDevicesInRoom } from "./controlAllDevicesInRoom.tool";
 import { controlDevice } from "./controlDevice.tool";
@@ -19,6 +19,7 @@ const tools = [
 ];
 
 export const smartHomeAgent: Agent = {
+  onToolRound: printContext,
   prompt: `You are a proactive smart home manager running in a loop.
 Always verify that every command actually succeeded by checking device state after executing an action.
 If something fails, retry or try an alternative approach.
