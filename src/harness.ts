@@ -14,6 +14,16 @@ export type HarnessOptions = {
   config?: HarnessConfig;
 };
 
+export type HarnessRunResult = {
+  content: string;
+  tokenUsage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  iterations: number;
+};
+
 export class Harness {
   private agent: Agent;
   private llmClient: ChatCompletionClient;
@@ -29,7 +39,7 @@ export class Harness {
     this.conversationWindow = [];
   }
 
-  public async run(userCommand: string) {
+  public async run(userCommand: string): Promise<HarnessRunResult> {
     this.userCommand = userCommand;
     console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
 
@@ -80,7 +90,11 @@ export class Harness {
       }
 
       console.log(`\x1b[32m[Agent]: ${responseMessage.content}\x1b[0m\n`);
-      return;
+      return {
+        content: responseMessage.content ?? '',
+        tokenUsage,
+        iterations: iteration,
+      };
     }
 
     throw new Error('Max iterations reached');

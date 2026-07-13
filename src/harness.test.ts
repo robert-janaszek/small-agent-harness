@@ -59,8 +59,17 @@ describe('Harness', () => {
     const llmClient: ChatCompletionClient = { createChatCompletion };
 
     const harness = new Harness(makeAgent(), { llmClient, config: testConfig });
-    await harness.run('hello');
+    const result = await harness.run('hello');
 
+    expect(result).toEqual({
+      content: 'done',
+      tokenUsage: {
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+      },
+      iterations: 1,
+    });
     expect(createChatCompletion).toHaveBeenCalledTimes(1);
     expect(createChatCompletion).toHaveBeenCalledWith({
       model: 'test-model',
@@ -98,8 +107,10 @@ describe('Harness', () => {
       llmClient: { createChatCompletion },
       config: testConfig,
     });
-    await harness.run('go');
+    const result = await harness.run('go');
 
+    expect(result.content).toBe('finished');
+    expect(result.iterations).toBe(2);
     expect(createChatCompletion).toHaveBeenCalledTimes(2);
     const secondCallMessages = createChatCompletion.mock.calls[1][0].messages;
     expect(secondCallMessages.some((message: ChatCompletionMessageParam) => message.role === 'tool')).toBe(true);
