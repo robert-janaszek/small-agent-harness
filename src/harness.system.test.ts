@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { Harness } from './harness';
-import { smartHomeAgent } from './modules/smartHome/agent';
-import { context } from './modules/smartHome/context';
-import { getAcState, getDeviceState, listDeviceEntries, resetContext } from './modules/smartHome/devices';
+import { createSmartHomeAgent, SmartHomeAgent } from './modules/smartHome/agent';
+import { getAcState, getDeviceState, listDeviceEntries } from './modules/smartHome/devices';
 
 import { openaiModelsUrl } from './harness.config';
 
@@ -17,48 +16,47 @@ async function isLlmApiAvailable(): Promise<boolean> {
 
 const llmApiAvailable = await isLlmApiAvailable();
 
-function expectLivingRoomLightsOff(): void {
-  const lights = listDeviceEntries(context, { controlGroup: 'light', room: 'livingRoom' });
+function expectLivingRoomLightsOff(agent: SmartHomeAgent): void {
+  const lights = listDeviceEntries(agent.context, { controlGroup: 'light', room: 'livingRoom' });
   expect(lights).toHaveLength(4);
   for (const light of lights) {
     expect(light.state).toBe('OFF');
   }
 }
 
-function expectLivingRoomAcOnAt(temperature: number): void {
-  const ac = getAcState(context, { room: 'livingRoom', deviceId: '1' });
+function expectLivingRoomAcOnAt(agent: SmartHomeAgent, temperature: number): void {
+  const ac = getAcState(agent.context, { room: 'livingRoom', deviceId: '1' });
   expect(ac?.power).toBe('ON');
   expect(ac?.targetTemperature).toBe(temperature);
 }
 
-function expectBathroomWaterValveOff(): void {
-  expect(getDeviceState(context, { controlGroup: 'waterValve', room: 'bathroom', deviceId: '1' })).toBe('OFF');
-  expect(getDeviceState(context, { controlGroup: 'waterValve', room: 'apartment', deviceId: '1' })).toBe('ON');
+function expectBathroomWaterValveOff(agent: SmartHomeAgent): void {
+  expect(getDeviceState(agent.context, { controlGroup: 'waterValve', room: 'bathroom', deviceId: '1' })).toBe('OFF');
+  expect(getDeviceState(agent.context, { controlGroup: 'waterValve', room: 'apartment', deviceId: '1' })).toBe('ON');
 }
 
 describe.skipIf(!llmApiAvailable)('harness system', () => {
-  beforeEach(() => {
-    resetContext(context);
-  });
-
   it('runs the harness command and turns off all living room lights', async () => {
-    const harness = new Harness(smartHomeAgent);
+    const agent = createSmartHomeAgent();
+    const harness = new Harness(agent);
     await harness.run('turn off all lights in the living room');
 
-    expectLivingRoomLightsOff();
+    expectLivingRoomLightsOff(agent);
   });
 
   it('sets living room AC temperature and turns it on', async () => {
-    const harness = new Harness(smartHomeAgent);
+    const agent = createSmartHomeAgent();
+    const harness = new Harness(agent);
     await harness.run('set the living room air conditioning to 24 degrees and turn it on');
 
-    expectLivingRoomAcOnAt(24);
+    expectLivingRoomAcOnAt(agent, 24);
   });
 
   it('turns off the bathroom water valve', async () => {
-    const harness = new Harness(smartHomeAgent);
+    const agent = createSmartHomeAgent();
+    const harness = new Harness(agent);
     await harness.run('turn off the water valve in the bathroom');
 
-    expectBathroomWaterValveOff();
+    expectBathroomWaterValveOff(agent);
   });
 });

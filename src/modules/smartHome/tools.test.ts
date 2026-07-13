@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { context } from './context';
+import { createContext } from './context';
 import { listDevices } from './listDevices.tool';
 import { getDeviceStatus } from './getDeviceStatus.tool';
 import { controlDevice } from './controlDevice.tool';
@@ -8,6 +8,8 @@ import { controlAc } from './controlAc.tool';
 import { setAcTemperatureTool } from './setAcTemperature.tool';
 import { getAcStatus } from './getAcStatus.tool';
 import { getDeviceState, getAcState, initialContext, resetContext } from './devices';
+
+const context = createContext();
 
 beforeEach(() => {
   resetContext(context);

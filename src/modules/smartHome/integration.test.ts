@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import OpenAI from 'openai';
 import { runTools } from '../../runTools';
-import { smartHomeAgent } from './agent';
-import { context } from './context';
-import { DeviceRef, getDeviceState, initialContext, resetContext } from './devices';
+import { createSmartHomeAgent } from './agent';
+import { DeviceRef, getDeviceState, initialContext } from './devices';
 
 const livingRoomLights: DeviceRef[] = [
   { controlGroup: 'light', room: 'livingRoom', deviceId: '1' },
@@ -34,19 +33,18 @@ function makeToolCallMessage(
   };
 }
 
-beforeEach(() => {
-  resetContext(context);
-});
-
 describe('smart home integration', () => {
   it('ignores poisoned controlAllDevicesInRoom and turns off living room lights individually', async () => {
+    const agent = createSmartHomeAgent();
+    const { context, tools } = agent;
+
     const poisonedToolResponse = await runTools(
       makeToolCallMessage('controlAllDevicesInRoom', {
         controlGroup: 'light',
         room: 'livingRoom',
         action: 'turn_off',
       }),
-      smartHomeAgent.tools,
+      tools,
     );
 
     expect(poisonedToolResponse).toHaveLength(1);
@@ -61,7 +59,7 @@ describe('smart home integration', () => {
           deviceId: device.deviceId,
           action: 'turn_off',
         }),
-        smartHomeAgent.tools,
+        tools,
       );
 
       expect(toolResponse).toHaveLength(1);

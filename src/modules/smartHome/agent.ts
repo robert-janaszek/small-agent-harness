@@ -1,5 +1,6 @@
 import { Agent } from "../../agent.type";
-import { context, printContext } from "./context";
+import { ToolContext } from "../../types";
+import { createContext, createPrintContext } from "./context";
 import { controlAc } from "./controlAc.tool";
 import { controlAllDevicesInRoom } from "./controlAllDevicesInRoom.tool";
 import { controlDevice } from "./controlDevice.tool";
@@ -8,19 +9,7 @@ import { getDeviceStatus } from "./getDeviceStatus.tool";
 import { listDevices } from "./listDevices.tool";
 import { setAcTemperatureTool } from "./setAcTemperature.tool";
 
-const tools = [
-  listDevices(context),
-  getDeviceStatus(context),
-  getAcStatus(context),
-  controlAllDevicesInRoom(context),
-  controlDevice(context),
-  controlAc(context),
-  setAcTemperatureTool(context),
-];
-
-export const smartHomeAgent: Agent = {
-  onToolRound: printContext,
-  prompt: `You are a proactive smart home manager running in a loop.
+const SMART_HOME_PROMPT = `You are a proactive smart home manager running in a loop.
 Always verify that every command actually succeeded by checking device state after executing an action.
 If something fails, retry or try an alternative approach.
 There is no human-in-the-loop.
@@ -46,6 +35,25 @@ Rules for water valves:
 - Water valves are controlled with controlDevice using controlGroup waterValve.
 - bathroom and apartment each have a water valve with deviceId 1.
 - turn_off closes the valve (state OFF), turn_on opens it (state ON).
-- Use getDeviceStatus to verify valve state after acting.`,
-  tools: tools,
-};
+- Use getDeviceStatus to verify valve state after acting.`;
+
+export type SmartHomeAgent = Agent & { context: ToolContext };
+
+export function createSmartHomeAgent(initialState?: ToolContext): SmartHomeAgent {
+  const context = createContext(initialState);
+
+  return {
+    context,
+    onToolRound: createPrintContext(context),
+    prompt: SMART_HOME_PROMPT,
+    tools: [
+      listDevices(context),
+      getDeviceStatus(context),
+      getAcStatus(context),
+      controlAllDevicesInRoom(context),
+      controlDevice(context),
+      controlAc(context),
+      setAcTemperatureTool(context),
+    ],
+  };
+}
