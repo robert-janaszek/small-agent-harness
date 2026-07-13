@@ -1,0 +1,139 @@
+import { describe, it, expect, vi } from 'vitest';
+import OpenAI from 'openai';
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+
+import { Harness } from './harness';
+import { Agent } from './agent.type';
+import type { HarnessConfig } from './harness.config.validate';
+import type { ChatCompletionClient } from './llmClient.type';
+import { Tool } from './types';
+
+const testConfig: HarnessConfig = {
+  openaiBaseUrl: 'http://127.0.0.1:1234/v1',
+  openaiApiKey: 'test-key',
+  modelName: 'test-model',
+  maxIterations: 3,
+};
+
+function makeAgent(tools: Tool<any>[] = []): Agent {
+  return { prompt: 'test prompt', tools };
+}
+
+function assistantMessage(content: string): OpenAI.Chat.Completions.ChatCompletionMessage {
+  return {
+    role: 'assistant',
+    content,
+    refusal: null,
+  };
+}
+
+function assistantToolCall(
+  name: string,
+  args: Record<string, unknown>,
+  id = 'call_1',
+): OpenAI.Chat.Completions.ChatCompletionMessage {
+  return {
+    role: 'assistant',
+    content: null,
+    refusal: null,
+    tool_calls: [
+      {
+        id,
+        type: 'function',
+        function: {
+          name,
+          arguments: JSON.stringify(args),
+        },
+      },
+    ],
+  };
+}
+
+describe('Harness', () => {
+  it('finishes when the model returns a text response', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: assistantMessage('done') }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+    const llmClient: ChatCompletionClient = { createChatCompletion };
+
+    const harness = new Harness(makeAgent(), { llmClient, config: testConfig });
+    await harness.run('hello');
+
+    expect(createChatCompletion).toHaveBeenCalledTimes(1);
+    expect(createChatCompletion).toHaveBeenCalledWith({
+      model: 'test-model',
+      messages: [
+        { role: 'system', content: 'test prompt' },
+        { role: 'user', content: 'hello' },
+      ],
+      tools: [],
+      tool_choice: 'auto',
+    });
+  });
+
+  it('runs tools and continues the loop', async () => {
+    const echoTool: Tool<{ text: string }> = {
+      type: 'function',
+      function: {
+        name: 'echo',
+        description: 'echo',
+        parameters: { type: 'object', properties: {} },
+      },
+      call: async (args) => `echo:${args.text}`,
+    };
+
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantToolCall('echo', { text: 'hi' }) }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('finished') }],
+      });
+
+    const harness = new Harness(makeAgent([echoTool]), {
+      llmClient: { createChatCompletion },
+      config: testConfig,
+    });
+    await harness.run('go');
+
+    expect(createChatCompletion).toHaveBeenCalledTimes(2);
+    const secondCallMessages = createChatCompletion.mock.calls[1][0].messages;
+    expect(secondCallMessages.some((message: ChatCompletionMessageParam) => message.role === 'tool')).toBe(true);
+  });
+
+  it('calls onToolRound after executing tools', async () => {
+    const onToolRound = vi.fn();
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantToolCall('missing', {}) }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('done') }],
+      });
+
+    const harness = new Harness(
+      { ...makeAgent(), onToolRound },
+      { llmClient: { createChatCompletion }, config: testConfig },
+    );
+    await harness.run('go');
+
+    expect(onToolRound).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops after max iterations', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: assistantToolCall('missing', {}) }],
+    });
+
+    const harness = new Harness(makeAgent(), {
+      llmClient: { createChatCompletion },
+      config: { ...testConfig, maxIterations: 2 },
+    });
+    await harness.run('loop');
+
+    expect(createChatCompletion).toHaveBeenCalledTimes(2);
+  });
+});

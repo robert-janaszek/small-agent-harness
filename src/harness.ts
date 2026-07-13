@@ -1,30 +1,30 @@
-import OpenAI from 'openai';
 import {
   ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
 
 import { getHarnessConfig } from './harness.config';
+import type { HarnessConfig } from './harness.config.validate';
+import { createOpenAiClient } from './createOpenAiClient';
 import { hasToolCalls, runTools } from './runTools';
 import { Agent } from './agent.type';
+import type { ChatCompletionClient } from './llmClient.type';
 
-let openai: OpenAI | undefined;
-
-function getOpenAI(): OpenAI {
-  const config = getHarnessConfig();
-  openai ??= new OpenAI({
-    baseURL: config.openaiBaseUrl,
-    apiKey: config.openaiApiKey,
-  });
-  return openai;
-}
+export type HarnessOptions = {
+  llmClient?: ChatCompletionClient;
+  config?: HarnessConfig;
+};
 
 export class Harness {
   private agent: Agent;
+  private llmClient: ChatCompletionClient;
+  private config: HarnessConfig;
   private userCommand: string;
   private conversationWindow: ChatCompletionMessageParam[];
 
-  constructor(agent: Agent) {
+  constructor(agent: Agent, options: HarnessOptions = {}) {
     this.agent = agent;
+    this.config = options.config ?? getHarnessConfig();
+    this.llmClient = options.llmClient ?? createOpenAiClient(this.config);
     this.userCommand = '';
     this.conversationWindow = [];
   }
@@ -38,10 +38,9 @@ export class Harness {
       completion_tokens: 0,
       total_tokens: 0,
     };
-    const config = getHarnessConfig();
     let iteration = 0;
 
-    while (iteration < config.maxIterations) {
+    while (iteration < this.config.maxIterations) {
       iteration++;
 
       const messages: ChatCompletionMessageParam[] = [
@@ -53,8 +52,8 @@ export class Harness {
         ...this.conversationWindow,
       ];
 
-      const response = await getOpenAI().chat.completions.create({
-        model: config.modelName,
+      const response = await this.llmClient.createChatCompletion({
+        model: this.config.modelName,
         messages: messages,
         tools: this.agent.tools,
         tool_choice: 'auto',
