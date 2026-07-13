@@ -1,26 +1,13 @@
-import { ToolFactory } from '../../types';
+import { defineTool } from '../../defineTool';
 import { AC_CONTROL_GROUP, formatDeviceLabel, setDeviceState } from './devices';
-import { controlDeviceArgsSchema, type ControlDeviceArgs } from './schemas';
+import { controlDeviceArgsSchema } from './schemas';
 
-export const controlDevice: ToolFactory<ControlDeviceArgs> = (context) => ({
-  type: 'function',
-  function: {
-    name: 'controlDevice',
-    description:
-      'Controls a single binary device (lights, TV, water valves). To change multiple devices in a room, call this tool once per deviceId.',
-    parameters: {
-      type: 'object',
-      properties: {
-        controlGroup: { type: 'string', description: 'Control group, e.g. light, TV, waterValve' },
-        room: { type: 'string', description: 'Room identifier, e.g. livingRoom' },
-        deviceId: { type: 'string', description: 'Device identifier within the room, e.g. 1' },
-        action: { type: 'string', enum: ['turn_on', 'turn_off'], description: 'Action to perform' },
-      },
-      required: ['controlGroup', 'room', 'deviceId', 'action'],
-    },
-  },
+export const controlDevice = defineTool({
+  name: 'controlDevice',
+  description:
+    'Controls a single binary device (lights, TV, water valves). To change multiple devices in a room, call this tool once per deviceId.',
   argsSchema: controlDeviceArgsSchema,
-  async call(args) {
+  call(context, args) {
     if (args.controlGroup === AC_CONTROL_GROUP) {
       return `Error: Use controlAc for AC units instead of controlDevice`;
     }

@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 
 import { runTools } from './runTools';
-import { Tool } from './types';
+import { createTool } from './defineTool';
 
 function makeToolCallMessage(
   toolName: string,
@@ -28,16 +28,12 @@ function makeToolCallMessage(
 }
 
 describe('runTools', () => {
-  const echoTool: Tool<{ text: string }> = {
-    type: 'function',
-    function: {
-      name: 'echo',
-      description: 'echo',
-      parameters: { type: 'object', properties: {} },
-    },
+  const echoTool = createTool({
+    name: 'echo',
+    description: 'echo',
     argsSchema: z.object({ text: z.string().min(1) }),
     call: async (args) => `echo:${args.text}`,
-  };
+  });
 
   it('returns an error for malformed JSON arguments', async () => {
     const response = await runTools(makeToolCallMessage('echo', '{not-json'), [echoTool]);

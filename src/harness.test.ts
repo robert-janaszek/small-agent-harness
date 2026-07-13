@@ -7,6 +7,7 @@ import { Harness } from './harness';
 import { Agent } from './agent.type';
 import type { HarnessConfig } from './harness.config.validate';
 import type { ChatCompletionClient } from './llmClient.type';
+import { createTool } from './defineTool';
 import { Tool } from './types';
 
 const testConfig: HarnessConfig = {
@@ -83,16 +84,12 @@ describe('Harness', () => {
   });
 
   it('runs tools and continues the loop', async () => {
-    const echoTool: Tool<{ text: string }> = {
-      type: 'function',
-      function: {
-        name: 'echo',
-        description: 'echo',
-        parameters: { type: 'object', properties: {} },
-      },
+    const echoTool = createTool({
+      name: 'echo',
+      description: 'echo',
       argsSchema: z.object({ text: z.string() }),
       call: async (args) => `echo:${args.text}`,
-    };
+    });
 
     const createChatCompletion = vi
       .fn()

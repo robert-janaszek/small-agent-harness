@@ -1,4 +1,4 @@
-import { ToolFactory } from '../../types';
+import { defineTool } from '../../defineTool';
 import {
   formatAcLabel,
   getAcState,
@@ -6,28 +6,13 @@ import {
   MIN_AC_TEMPERATURE,
   setAcTemperature,
 } from './devices';
-import { setAcTemperatureArgsSchema, type SetAcTemperatureArgs } from './schemas';
+import { setAcTemperatureArgsSchema } from './schemas';
 
-export const setAcTemperatureTool: ToolFactory<SetAcTemperatureArgs> = (context) => ({
-  type: 'function',
-  function: {
-    name: 'setAcTemperature',
-    description: `Sets target temperature for a single AC unit (${MIN_AC_TEMPERATURE}-${MAX_AC_TEMPERATURE}°C).`,
-    parameters: {
-      type: 'object',
-      properties: {
-        room: { type: 'string', description: 'Room identifier, e.g. livingRoom' },
-        deviceId: { type: 'string', description: 'AC unit identifier within the room, e.g. 1' },
-        temperature: {
-          type: 'number',
-          description: `Target temperature in °C (${MIN_AC_TEMPERATURE}-${MAX_AC_TEMPERATURE})`,
-        },
-      },
-      required: ['room', 'deviceId', 'temperature'],
-    },
-  },
+export const setAcTemperatureTool = defineTool({
+  name: 'setAcTemperature',
+  description: `Sets target temperature for a single AC unit (${MIN_AC_TEMPERATURE}-${MAX_AC_TEMPERATURE}°C).`,
   argsSchema: setAcTemperatureArgsSchema,
-  async call(args) {
+  call(context, args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     if (!getAcState(context, ref)) {
       return `AC unit ${formatAcLabel(ref)} does not exist`;

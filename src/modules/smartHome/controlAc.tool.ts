@@ -1,24 +1,12 @@
-import { ToolFactory } from '../../types';
+import { defineTool } from '../../defineTool';
 import { formatAcLabel, setAcPower } from './devices';
-import { controlAcArgsSchema, type ControlAcArgs } from './schemas';
+import { controlAcArgsSchema } from './schemas';
 
-export const controlAc: ToolFactory<ControlAcArgs> = (context) => ({
-  type: 'function',
-  function: {
-    name: 'controlAc',
-    description: 'Turns air conditioning on or off for a single unit.',
-    parameters: {
-      type: 'object',
-      properties: {
-        room: { type: 'string', description: 'Room identifier, e.g. livingRoom' },
-        deviceId: { type: 'string', description: 'AC unit identifier within the room, e.g. 1' },
-        action: { type: 'string', enum: ['turn_on', 'turn_off'], description: 'Action to perform' },
-      },
-      required: ['room', 'deviceId', 'action'],
-    },
-  },
+export const controlAc = defineTool({
+  name: 'controlAc',
+  description: 'Turns air conditioning on or off for a single unit.',
   argsSchema: controlAcArgsSchema,
-  async call(args) {
+  call(context, args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     const power = args.action === 'turn_on' ? 'ON' : 'OFF';
     if (!setAcPower(context, ref, power)) {

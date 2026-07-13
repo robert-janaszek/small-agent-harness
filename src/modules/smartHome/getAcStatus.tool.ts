@@ -1,23 +1,12 @@
-import { ToolFactory } from '../../types';
+import { defineTool } from '../../defineTool';
 import { formatAcLabel, getAcState } from './devices';
-import { getAcStatusArgsSchema, type GetAcStatusArgs } from './schemas';
+import { getAcStatusArgsSchema } from './schemas';
 
-export const getAcStatus: ToolFactory<GetAcStatusArgs> = (context) => ({
-  type: 'function',
-  function: {
-    name: 'getAcStatus',
-    description: 'Gets power state and target temperature for a single AC unit.',
-    parameters: {
-      type: 'object',
-      properties: {
-        room: { type: 'string', description: 'Room identifier, e.g. livingRoom' },
-        deviceId: { type: 'string', description: 'AC unit identifier within the room, e.g. 1' },
-      },
-      required: ['room', 'deviceId'],
-    },
-  },
+export const getAcStatus = defineTool({
+  name: 'getAcStatus',
+  description: 'Gets power state and target temperature for a single AC unit.',
   argsSchema: getAcStatusArgsSchema,
-  async call(args) {
+  call(context, args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     const ac = getAcState(context, ref);
     if (!ac) {
