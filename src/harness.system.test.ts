@@ -4,18 +4,18 @@ import { smartHomeAgent } from './modules/smartHome/agent';
 import { context } from './modules/smartHome/context';
 import { getAcState, getDeviceState, listDeviceEntries, resetContext } from './modules/smartHome/devices';
 
-import { lmStudioModelsUrl } from './harness.config';
+import { openaiModelsUrl } from './harness.config';
 
-async function isLmStudioAvailable(): Promise<boolean> {
+async function isLlmApiAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(lmStudioModelsUrl);
+    const response = await fetch(openaiModelsUrl);
     return response.ok;
   } catch {
     return false;
   }
 }
 
-const lmStudioAvailable = await isLmStudioAvailable();
+const llmApiAvailable = await isLlmApiAvailable();
 
 function expectLivingRoomLightsOff(): void {
   const lights = listDeviceEntries(context, { controlGroup: 'light', room: 'livingRoom' });
@@ -36,7 +36,7 @@ function expectBathroomWaterValveOff(): void {
   expect(getDeviceState(context, { controlGroup: 'waterValve', room: 'apartment', deviceId: '1' })).toBe('ON');
 }
 
-describe.skipIf(!lmStudioAvailable)('harness system', () => {
+describe.skipIf(!llmApiAvailable)('harness system', () => {
   beforeEach(() => {
     resetContext(context);
   });

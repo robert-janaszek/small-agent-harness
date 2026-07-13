@@ -6,4 +6,4 @@ export { readHarnessConfigFromEnv, validateHarnessConfig } from './harness.confi
 
 export const harnessConfig = validateHarnessConfig(readHarnessConfigFromEnv());
 
-export const lmStudioModelsUrl = `${harnessConfig.openaiBaseUrl}/models`;
+export const openaiModelsUrl = `${harnessConfig.openaiBaseUrl}/models`;
