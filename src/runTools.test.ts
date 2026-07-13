@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import OpenAI from 'openai';
 import { z } from 'zod';
 
-import { runTools } from './runTools';
+import { runTools, toAssistantHistoryMessage } from './runTools';
 import { createTool } from './defineTool';
 
 function makeToolCallMessage(
@@ -106,5 +106,57 @@ describe('runTools', () => {
     );
 
     expect(response[0].content).toBe(JSON.stringify({ error: 'Unknown error' }));
+  });
+
+  it('returns feedback for custom tool calls', async () => {
+    const response = await runTools(
+      {
+        role: 'assistant',
+        content: null,
+        refusal: null,
+        tool_calls: [
+          {
+            id: 'call_custom',
+            type: 'custom',
+            custom: { name: 'myTool', input: 'do something' },
+          },
+        ],
+      },
+      [echoTool],
+    );
+
+    expect(response).toHaveLength(1);
+    expect(response[0]).toMatchObject({
+      role: 'tool',
+      tool_call_id: 'call_custom',
+      content: 'Custom tool "myTool" is not supported. Use the provided function tools.',
+    });
+  });
+
+  it('preserves assistant text alongside tool calls in history messages', () => {
+    expect(
+      toAssistantHistoryMessage({
+        role: 'assistant',
+        content: 'Checking lights first.',
+        refusal: null,
+        tool_calls: [
+          {
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'listDevices', arguments: '{}' },
+          },
+        ],
+      }),
+    ).toEqual({
+      role: 'assistant',
+      content: 'Checking lights first.',
+      tool_calls: [
+        {
+          id: 'call_1',
+          type: 'function',
+          function: { name: 'listDevices', arguments: '{}' },
+        },
+      ],
+    });
   });
 });

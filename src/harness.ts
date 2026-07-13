@@ -6,7 +6,7 @@ import {
 import { getHarnessConfig } from './harness.config';
 import type { HarnessConfig } from './harness.config.validate';
 import { createOpenAiClient } from './createOpenAiClient';
-import { hasToolCalls, runTools } from './runTools';
+import { hasToolCalls, runTools, toAssistantHistoryMessage } from './runTools';
 import { Agent } from './agent.type';
 import type { ChatCompletionClient } from './llmClient.type';
 
@@ -88,7 +88,7 @@ export class Harness {
         console.log(`\x1b[33m[Tokens]: ${JSON.stringify(tokenUsage)}\x1b[0m`);
       }
 
-      this.conversationWindow.push(responseMessage);
+      this.conversationWindow.push(toAssistantHistoryMessage(responseMessage));
 
       if (hasToolCalls(responseMessage)) {
         const toolResponse = await runTools(responseMessage, this.agent.tools);
