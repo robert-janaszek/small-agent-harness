@@ -1,4 +1,4 @@
-import { AcState, ToolContext } from '../../types';
+import { AcState, acStateSchema, ToolContext } from '../../types';
 
 export const AC_CONTROL_GROUP = 'ac';
 export const MIN_AC_TEMPERATURE = 16;
@@ -16,12 +16,7 @@ export type AcRef = {
 };
 
 export function isAcState(value: unknown): value is AcState {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'power' in value &&
-    'targetTemperature' in value
-  );
+  return acStateSchema.safeParse(value).success;
 }
 
 export function formatDeviceLabel({ controlGroup, room, deviceId }: DeviceRef): string {

@@ -1,10 +1,12 @@
 import { ChatCompletionFunctionTool } from 'openai/resources/chat/completions';
 import { z } from 'zod';
 
-export type AcState = {
-  power: 'ON' | 'OFF';
-  targetTemperature: number;
-};
+export const acStateSchema = z.object({
+  power: z.enum(['ON', 'OFF']),
+  targetTemperature: z.number(),
+});
+
+export type AcState = z.infer<typeof acStateSchema>;
 
 export type DeviceValue = string | AcState;
 export type DeviceState = Record<string, DeviceValue>;
