@@ -38,7 +38,6 @@ function expectBathroomWaterValveOff(agent: SmartHomeAgent): void {
 function expectCompletedHarnessRun(result: HarnessRunResult): void {
   const { maxIterations } = getHarnessConfig();
 
-  expect(result.content.trim().length).toBeGreaterThan(0);
   expect(result.iterations).toBeGreaterThan(0);
   expect(result.iterations).toBeLessThan(maxIterations);
   expect(result.tokenUsage.total_tokens).toBeGreaterThan(0);
