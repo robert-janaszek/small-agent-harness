@@ -67,19 +67,22 @@ MODEL_NAME=google/gemma-3-12b
 HARNESS_MAX_ITERATIONS=15
 ```
 
-Start your local model server, then run:
+Start your local model server, then run the agent.
+
+**Batch mode** — pass the command as CLI arguments:
 
 ```bash
-npm run dev
+npm start -- turn off all lights in the living room
 ```
 
-By default, `main.ts` runs a single command:
+**Interactive mode** — no arguments; the terminal waits for input:
 
-```text
-turn off all lights in the living room
+```bash
+npm start
+> Is anyone home? check if there are any lights on
 ```
 
-Change `HARNESS_USER_COMMAND` in `src/main.ts` to try other scenarios.
+The command is read by `readUserCommand()`: joined CLI args in batch mode, or a `> ` prompt when run without arguments.
 
 ---
 
@@ -92,7 +95,7 @@ Change `HARNESS_USER_COMMAND` in `src/main.ts` to try other scenarios.
 | `MODEL_NAME` | Model identifier as exposed by your server |
 | `HARNESS_MAX_ITERATIONS` | Safety cap on agent loop iterations (positive integer) |
 
-Config is validated at runtime via Zod when the harness first needs it (`getHarnessConfig()`).
+Config is loaded lazily: `.env` is read on the first call to `getHarnessConfig()` (via `loadEnv()`). Importing modules does not require a valid `.env` until the harness actually runs.
 
 ---
 
@@ -100,6 +103,7 @@ Config is validated at runtime via Zod when the harness first needs it (`getHarn
 
 ```text
 main.ts
+  └── readUserCommand()        ← CLI args (batch) or interactive prompt
   └── Harness(agent, options?)
         ├── ChatCompletionClient   ← createOpenAiClient() or inject a mock
         ├── agent loop             ← system prompt + user command + tool history
@@ -107,20 +111,20 @@ main.ts
 
 modules/smartHome/
   └── createSmartHomeAgent()
-        ├── ToolContext            ← in-memory fake device state
+        ├── ToolContext            ← in-memory fake device state (per agent instance)
         ├── tools                  ← listDevices, controlDevice, controlAc, …
         └── onToolRound            ← optional console snapshot after each tool round
 ```
 
 ### Core concepts
 
-**`Harness`** — domain-agnostic loop. Calls the LLM, executes tool calls, repeats until the model returns a text response or `maxIterations` is reached. Returns a structured `HarnessRunResult` (content, token usage, iteration count).
+**`Harness`** — domain-agnostic loop. Calls the LLM, executes tool calls, repeats until the model returns a text response or `maxIterations` is reached. Returns a structured `HarnessRunResult` (`content`, token usage, iteration count). Throws if the iteration limit is hit or the API returns an empty `choices` array.
 
-**`Agent`** — a system prompt, a list of tools, and an optional `onToolRound` callback.
+**`Agent`** — a system prompt, a list of tools, and an optional `onToolRound` callback. The harness core never imports domain modules.
 
-**`Tool` / `defineTool`** — each tool has a Zod `argsSchema` (single source of truth) and a `call` handler. OpenAI function parameters are generated from the schema via `z.toJSONSchema`.
+**`Tool` / `defineTool`** — each tool has a Zod `argsSchema` (single source of truth) and a `call` handler. OpenAI `function.parameters` are generated from the schema via `z.toJSONSchema()` — no duplicate JSON Schema hand-written in tool files.
 
-**`createSmartHomeAgent()`** — factory that builds an agent with its own isolated `ToolContext`. Pass `initialState` to customize starting device states in tests.
+**`createSmartHomeAgent(initialState?)`** — factory that builds an agent with its own isolated `ToolContext`. Pass `initialState` to customize starting device states in tests. Multiple agents can run in parallel without sharing mutable singleton state.
 
 ---
 
@@ -134,7 +138,9 @@ This tests whether the model:
 2. Falls back to per-device control (`controlDevice`) when bulk control fails
 3. Completes multi-device tasks without human intervention
 
-The agent system prompt and tool description hint that verification is required. System tests assert the final in-memory state, not the model's final message.
+The agent system prompt and tool description hint that verification is required. System tests assert both the final in-memory state and that the harness loop completed without hitting `maxIterations` (not merely that side effects happened before a safety timeout).
+
+The prompt also distinguishes **status/query** commands (read-only: `listDevices`, `getDeviceStatus`, `getAcStatus`) from **control** commands (mutating tools). Asking “is anyone home?” or “check if lights are on” should report state, not turn devices off.
 
 ---
 
@@ -156,22 +162,24 @@ npm run test:watch
 | `npm test` | Config validation, `Harness` loop (mocked LLM), `runTools`, all smart home tools, integration scenario with poisoned tool |
 | `npm run test:system` | Full agent runs: lights off, AC on + temperature, water valve — skipped automatically if the API is unreachable |
 
-System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when no server is available, so CI and offline development still work with unit tests only.
+System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when no server is available, so CI and offline development still work with unit tests only. They check `HarnessRunResult.iterations < maxIterations` and domain state in `agent.context` — not only side effects that could occur before the loop fails.
 
 ---
 
 ## Example scenarios to try
 
-Edit `HARNESS_USER_COMMAND` in `src/main.ts`:
+```bash
+# Control
+npm start -- turn off all lights in the living room
+npm start -- set the living room air conditioning to 24 degrees and turn it on
+npm start -- turn off the water valve in the bathroom
+npm start -- turn on the bedroom ceiling light
 
-```text
-turn off all lights in the living room
-set the living room air conditioning to 24 degrees and turn it on
-turn off the water valve in the bathroom
-turn on the bedroom ceiling light
+# Status / query (read-only — should not mutate devices)
+npm start -- Is anyone home? check if there are any lights on
 ```
 
-After each run, watch the console: tool calls, token usage, and a live ASCII snapshot of device states.
+After each run, watch the console: tool calls, token usage, and a live ASCII snapshot of device states (via `onToolRound`).
 
 ---
 
@@ -193,17 +201,21 @@ Keep the domain module responsible for its own state and side effects. Keep `Har
 
 ```text
 src/
-├── harness.ts              # Agent loop
+├── harness.ts              # Agent loop + HarnessRunResult
 ├── runTools.ts             # Tool dispatch + Zod validation
 ├── defineTool.ts           # Tool factory + Zod → OpenAI parameters
+├── readUserCommand.ts      # CLI batch / interactive input
 ├── createOpenAiClient.ts   # OpenAI-compatible client wrapper
-├── harness.config.*        # Env config read + validation
+├── llmClient.type.ts       # ChatCompletionClient interface
+├── validation.ts           # Shared Zod error formatting
+├── harness.config.*        # Env config (lazy getHarnessConfig)
+├── loadEnv.ts              # Idempotent dotenv loader
 ├── agent.type.ts           # Agent interface
-├── types.ts                # Tool, ToolContext types
-├── main.ts                 # Entry point (demo command)
+├── types.ts                # Tool, ToolContext, acStateSchema
+├── main.ts                 # Entry point
 └── modules/
     └── smartHome/          # Imaginary smart home integration (demo domain)
-        ├── agent.ts        # Agent factory + system prompt
+        ├── agent.ts        # createSmartHomeAgent() + system prompt
         ├── devices.ts      # In-memory state + helpers
         ├── schemas.ts      # Zod argument schemas
         ├── context.ts      # Context factory + debug printer
@@ -230,8 +242,9 @@ Results will vary widely between models and quantizations. This repo is meant to
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Run the demo agent command |
+| `npm run dev` | Run the agent (batch or interactive) |
 | `npm start` | Same as `dev` |
+| `npm start -- <command>` | Batch mode: run a single command from CLI args |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:system` | E2E tests against local model |
 | `npm run build` | Compile TypeScript to `dist/` |
