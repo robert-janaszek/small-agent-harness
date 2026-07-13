@@ -4,11 +4,11 @@ import { smartHomeAgent } from './modules/smartHome/agent';
 import { context } from './modules/smartHome/context';
 import { getAcState, getDeviceState, listDeviceEntries, resetContext } from './modules/smartHome/devices';
 
-const LM_STUDIO_URL = 'http://127.0.0.1:1234/v1/models';
+import { lmStudioModelsUrl } from './harness.config';
 
 async function isLmStudioAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(LM_STUDIO_URL);
+    const response = await fetch(lmStudioModelsUrl);
     return response.ok;
   } catch {
     return false;

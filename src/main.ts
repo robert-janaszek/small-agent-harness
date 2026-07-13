@@ -1,3 +1,4 @@
+import './loadEnv';
 import { Harness } from './harness';
 import { smartHomeAgent } from './modules/smartHome/agent';
 

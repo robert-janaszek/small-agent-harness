@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: ['**/*.system.test.ts'],
     exclude: ['dist/**', 'node_modules/**'],
+    setupFiles: ['./src/loadEnv.ts'],
     testTimeout: 120_000,
     hookTimeout: 30_000,
   },
