@@ -3,11 +3,11 @@ import { Harness } from './harness';
 import { createSmartHomeAgent, SmartHomeAgent } from './modules/smartHome/agent';
 import { getAcState, getDeviceState, listDeviceEntries } from './modules/smartHome/devices';
 
-import { openaiModelsUrl } from './harness.config';
+import { getOpenaiModelsUrl } from './harness.config';
 
 async function isLlmApiAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(openaiModelsUrl);
+    const response = await fetch(getOpenaiModelsUrl());
     return response.ok;
   } catch {
     return false;

@@ -3,14 +3,20 @@ import {
   ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
 
-import { harnessConfig } from './harness.config';
+import { getHarnessConfig } from './harness.config';
 import { hasToolCalls, runTools } from './runTools';
 import { Agent } from './agent.type';
 
-const openai = new OpenAI({
-  baseURL: harnessConfig.openaiBaseUrl,
-  apiKey: harnessConfig.openaiApiKey,
-});
+let openai: OpenAI | undefined;
+
+function getOpenAI(): OpenAI {
+  const config = getHarnessConfig();
+  openai ??= new OpenAI({
+    baseURL: config.openaiBaseUrl,
+    apiKey: config.openaiApiKey,
+  });
+  return openai;
+}
 
 export class Harness {
   private agent: Agent;
@@ -32,9 +38,10 @@ export class Harness {
       completion_tokens: 0,
       total_tokens: 0,
     };
+    const config = getHarnessConfig();
     let iteration = 0;
 
-    while (iteration < harnessConfig.maxIterations) {
+    while (iteration < config.maxIterations) {
       iteration++;
 
       const messages: ChatCompletionMessageParam[] = [
@@ -46,8 +53,8 @@ export class Harness {
         ...this.conversationWindow,
       ];
 
-      const response = await openai.chat.completions.create({
-        model: harnessConfig.modelName,
+      const response = await getOpenAI().chat.completions.create({
+        model: config.modelName,
         messages: messages,
         tools: this.agent.tools,
         tool_choice: 'auto',

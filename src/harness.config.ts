@@ -1,9 +1,15 @@
-import './loadEnv';
-import { readHarnessConfigFromEnv, validateHarnessConfig } from './harness.config.validate';
+import { readHarnessConfigFromEnv, validateHarnessConfig, type HarnessConfig } from './harness.config.validate';
 
 export type { HarnessConfig, HarnessConfigInput } from './harness.config.validate';
 export { readHarnessConfigFromEnv, validateHarnessConfig } from './harness.config.validate';
 
-export const harnessConfig = validateHarnessConfig(readHarnessConfigFromEnv());
+let cachedConfig: HarnessConfig | undefined;
 
-export const openaiModelsUrl = `${harnessConfig.openaiBaseUrl}/models`;
+export function getHarnessConfig(): HarnessConfig {
+  cachedConfig ??= validateHarnessConfig(readHarnessConfigFromEnv());
+  return cachedConfig;
+}
+
+export function getOpenaiModelsUrl(): string {
+  return `${getHarnessConfig().openaiBaseUrl}/models`;
+}
