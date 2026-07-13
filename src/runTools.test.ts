@@ -71,4 +71,40 @@ describe('runTools', () => {
     expect(response).toHaveLength(1);
     expect(response[0].content).toContain('Unknown tool: missing');
   });
+
+  it('returns tool execution errors', async () => {
+    const failingTool = createTool({
+      name: 'fail',
+      description: 'fail',
+      argsSchema: z.object({ text: z.string() }),
+      call: async () => {
+        throw new Error('tool failed');
+      },
+    });
+
+    const response = await runTools(
+      makeToolCallMessage('fail', JSON.stringify({ text: 'hi' })),
+      [failingTool],
+    );
+
+    expect(response[0].content).toBe(JSON.stringify({ error: 'tool failed' }));
+  });
+
+  it('handles non-Error throws from tools', async () => {
+    const failingTool = createTool({
+      name: 'fail',
+      description: 'fail',
+      argsSchema: z.object({ text: z.string() }),
+      call: async () => {
+        throw 'boom';
+      },
+    });
+
+    const response = await runTools(
+      makeToolCallMessage('fail', JSON.stringify({ text: 'hi' })),
+      [failingTool],
+    );
+
+    expect(response[0].content).toBe(JSON.stringify({ error: 'Unknown error' }));
+  });
 });

@@ -57,8 +57,9 @@ export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefi
     try {
       console.log(`\x1b[33m[Tool call]: ${toolName}(${JSON.stringify(parsedArgs.data)})\x1b[0m`);
       toolResult = await tool.call(parsedArgs.data);
-    } catch (error: any) {
-      toolResult = JSON.stringify({ error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toolResult = JSON.stringify({ error: message });
     }
 
     toolMessages.push({
