@@ -1,13 +1,8 @@
 import { ToolFactory } from '../../types';
-import { formatAcLabel, getAcState, setAcPower } from './devices';
+import { formatAcLabel, setAcPower } from './devices';
+import { controlAcArgsSchema, type ControlAcArgs } from './schemas';
 
-type Props = {
-  room: string;
-  deviceId: string;
-  action: 'turn_on' | 'turn_off';
-};
-
-export const controlAc: ToolFactory<Props> = (context) => ({
+export const controlAc: ToolFactory<ControlAcArgs> = (context) => ({
   type: 'function',
   function: {
     name: 'controlAc',
@@ -22,6 +17,7 @@ export const controlAc: ToolFactory<Props> = (context) => ({
       required: ['room', 'deviceId', 'action'],
     },
   },
+  argsSchema: controlAcArgsSchema,
   async call(args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     const power = args.action === 'turn_on' ? 'ON' : 'OFF';

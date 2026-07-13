@@ -1,12 +1,8 @@
 import { ToolFactory } from '../../types';
 import { formatAcLabel, getAcState } from './devices';
+import { getAcStatusArgsSchema, type GetAcStatusArgs } from './schemas';
 
-type Props = {
-  room: string;
-  deviceId: string;
-};
-
-export const getAcStatus: ToolFactory<Props> = (context) => ({
+export const getAcStatus: ToolFactory<GetAcStatusArgs> = (context) => ({
   type: 'function',
   function: {
     name: 'getAcStatus',
@@ -20,6 +16,7 @@ export const getAcStatus: ToolFactory<Props> = (context) => ({
       required: ['room', 'deviceId'],
     },
   },
+  argsSchema: getAcStatusArgsSchema,
   async call(args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     const ac = getAcState(context, ref);

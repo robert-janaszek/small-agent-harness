@@ -1,13 +1,8 @@
 import { ToolFactory } from '../../types';
 import { formatDeviceLabel, listDeviceEntries } from './devices';
+import { listDevicesArgsSchema, type ListDevicesArgs } from './schemas';
 
-type Props = {
-  stateFilter?: 'ON' | 'OFF';
-  controlGroup?: string;
-  room?: string;
-};
-
-export const listDevices: ToolFactory<Props> = (context) => ({
+export const listDevices: ToolFactory<ListDevicesArgs> = (context) => ({
   type: 'function',
   function: {
     name: 'listDevices',
@@ -22,6 +17,7 @@ export const listDevices: ToolFactory<Props> = (context) => ({
       },
     },
   },
+  argsSchema: listDevicesArgsSchema,
   async call(args) {
     return listDeviceEntries(context, args)
       .map((entry) => `${formatDeviceLabel(entry)}: ${entry.state}`)

@@ -1,4 +1,5 @@
 import { ChatCompletionFunctionTool } from 'openai/resources/chat/completions';
+import { z } from 'zod';
 
 export type AcState = {
   power: 'ON' | 'OFF';
@@ -10,7 +11,8 @@ export type DeviceState = Record<string, DeviceValue>;
 export type RoomState = Record<string, DeviceState>;
 export type ToolContext = Record<string, RoomState>;
 
-export interface Tool<T> extends ChatCompletionFunctionTool {
+export interface Tool<T = unknown> extends ChatCompletionFunctionTool {
+  argsSchema: z.ZodType<T>;
   call: (args: T) => Promise<string>;
 }
 

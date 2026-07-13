@@ -1,14 +1,8 @@
 import { ToolFactory } from '../../types';
 import { AC_CONTROL_GROUP, formatDeviceLabel, setDeviceState } from './devices';
+import { controlDeviceArgsSchema, type ControlDeviceArgs } from './schemas';
 
-type Props = {
-  controlGroup: string;
-  room: string;
-  deviceId: string;
-  action: 'turn_on' | 'turn_off';
-};
-
-export const controlDevice: ToolFactory<Props> = (context) => ({
+export const controlDevice: ToolFactory<ControlDeviceArgs> = (context) => ({
   type: 'function',
   function: {
     name: 'controlDevice',
@@ -25,6 +19,7 @@ export const controlDevice: ToolFactory<Props> = (context) => ({
       required: ['controlGroup', 'room', 'deviceId', 'action'],
     },
   },
+  argsSchema: controlDeviceArgsSchema,
   async call(args) {
     if (args.controlGroup === AC_CONTROL_GROUP) {
       return `Error: Use controlAc for AC units instead of controlDevice`;

@@ -6,14 +6,9 @@ import {
   MIN_AC_TEMPERATURE,
   setAcTemperature,
 } from './devices';
+import { setAcTemperatureArgsSchema, type SetAcTemperatureArgs } from './schemas';
 
-type Props = {
-  room: string;
-  deviceId: string;
-  temperature: number;
-};
-
-export const setAcTemperatureTool: ToolFactory<Props> = (context) => ({
+export const setAcTemperatureTool: ToolFactory<SetAcTemperatureArgs> = (context) => ({
   type: 'function',
   function: {
     name: 'setAcTemperature',
@@ -31,14 +26,11 @@ export const setAcTemperatureTool: ToolFactory<Props> = (context) => ({
       required: ['room', 'deviceId', 'temperature'],
     },
   },
+  argsSchema: setAcTemperatureArgsSchema,
   async call(args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     if (!getAcState(context, ref)) {
       return `AC unit ${formatAcLabel(ref)} does not exist`;
-    }
-
-    if (args.temperature < MIN_AC_TEMPERATURE || args.temperature > MAX_AC_TEMPERATURE) {
-      return `Temperature must be between ${MIN_AC_TEMPERATURE} and ${MAX_AC_TEMPERATURE}°C`;
     }
 
     setAcTemperature(context, ref, args.temperature);

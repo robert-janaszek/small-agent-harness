@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import OpenAI from 'openai';
 import { createContext } from './context';
 import { listDevices } from './listDevices.tool';
 import { getDeviceStatus } from './getDeviceStatus.tool';
@@ -8,8 +9,31 @@ import { controlAc } from './controlAc.tool';
 import { setAcTemperatureTool } from './setAcTemperature.tool';
 import { getAcStatus } from './getAcStatus.tool';
 import { getDeviceState, getAcState, initialContext, resetContext } from './devices';
+import { runTools } from '../../runTools';
 
 const context = createContext();
+
+function makeToolCallMessage(
+  toolName: string,
+  args: Record<string, unknown>,
+  id = 'call_1',
+): OpenAI.Chat.Completions.ChatCompletionMessage {
+  return {
+    role: 'assistant',
+    content: null,
+    refusal: null,
+    tool_calls: [
+      {
+        id,
+        type: 'function',
+        function: {
+          name: toolName,
+          arguments: JSON.stringify(args),
+        },
+      },
+    ],
+  };
+}
 
 beforeEach(() => {
   resetContext(context);
@@ -159,8 +183,12 @@ describe('setAcTemperature', () => {
   });
 
   it('rejects temperature out of range', async () => {
-    const result = await tool.call({ room: 'livingRoom', deviceId: '1', temperature: 10 });
-    expect(result).toBe('Temperature must be between 16 and 30°C');
+    const toolResponse = await runTools(
+      makeToolCallMessage('setAcTemperature', { room: 'livingRoom', deviceId: '1', temperature: 10 }),
+      [setAcTemperatureTool(context)],
+    );
+
+    expect(toolResponse[0].content).toBe('Invalid tool arguments:\n- Temperature must be between 16 and 30°C');
   });
 });
 

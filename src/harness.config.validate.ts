@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { formatZodError } from './validation';
+
 function trimmedNonEmpty(message: string) {
   return z.string().transform((value) => value.trim()).pipe(z.string().min(1, message));
 }
@@ -54,14 +56,10 @@ export function readHarnessConfigFromEnv(env: NodeJS.ProcessEnv = process.env): 
   };
 }
 
-function formatValidationError(error: z.ZodError): string {
-  return `Invalid harness config:\n- ${error.issues.map((issue) => issue.message).join('\n- ')}`;
-}
-
 export function validateHarnessConfig(input: HarnessConfigInput): HarnessConfig {
   const result = harnessConfigSchema.safeParse(input);
   if (!result.success) {
-    throw new Error(formatValidationError(result.error));
+    throw new Error(formatZodError(result.error, 'Invalid harness config'));
   }
 
   return result.data;

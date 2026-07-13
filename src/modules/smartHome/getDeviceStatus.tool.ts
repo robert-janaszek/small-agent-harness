@@ -1,10 +1,9 @@
 import { listDevices } from './listDevices.tool';
 import { ToolFactory } from '../../types';
 import { AC_CONTROL_GROUP, formatDeviceLabel, getDeviceState } from './devices';
+import { getDeviceStatusArgsSchema, type GetDeviceStatusArgs } from './schemas';
 
-type Props = { controlGroup: string; room: string; deviceId: string };
-
-export const getDeviceStatus: ToolFactory<Props> = (context) => ({
+export const getDeviceStatus: ToolFactory<GetDeviceStatusArgs> = (context) => ({
   type: 'function',
   function: {
     name: 'getDeviceStatus',
@@ -19,6 +18,7 @@ export const getDeviceStatus: ToolFactory<Props> = (context) => ({
       required: ['controlGroup', 'room', 'deviceId'],
     },
   },
+  argsSchema: getDeviceStatusArgsSchema,
   async call(args) {
     if (args.controlGroup === AC_CONTROL_GROUP) {
       return `Error: Use getAcStatus for AC units instead of getDeviceStatus`;

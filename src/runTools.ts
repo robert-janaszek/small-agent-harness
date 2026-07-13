@@ -1,5 +1,7 @@
 import OpenAI from "openai";
+
 import { Tool } from "./types";
+import { formatZodError } from "./validation";
 
 type ChatCompletionMessage = OpenAI.Chat.Completions.ChatCompletionMessage;
 
@@ -18,7 +20,6 @@ export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefi
     if (toolCall.type !== 'function') continue;
 
     const toolName = toolCall.function.name;
-    const toolArgs = JSON.parse(toolCall.function.arguments);
 
     const tool = toolsDefinition.find(t => t.function.name === toolName);
     if (!tool) {
@@ -30,10 +31,32 @@ export const runTools = async (responseMessage: ChatCompletionMessage, toolsDefi
       continue;
     }
 
+    let rawArgs: unknown;
+    try {
+      rawArgs = JSON.parse(toolCall.function.arguments);
+    } catch {
+      toolMessages.push({
+        role: 'tool' as const,
+        tool_call_id: toolCall.id,
+        content: 'Invalid tool arguments: malformed JSON',
+      });
+      continue;
+    }
+
+    const parsedArgs = tool.argsSchema.safeParse(rawArgs);
+    if (!parsedArgs.success) {
+      toolMessages.push({
+        role: 'tool' as const,
+        tool_call_id: toolCall.id,
+        content: formatZodError(parsedArgs.error, 'Invalid tool arguments'),
+      });
+      continue;
+    }
+
     let toolResult: string;
     try {
-      console.log(`\x1b[33m[Tool call]: ${toolName}(${JSON.stringify(toolArgs)})\x1b[0m`);
-      toolResult = await tool.call(toolArgs);
+      console.log(`\x1b[33m[Tool call]: ${toolName}(${JSON.stringify(parsedArgs.data)})\x1b[0m`);
+      toolResult = await tool.call(parsedArgs.data);
     } catch (error: any) {
       toolResult = JSON.stringify({ error: error.message });
     }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { z } from 'zod';
 
 import { Harness } from './harness';
 import { Agent } from './agent.type';
@@ -80,6 +81,7 @@ describe('Harness', () => {
         description: 'echo',
         parameters: { type: 'object', properties: {} },
       },
+      argsSchema: z.object({ text: z.string() }),
       call: async (args) => `echo:${args.text}`,
     };
 
