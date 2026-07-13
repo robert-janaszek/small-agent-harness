@@ -1,16 +1,49 @@
-export type HarnessConfig = {
-  openaiBaseUrl: string;
-  openaiApiKey: string;
-  modelName: string;
-  maxIterations: number;
-};
+import { z } from 'zod';
 
-export type HarnessConfigInput = {
-  openaiBaseUrl: string;
-  openaiApiKey: string;
-  modelName: string;
-  maxIterations: string | number;
-};
+function trimmedNonEmpty(message: string) {
+  return z.string().transform((value) => value.trim()).pipe(z.string().min(1, message));
+}
+
+const openaiBaseUrlSchema = z.string().transform((value) => value.trim()).superRefine((value, ctx) => {
+  if (!value) {
+    ctx.addIssue({ code: 'custom', message: 'OPENAI_BASE_URL is required' });
+    return;
+  }
+
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      ctx.addIssue({ code: 'custom', message: 'OPENAI_BASE_URL must use http or https' });
+    }
+  } catch {
+    ctx.addIssue({ code: 'custom', message: 'OPENAI_BASE_URL must be a valid URL' });
+  }
+});
+
+const maxIterationsSchema = z.union([z.number(), z.string()]).transform((value, ctx) => {
+  if (value === '') {
+    ctx.addIssue({ code: 'custom', message: 'HARNESS_MAX_ITERATIONS must be a positive integer' });
+    return z.NEVER;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    ctx.addIssue({ code: 'custom', message: 'HARNESS_MAX_ITERATIONS must be a positive integer' });
+    return z.NEVER;
+  }
+
+  return parsed;
+});
+
+export const harnessConfigSchema = z.object({
+  openaiBaseUrl: openaiBaseUrlSchema,
+  openaiApiKey: trimmedNonEmpty('OPENAI_API_KEY is required'),
+  modelName: trimmedNonEmpty('MODEL_NAME is required'),
+  maxIterations: maxIterationsSchema,
+});
+
+export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
+export type HarnessConfigInput = z.input<typeof harnessConfigSchema>;
 
 export function readHarnessConfigFromEnv(env: NodeJS.ProcessEnv = process.env): HarnessConfigInput {
   return {
@@ -21,48 +54,15 @@ export function readHarnessConfigFromEnv(env: NodeJS.ProcessEnv = process.env): 
   };
 }
 
+function formatValidationError(error: z.ZodError): string {
+  return `Invalid harness config:\n- ${error.issues.map((issue) => issue.message).join('\n- ')}`;
+}
+
 export function validateHarnessConfig(input: HarnessConfigInput): HarnessConfig {
-  const errors: string[] = [];
-
-  const openaiBaseUrl = input.openaiBaseUrl.trim();
-  if (!openaiBaseUrl) {
-    errors.push('OPENAI_BASE_URL is required');
-  } else {
-    try {
-      const url = new URL(openaiBaseUrl);
-      if (!['http:', 'https:'].includes(url.protocol)) {
-        errors.push('OPENAI_BASE_URL must use http or https');
-      }
-    } catch {
-      errors.push('OPENAI_BASE_URL must be a valid URL');
-    }
+  const result = harnessConfigSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(formatValidationError(result.error));
   }
 
-  const openaiApiKey = input.openaiApiKey.trim();
-  if (!openaiApiKey) {
-    errors.push('OPENAI_API_KEY is required');
-  }
-
-  const modelName = input.modelName.trim();
-  if (!modelName) {
-    errors.push('MODEL_NAME is required');
-  }
-
-  const maxIterations = typeof input.maxIterations === 'number'
-    ? input.maxIterations
-    : Number(input.maxIterations);
-  if (input.maxIterations === '' || !Number.isInteger(maxIterations) || maxIterations < 1) {
-    errors.push('HARNESS_MAX_ITERATIONS must be a positive integer');
-  }
-
-  if (errors.length > 0) {
-    throw new Error(`Invalid harness config:\n- ${errors.join('\n- ')}`);
-  }
-
-  return {
-    openaiBaseUrl,
-    openaiApiKey,
-    modelName,
-    maxIterations,
-  };
+  return result.data;
 }
