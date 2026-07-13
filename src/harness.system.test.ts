@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Harness } from './harness';
+import { Harness, type HarnessRunResult } from './harness';
 import { createSmartHomeAgent, SmartHomeAgent } from './modules/smartHome/agent';
 import { getAcState, getDeviceState, listDeviceEntries } from './modules/smartHome/devices';
 
-import { getOpenaiModelsUrl } from './harness.config';
+import { getHarnessConfig, getOpenaiModelsUrl } from './harness.config';
 
 async function isLlmApiAvailable(): Promise<boolean> {
   try {
@@ -35,28 +35,40 @@ function expectBathroomWaterValveOff(agent: SmartHomeAgent): void {
   expect(getDeviceState(agent.context, { controlGroup: 'waterValve', room: 'apartment', deviceId: '1' })).toBe('ON');
 }
 
+function expectCompletedHarnessRun(result: HarnessRunResult): void {
+  const { maxIterations } = getHarnessConfig();
+
+  expect(result.content.trim().length).toBeGreaterThan(0);
+  expect(result.iterations).toBeGreaterThan(0);
+  expect(result.iterations).toBeLessThan(maxIterations);
+  expect(result.tokenUsage.total_tokens).toBeGreaterThan(0);
+}
+
 describe.skipIf(!llmApiAvailable)('harness system', () => {
   it('runs the harness command and turns off all living room lights', async () => {
     const agent = createSmartHomeAgent();
     const harness = new Harness(agent);
-    await harness.run('turn off all lights in the living room');
+    const result = await harness.run('turn off all lights in the living room');
 
+    expectCompletedHarnessRun(result);
     expectLivingRoomLightsOff(agent);
   });
 
   it('sets living room AC temperature and turns it on', async () => {
     const agent = createSmartHomeAgent();
     const harness = new Harness(agent);
-    await harness.run('set the living room air conditioning to 24 degrees and turn it on');
+    const result = await harness.run('set the living room air conditioning to 24 degrees and turn it on');
 
+    expectCompletedHarnessRun(result);
     expectLivingRoomAcOnAt(agent, 24);
   });
 
   it('turns off the bathroom water valve', async () => {
     const agent = createSmartHomeAgent();
     const harness = new Harness(agent);
-    await harness.run('turn off the water valve in the bathroom');
+    const result = await harness.run('turn off the water valve in the bathroom');
 
+    expectCompletedHarnessRun(result);
     expectBathroomWaterValveOff(agent);
   });
 });
