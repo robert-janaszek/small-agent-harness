@@ -1,6 +1,20 @@
 import { Harness } from './harness';
 import { createSmartHomeAgent } from './modules/smartHome/agent';
+import { readUserCommand } from './readUserCommand';
 
-export const HARNESS_USER_COMMAND = 'turn off all lights in the living room';
-const harness = new Harness(createSmartHomeAgent());
-void harness.run(HARNESS_USER_COMMAND);
+async function main() {
+  const userCommand = await readUserCommand();
+  if (!userCommand) {
+    console.error('Command is required.');
+    process.exit(1);
+  }
+
+  const harness = new Harness(createSmartHomeAgent());
+  await harness.run(userCommand);
+}
+
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : 'Unknown error';
+  console.error(message);
+  process.exit(1);
+});
