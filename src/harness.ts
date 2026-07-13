@@ -83,6 +83,6 @@ export class Harness {
       return;
     }
 
-    console.log('\x1b[31m[Safety]: Max iterations reached\x1b[0m');
+    throw new Error('Max iterations reached');
   }
 }

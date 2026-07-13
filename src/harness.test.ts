@@ -125,7 +125,7 @@ describe('Harness', () => {
     expect(onToolRound).toHaveBeenCalledTimes(1);
   });
 
-  it('stops after max iterations', async () => {
+  it('throws after max iterations', async () => {
     const createChatCompletion = vi.fn().mockResolvedValue({
       choices: [{ message: assistantToolCall('missing', {}) }],
     });
@@ -134,8 +134,8 @@ describe('Harness', () => {
       llmClient: { createChatCompletion },
       config: { ...testConfig, maxIterations: 2 },
     });
-    await harness.run('loop');
 
+    await expect(harness.run('loop')).rejects.toThrow('Max iterations reached');
     expect(createChatCompletion).toHaveBeenCalledTimes(2);
   });
 });
