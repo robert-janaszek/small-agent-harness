@@ -1,3 +1,4 @@
+import OpenAI from 'openai';
 import {
   ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
@@ -23,6 +24,15 @@ export type HarnessRunResult = {
   };
   iterations: number;
 };
+
+function getResponseMessage(response: OpenAI.Chat.Completions.ChatCompletion): OpenAI.Chat.Completions.ChatCompletionMessage {
+  const message = response.choices[0]?.message;
+  if (!message) {
+    throw new Error('Chat completion API returned an empty response');
+  }
+
+  return message;
+}
 
 export class Harness {
   private agent: Agent;
@@ -69,7 +79,7 @@ export class Harness {
         tool_choice: 'auto',
       });
 
-      const responseMessage = response.choices[0].message;
+      const responseMessage = getResponseMessage(response);
 
       if (response.usage) {
         tokenUsage.prompt_tokens += response.usage.prompt_tokens;

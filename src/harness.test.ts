@@ -136,6 +136,17 @@ describe('Harness', () => {
     expect(onToolRound).toHaveBeenCalledTimes(1);
   });
 
+  it('throws when the API returns no choices', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({ choices: [] });
+    const harness = new Harness(makeAgent(), {
+      llmClient: { createChatCompletion },
+      config: testConfig,
+    });
+
+    await expect(harness.run('hello')).rejects.toThrow('Chat completion API returned an empty response');
+    expect(createChatCompletion).toHaveBeenCalledTimes(1);
+  });
+
   it('throws after max iterations', async () => {
     const createChatCompletion = vi.fn().mockResolvedValue({
       choices: [{ message: assistantToolCall('missing', {}) }],
