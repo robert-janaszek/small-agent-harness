@@ -1,15 +1,13 @@
 import { defineTool } from '../../tools/defineTool';
-import { formatDeviceLabel, listDeviceEntries } from './devices';
+import { listDeviceEntries } from './devices';
 import { listDevicesArgsSchema } from './schemas';
 
 export const listDevices = defineTool({
   name: 'listDevices',
   description:
-    'Lists known binary devices and AC units. A room can contain multiple devices. For AC temperature and power, use getAcStatus, controlAc and setAcTemperature.',
+    'Lists known binary devices and AC units as JSON ({ devices: [{ controlGroup, room, deviceId, value }] }). value is "ON"/"OFF" for binary devices or { power, targetTemperature } for AC. For AC control use getAcStatus, controlAc and setAcTemperature.',
   argsSchema: listDevicesArgsSchema,
   call(context, args) {
-    return listDeviceEntries(context, args)
-      .map((entry) => `${formatDeviceLabel(entry)}: ${entry.state}`)
-      .join('\n');
+    return JSON.stringify({ devices: listDeviceEntries(context, args) });
   },
 });

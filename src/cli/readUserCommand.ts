@@ -1,5 +1,5 @@
 import * as readline from 'readline/promises';
-import { stdin as input, stdout as output } from 'process';
+import { stdin as input, stderr as output } from 'process';
 
 export async function readUserCommand(argv: string[] = process.argv.slice(2)): Promise<string> {
   const batchCommand = argv.join(' ').trim();

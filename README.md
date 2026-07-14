@@ -113,7 +113,7 @@ modules/smartHome/
   └── createSmartHomeAgent()
         ├── ToolContext            ← in-memory fake device state (per agent instance)
         ├── tools                  ← listDevices, controlDevice, controlAc, …
-        └── onToolRound            ← optional console snapshot after each tool round
+        └── onToolRound            ← optional context_delta emission after each tool round
 ```
 
 ### Core concepts
@@ -179,7 +179,54 @@ npm start -- turn on the bedroom ceiling light
 npm start -- Is anyone home? check if there are any lights on
 ```
 
-After each run, watch the console: tool calls, token usage, and a live ASCII snapshot of device states (via `onToolRound`).
+After each run, stdout is a stream of JSON Lines (one event per line). An external process can spawn the harness and parse each line. Interactive mode writes the `> ` prompt to stderr so stdout stays machine-readable.
+
+---
+
+## JSONL output protocol
+
+The harness writes **one JSON object per line** to stdout. Each object has a `type` field.
+
+| `type` | When | Fields |
+|--------|------|--------|
+| `user_command` | Start of `Harness.run()` | `command` |
+| `assistant_message` | Model returns text before tool calls | `content` |
+| `tool_call` | Before executing a tool | `name`, `args`, `toolCallId` |
+| `tool_result` | After executing a tool | `name`, `content`, `toolCallId` |
+| `tokens` | After each LLM call | `iteration`, `usage` (cumulative) |
+| `context_delta` | After each tool round (smart home) | `changes[]` — only devices that changed |
+| `agent_response` | Final text response | `content`, `iterations`, `tokenUsage` |
+| `error` | CLI or runtime failure | `message` |
+
+Example lines:
+
+```json
+{"type":"user_command","command":"turn off all lights in the living room"}
+{"type":"tool_call","name":"controlDevice","args":{"controlGroup":"light","room":"livingRoom","deviceId":"1","state":"OFF"},"toolCallId":"call_abc"}
+{"type":"tool_result","name":"controlDevice","content":"...","toolCallId":"call_abc"}
+{"type":"context_delta","changes":[{"controlGroup":"light","room":"livingRoom","deviceId":"1","value":"OFF"}]}
+{"type":"agent_response","content":"All living room lights are off.","iterations":4,"tokenUsage":{"prompt_tokens":1200,"completion_tokens":80,"total_tokens":1280}}
+```
+
+`context_delta` emits only the delta since the previous tool round — not the full device state. AC devices use an object `value` (`power`, `targetTemperature`); binary devices use `"ON"` / `"OFF"`.
+
+Parsing from another process:
+
+```bash
+# -s hides npm's own stdout banner; stderr holds only the interactive prompt
+npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs | .type'
+```
+
+Process every event type:
+
+```bash
+npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs'
+```
+
+**Do not use `echo "$line" | jq` on macOS.** Builtin `echo` interprets `\n` inside JSON strings as real newlines, which breaks valid JSONL. Use `jq -cn 'inputs'` (reads one JSON object per line) or `printf '%s\n' "$line" | jq .` in a `while read` loop.
+
+- **stdout** — JSONL events only (dotenv load is silent)
+- **stderr** — interactive `> ` prompt (when no CLI args are provided)
 
 ---
 
@@ -209,9 +256,10 @@ src/
 │   ├── agent.type.ts       # Agent interface
 │   ├── harness.config.*    # Env config (lazy getHarnessConfig)
 │   └── loadEnv.ts          # Idempotent dotenv loader
-├── cli/                    # Entry point + user input
+├── cli/                    # Entry point + user input + JSONL protocol
 │   ├── main.ts
-│   └── readUserCommand.ts  # CLI batch / interactive input
+│   ├── jsonl.ts            # emit() — stdout JSON Lines
+│   └── readUserCommand.ts  # CLI batch / interactive input (prompt on stderr)
 ├── tools/                  # Tool framework
 │   ├── defineTool.ts       # Tool factory + Zod → OpenAI parameters
 │   ├── runTools.ts         # Tool dispatch + Zod validation
@@ -222,7 +270,7 @@ src/
         ├── agent.ts        # createSmartHomeAgent() + system prompt
         ├── devices.ts      # In-memory state + helpers
         ├── schemas.ts      # Zod argument schemas
-        ├── context.ts      # Context factory + debug printer
+        ├── context.ts      # Context factory + context_delta emitter
         └── *.tool.ts       # One file per tool
 ```
 
@@ -235,7 +283,7 @@ When comparing models, look at:
 - **Task completion** — does the in-memory state match the requested outcome? (system tests)
 - **Iteration count** — fewer tool rounds usually means better planning
 - **Recovery from poisoned tool** — does the model verify and switch to per-device control?
-- **Token usage** — printed after each LLM call; matters on resource-constrained hardware
+- **Token usage** — emitted as `tokens` events after each LLM call; matters on resource-constrained hardware
 - **Failure mode** — wrong tool, missing devices, premature "done", or hitting `maxIterations`
 
 Results will vary widely between models and quantizations. This repo is meant to make those differences visible and reproducible, not to declare a single winner.

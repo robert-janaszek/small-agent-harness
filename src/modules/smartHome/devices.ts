@@ -1,4 +1,4 @@
-import { AcState, acStateSchema, ToolContext } from '../../tools/types';
+import { AcState, acStateSchema, DeviceValue, ToolContext } from '../../tools/types';
 
 export const AC_CONTROL_GROUP = 'ac';
 export const MIN_AC_TEMPERATURE = 16;
@@ -83,8 +83,8 @@ export type ListDeviceFilters = {
 export function listDeviceEntries(
   context: ToolContext,
   filters: ListDeviceFilters = {},
-): Array<DeviceRef & { state: string }> {
-  const entries: Array<DeviceRef & { state: string }> = [];
+): Array<DeviceRef & { value: DeviceValue }> {
+  const entries: Array<DeviceRef & { value: DeviceValue }> = [];
   for (const [controlGroup, rooms] of Object.entries(context)) {
     if (filters.controlGroup && controlGroup !== filters.controlGroup) continue;
     for (const [room, devices] of Object.entries(rooms)) {
@@ -96,7 +96,7 @@ export function listDeviceEntries(
           controlGroup,
           room,
           deviceId,
-          state: formatDeviceValue(value),
+          value: isAcState(value) ? structuredClone(value) : value,
         });
       }
     }

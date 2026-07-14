@@ -159,4 +159,41 @@ describe('runTools', () => {
       ],
     });
   });
+
+  it('invokes hooks for assistant message, tool call, and tool result', async () => {
+    const events: string[] = [];
+    const tool = createTool({
+      name: 'echo',
+      description: 'echo',
+      argsSchema: z.object({ text: z.string() }),
+      call: async ({ text }) => `echo:${text}`,
+    });
+
+    await runTools(
+      {
+        role: 'assistant',
+        content: 'Let me check.',
+        refusal: null,
+        tool_calls: [
+          {
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'echo', arguments: '{"text":"hi"}' },
+          },
+        ],
+      },
+      [tool],
+      {
+        onAssistantMessage: (content) => events.push(`assistant:${content}`),
+        onToolCall: (name, args) => events.push(`call:${name}:${JSON.stringify(args)}`),
+        onToolResult: (name, content) => events.push(`result:${name}:${content}`),
+      },
+    );
+
+    expect(events).toEqual([
+      'assistant:Let me check.',
+      'call:echo:{"text":"hi"}',
+      'result:echo:echo:hi',
+    ]);
+  });
 });

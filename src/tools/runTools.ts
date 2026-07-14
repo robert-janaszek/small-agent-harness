@@ -7,6 +7,12 @@ import { formatZodError } from "./validation";
 type ChatCompletionMessage = OpenAI.Chat.Completions.ChatCompletionMessage;
 type ChatCompletionMessageToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
 
+export type ToolRunnerHooks = {
+  onAssistantMessage?: (content: string) => void;
+  onToolCall?: (name: string, args: unknown, toolCallId: string) => void;
+  onToolResult?: (name: string, content: string, toolCallId: string) => void;
+};
+
 export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
   return responseMessage.tool_calls && responseMessage.tool_calls.length > 0;
 }
@@ -51,6 +57,7 @@ function unsupportedToolCallMessage(toolCall: ChatCompletionMessageToolCall): st
 export const runTools = async (
   responseMessage: ChatCompletionMessage,
   toolsDefinition: Tool<any>[],
+  hooks: ToolRunnerHooks = {},
 ): Promise<ChatCompletionMessageParam[]> => {
   if (!responseMessage.tool_calls) {
     return [];
@@ -58,7 +65,7 @@ export const runTools = async (
 
   const assistantContent = formatMessageContent(responseMessage.content);
   if (assistantContent) {
-    console.log(`\x1b[35m[Assistant]: ${assistantContent}\x1b[0m`);
+    hooks.onAssistantMessage?.(assistantContent);
   }
 
   const toolMessages: ChatCompletionMessageParam[] = [];
@@ -109,12 +116,13 @@ export const runTools = async (
 
     let toolResult: string;
     try {
-      console.log(`\x1b[33m[Tool call]: ${toolName}(${JSON.stringify(parsedArgs.data)})\x1b[0m`);
+      hooks.onToolCall?.(toolName, parsedArgs.data, toolCall.id);
       toolResult = await tool.call(parsedArgs.data);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       toolResult = JSON.stringify({ error: message });
     }
+    hooks.onToolResult?.(toolName, toolResult, toolCall.id);
 
     toolMessages.push({
       role: 'tool' as const,
