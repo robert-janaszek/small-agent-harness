@@ -213,12 +213,19 @@ Example lines:
 Parsing from another process:
 
 ```bash
-npm start -- turn off all lights in the living room | while IFS= read -r line; do
-  echo "$line" | jq -r '.type'
-done
+# -s hides npm's own stdout banner; stderr holds only the interactive prompt
+npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs | .type'
 ```
 
-- **stdout** — JSONL events only
+Process every event type:
+
+```bash
+npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs'
+```
+
+**Do not use `echo "$line" | jq` on macOS.** Builtin `echo` interprets `\n` inside JSON strings as real newlines (e.g. in `tool_result.content` from `listDevices`), which breaks valid JSONL. Use `jq -cn 'inputs'` (reads one JSON object per line) or `printf '%s\n' "$line" | jq .` in a `while read` loop.
+
+- **stdout** — JSONL events only (dotenv load is silent)
 - **stderr** — interactive `> ` prompt (when no CLI args are provided)
 
 ---
