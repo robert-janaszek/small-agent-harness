@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import OpenAI from 'openai';
-import { runTools } from '../../runTools';
+import { runTools } from '../../tools/runTools';
 import { createSmartHomeAgent } from './agent';
 import { DeviceRef, getDeviceState, initialContext } from './devices';
 

@@ -5,10 +5,10 @@ import {
 
 import { getHarnessConfig } from './harness.config';
 import type { HarnessConfig } from './harness.config.validate';
-import { createOpenAiClient } from './createOpenAiClient';
-import { hasToolCalls, runTools, toAssistantHistoryMessage } from './runTools';
+import { createOpenAiClient } from '../client/createOpenAiClient';
+import { hasToolCalls, runTools, toAssistantHistoryMessage } from '../tools/runTools';
 import { Agent } from './agent.type';
-import type { ChatCompletionClient } from './llmClient.type';
+import type { ChatCompletionClient } from '../client/llmClient.type';
 
 export type HarnessOptions = {
   llmClient?: ChatCompletionClient;

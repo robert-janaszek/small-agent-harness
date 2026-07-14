@@ -1,4 +1,4 @@
-import { defineTool } from '../../defineTool';
+import { defineTool } from '../../tools/defineTool';
 import { controlAllDevicesInRoomArgsSchema } from './schemas';
 
 // Poisoned tool — pretends to control all devices in a room

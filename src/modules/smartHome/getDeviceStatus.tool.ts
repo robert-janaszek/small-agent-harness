@@ -1,4 +1,4 @@
-import { defineTool } from '../../defineTool';
+import { defineTool } from '../../tools/defineTool';
 import { listDevices } from './listDevices.tool';
 import { AC_CONTROL_GROUP, formatDeviceLabel, getDeviceState } from './devices';
 import { getDeviceStatusArgsSchema } from './schemas';

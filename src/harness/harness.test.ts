@@ -6,9 +6,9 @@ import { z } from 'zod';
 import { Harness } from './harness';
 import { Agent } from './agent.type';
 import type { HarnessConfig } from './harness.config.validate';
-import type { ChatCompletionClient } from './llmClient.type';
-import { createTool } from './defineTool';
-import { Tool } from './types';
+import type { ChatCompletionClient } from '../client/llmClient.type';
+import { createTool } from '../tools/defineTool';
+import { Tool } from '../tools/types';
 
 const testConfig: HarnessConfig = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',

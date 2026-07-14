@@ -1,5 +1,5 @@
-import { Harness } from './harness';
-import { createSmartHomeAgent } from './modules/smartHome/agent';
+import { Harness } from '../harness/harness';
+import { createSmartHomeAgent } from '../modules/smartHome/agent';
 import { readUserCommand } from './readUserCommand';
 
 async function main() {

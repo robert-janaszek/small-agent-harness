@@ -9,7 +9,7 @@ import { controlAc } from './controlAc.tool';
 import { setAcTemperatureTool } from './setAcTemperature.tool';
 import { getAcStatus } from './getAcStatus.tool';
 import { getDeviceState, getAcState, initialContext, resetContext } from './devices';
-import { runTools } from '../../runTools';
+import { runTools } from '../../tools/runTools';
 
 const context = createContext();
 

@@ -1,4 +1,4 @@
-import { ToolContext } from '../../types';
+import { ToolContext } from '../../tools/types';
 import { formatDeviceLabel, getDevicePower, initialContext, listDeviceEntries } from './devices';
 
 export function createContext(initialState?: ToolContext): ToolContext {

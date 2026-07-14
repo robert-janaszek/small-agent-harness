@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
 import { createTool, zodToFunctionParameters } from './defineTool';
-import { controlDeviceArgsSchema } from './modules/smartHome/schemas';
+import { controlDeviceArgsSchema } from '../modules/smartHome/schemas';
 
 describe('defineTool', () => {
   it('generates function.parameters from the Zod schema', () => {

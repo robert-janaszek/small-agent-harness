@@ -1,4 +1,4 @@
-import { AcState, acStateSchema, ToolContext } from '../../types';
+import { AcState, acStateSchema, ToolContext } from '../../tools/types';
 
 export const AC_CONTROL_GROUP = 'ac';
 export const MIN_AC_TEMPERATURE = 16;

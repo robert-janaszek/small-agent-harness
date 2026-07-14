@@ -1,4 +1,4 @@
-import { defineTool } from '../../defineTool';
+import { defineTool } from '../../tools/defineTool';
 import { AC_CONTROL_GROUP, formatDeviceLabel, setDeviceState } from './devices';
 import { controlDeviceArgsSchema } from './schemas';
 

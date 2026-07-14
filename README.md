@@ -102,7 +102,7 @@ Config is loaded lazily: `.env` is read on the first call to `getHarnessConfig()
 ## Architecture
 
 ```text
-main.ts
+cli/main.ts
   └── readUserCommand()        ← CLI args (batch) or interactive prompt
   └── Harness(agent, options?)
         ├── ChatCompletionClient   ← createOpenAiClient() or inject a mock
@@ -191,7 +191,7 @@ The harness does not depend on smart home. To add another domain:
 2. Define Zod schemas for tool arguments
 3. Use `defineTool()` to declare tools against a context (in-memory state, file, mock API, etc.)
 4. Export a factory, e.g. `createYourDomainAgent(): Agent`
-5. Wire it in `main.ts`: `new Harness(createYourDomainAgent())`
+5. Wire it in `cli/main.ts`: `new Harness(createYourDomainAgent())`
 
 Keep the domain module responsible for its own state and side effects. Keep `Harness` free of domain imports.
 
@@ -201,18 +201,22 @@ Keep the domain module responsible for its own state and side effects. Keep `Har
 
 ```text
 src/
-├── harness.ts              # Agent loop + HarnessRunResult
-├── runTools.ts             # Tool dispatch + Zod validation
-├── defineTool.ts           # Tool factory + Zod → OpenAI parameters
-├── readUserCommand.ts      # CLI batch / interactive input
-├── createOpenAiClient.ts   # OpenAI-compatible client wrapper
-├── llmClient.type.ts       # ChatCompletionClient interface
-├── validation.ts           # Shared Zod error formatting
-├── harness.config.*        # Env config (lazy getHarnessConfig)
-├── loadEnv.ts              # Idempotent dotenv loader
-├── agent.type.ts           # Agent interface
-├── types.ts                # Tool, ToolContext, acStateSchema
-├── main.ts                 # Entry point
+├── client/                 # OpenAI-compatible LLM client
+│   ├── createOpenAiClient.ts
+│   └── llmClient.type.ts
+├── harness/                # Agent loop, config, types
+│   ├── harness.ts          # Agent loop + HarnessRunResult
+│   ├── agent.type.ts       # Agent interface
+│   ├── harness.config.*    # Env config (lazy getHarnessConfig)
+│   └── loadEnv.ts          # Idempotent dotenv loader
+├── cli/                    # Entry point + user input
+│   ├── main.ts
+│   └── readUserCommand.ts  # CLI batch / interactive input
+├── tools/                  # Tool framework
+│   ├── defineTool.ts       # Tool factory + Zod → OpenAI parameters
+│   ├── runTools.ts         # Tool dispatch + Zod validation
+│   ├── types.ts            # Tool, ToolContext, acStateSchema
+│   └── validation.ts       # Shared Zod error formatting
 └── modules/
     └── smartHome/          # Imaginary smart home integration (demo domain)
         ├── agent.ts        # createSmartHomeAgent() + system prompt

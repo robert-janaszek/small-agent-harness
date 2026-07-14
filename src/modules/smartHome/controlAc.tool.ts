@@ -1,4 +1,4 @@
-import { defineTool } from '../../defineTool';
+import { defineTool } from '../../tools/defineTool';
 import { formatAcLabel, setAcPower } from './devices';
 import { controlAcArgsSchema } from './schemas';
 

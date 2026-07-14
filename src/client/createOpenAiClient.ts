@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 
-import { getHarnessConfig } from './harness.config';
-import type { HarnessConfig } from './harness.config.validate';
+import { getHarnessConfig } from '../harness/harness.config';
+import type { HarnessConfig } from '../harness/harness.config.validate';
 import type { ChatCompletionClient } from './llmClient.type';
 
 export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): ChatCompletionClient {

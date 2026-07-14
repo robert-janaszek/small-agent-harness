@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Harness, type HarnessRunResult } from './harness';
-import { createSmartHomeAgent, SmartHomeAgent } from './modules/smartHome/agent';
-import { getAcState, getDeviceState, listDeviceEntries } from './modules/smartHome/devices';
+import { createSmartHomeAgent, SmartHomeAgent } from '../modules/smartHome/agent';
+import { getAcState, getDeviceState, listDeviceEntries } from '../modules/smartHome/devices';
 
 import { getHarnessConfig, getOpenaiModelsUrl } from './harness.config';
 

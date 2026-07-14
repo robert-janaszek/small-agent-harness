@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { formatZodError } from './validation';
+import { formatZodError } from '../tools/validation';
 
 function trimmedNonEmpty(message: string) {
   return z.string().transform((value) => value.trim()).pipe(z.string().min(1, message));
