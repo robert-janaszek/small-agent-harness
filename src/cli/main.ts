@@ -1,11 +1,12 @@
 import { Harness } from '../harness/harness';
 import { createSmartHomeAgent } from '../modules/smartHome/agent';
+import { emit } from './jsonl';
 import { readUserCommand } from './readUserCommand';
 
 async function main() {
   const userCommand = await readUserCommand();
   if (!userCommand) {
-    console.error('Command is required.');
+    emit({ type: 'error', message: 'Command is required.' });
     process.exit(1);
   }
 
@@ -15,6 +16,6 @@ async function main() {
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : 'Unknown error';
-  console.error(message);
+  emit({ type: 'error', message });
   process.exit(1);
 });

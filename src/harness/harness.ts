@@ -9,6 +9,7 @@ import { createOpenAiClient } from '../client/createOpenAiClient';
 import { hasToolCalls, runTools, toAssistantHistoryMessage } from '../tools/runTools';
 import { Agent } from './agent.type';
 import type { ChatCompletionClient } from '../client/llmClient.type';
+import { emit } from '../cli/jsonl';
 
 export type HarnessOptions = {
   llmClient?: ChatCompletionClient;
@@ -51,7 +52,7 @@ export class Harness {
 
   public async run(userCommand: string): Promise<HarnessRunResult> {
     this.userCommand = userCommand;
-    console.log(`\n\x1b[36m[User]: ${userCommand}\x1b[0m`);
+    emit({ type: 'user_command', command: userCommand });
 
     const tokenUsage = {
       prompt_tokens: 0,
@@ -85,13 +86,19 @@ export class Harness {
         tokenUsage.prompt_tokens += response.usage.prompt_tokens;
         tokenUsage.completion_tokens += response.usage.completion_tokens;
         tokenUsage.total_tokens += response.usage.total_tokens;
-        console.log(`\x1b[33m[Tokens]: ${JSON.stringify(tokenUsage)}\x1b[0m`);
+        emit({ type: 'tokens', iteration, usage: tokenUsage });
       }
 
       this.conversationWindow.push(toAssistantHistoryMessage(responseMessage));
 
       if (hasToolCalls(responseMessage)) {
-        const toolResponse = await runTools(responseMessage, this.agent.tools);
+        const toolResponse = await runTools(responseMessage, this.agent.tools, {
+          onAssistantMessage: (content) => emit({ type: 'assistant_message', content }),
+          onToolCall: (name, args, toolCallId) =>
+            emit({ type: 'tool_call', name, args, toolCallId }),
+          onToolResult: (name, content, toolCallId) =>
+            emit({ type: 'tool_result', name, content, toolCallId }),
+        });
         this.conversationWindow.push(...toolResponse);
 
         this.agent.onToolRound?.();
@@ -99,12 +106,18 @@ export class Harness {
         continue;
       }
 
-      console.log(`\x1b[32m[Agent]: ${responseMessage.content}\x1b[0m\n`);
-      return {
+      const result = {
         content: responseMessage.content ?? '',
         tokenUsage,
         iterations: iteration,
       };
+      emit({
+        type: 'agent_response',
+        content: result.content,
+        iterations: result.iterations,
+        tokenUsage: result.tokenUsage,
+      });
+      return result;
     }
 
     throw new Error('Max iterations reached');
