@@ -16,7 +16,7 @@ export const getDeviceStatus = defineTool({
     if (state === undefined) {
       const listDevicesTool = listDevices(context);
       const knownDevices = await listDevicesTool.call({});
-      return `Error: Device ${formatDeviceLabel(args)} not recognized. Available devices:\n${knownDevices}`;
+      return `Error: Device ${formatDeviceLabel(args)} not recognized. Available devices: ${knownDevices}`;
     }
 
     return state;

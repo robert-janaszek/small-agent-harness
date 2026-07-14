@@ -223,7 +223,7 @@ Process every event type:
 npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs'
 ```
 
-**Do not use `echo "$line" | jq` on macOS.** Builtin `echo` interprets `\n` inside JSON strings as real newlines (e.g. in `tool_result.content` from `listDevices`), which breaks valid JSONL. Use `jq -cn 'inputs'` (reads one JSON object per line) or `printf '%s\n' "$line" | jq .` in a `while read` loop.
+**Do not use `echo "$line" | jq` on macOS.** Builtin `echo` interprets `\n` inside JSON strings as real newlines, which breaks valid JSONL. Use `jq -cn 'inputs'` (reads one JSON object per line) or `printf '%s\n' "$line" | jq .` in a `while read` loop.
 
 - **stdout** — JSONL events only (dotenv load is silent)
 - **stderr** — interactive `> ` prompt (when no CLI args are provided)

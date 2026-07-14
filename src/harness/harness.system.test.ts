@@ -20,7 +20,7 @@ function expectLivingRoomLightsOff(agent: SmartHomeAgent): void {
   const lights = listDeviceEntries(agent.context, { controlGroup: 'light', room: 'livingRoom' });
   expect(lights).toHaveLength(4);
   for (const light of lights) {
-    expect(light.state).toBe('OFF');
+    expect(light.value).toBe('OFF');
   }
 }
 
