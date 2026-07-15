@@ -1,13 +1,26 @@
-export type CharCell = { ch: string };
+export type AnsiColor = 31 | 32 | 33 | 90;
+
+export type CharCell = { ch: string; fg?: AnsiColor };
 
 function emptyCell(): CharCell {
   return { ch: ' ' };
+}
+
+function cellsEqual(a: CharCell, b: CharCell): boolean {
+  return a.ch === b.ch && a.fg === b.fg;
 }
 
 function createBuffer(rows: number, cols: number): CharCell[][] {
   return Array.from({ length: rows }, () =>
     Array.from({ length: cols }, () => emptyCell()),
   );
+}
+
+function formatCell(cell: CharCell): string {
+  if (cell.fg !== undefined) {
+    return `\x1b[${cell.fg}m${cell.ch}\x1b[0m`;
+  }
+  return cell.ch;
 }
 
 export class DiffTerminal {
@@ -40,9 +53,9 @@ export class DiffTerminal {
     this.prev = null;
   }
 
-  setChar(row: number, col: number, ch: string): void {
+  setChar(row: number, col: number, ch: string, fg?: AnsiColor): void {
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return;
-    this.buffer[row][col] = { ch: ch.slice(0, 1) || ' ' };
+    this.buffer[row][col] = { ch: ch.slice(0, 1) || ' ', fg };
   }
 
   fill(row: number, col: number, text: string): void {
@@ -77,14 +90,14 @@ export class DiffTerminal {
       const nextRow = this.buffer[row];
 
       for (let col = 0; col < this.cols; col++) {
-        const nextCh = nextRow[col]?.ch ?? ' ';
-        const prevCh = prevRow?.[col]?.ch ?? null;
+        const nextCell = nextRow[col] ?? emptyCell();
+        const prevCell = prevRow?.[col] ?? null;
 
-        if (prevCh === nextCh && this.prev !== null) {
+        if (prevCell !== null && cellsEqual(prevCell, nextCell) && this.prev !== null) {
           continue;
         }
 
-        chunks.push(`\x1b[${row + 1};${col + 1}H${nextCh}`);
+        chunks.push(`\x1b[${row + 1};${col + 1}H${formatCell(nextCell)}`);
       }
 
       if (prevRow && prevRow.length > this.cols) {

@@ -1,9 +1,9 @@
 import type { HarnessEvent } from '../../../cli/jsonl';
 import { DiffTerminal } from '../../../cli/tui/diffTerminal';
-import { composeSplitFrame, getSplitColumns } from '../../../cli/tui/splitLayout';
+import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayout';
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
-import { renderHomePanel } from './homeFloorPlan';
+import { paintHomePanel } from './homeFloorPlan';
 import { applyContextDelta, createHomeState } from './homeState';
 import { readHarnessEvents, spawnHarness } from './spawnHarness';
 
@@ -21,11 +21,17 @@ export class SmartHomeRenderer {
   async run(): Promise<number> {
     const redraw = (): void => {
       const split = getSplitColumns(this.terminal.width);
-      composeSplitFrame(
-        this.terminal,
-        this.eventLog.render(this.terminal.height, split.leftWidth),
-        renderHomePanel(Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH), this.terminal.height, this.homeState),
-      );
+      const leftLines = this.eventLog.render(this.terminal.height, split.leftWidth);
+      const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
+
+      this.terminal.clear();
+
+      for (let row = 0; row < this.terminal.height; row++) {
+        this.terminal.fill(row, 0, (leftLines[row] ?? '').padEnd(split.leftWidth).slice(0, split.leftWidth));
+      }
+
+      drawVerticalDivider(this.terminal, split.dividerCol);
+      paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, this.terminal.height, this.homeState);
       this.terminal.flush();
     };
 

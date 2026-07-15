@@ -46,4 +46,14 @@ describe('DiffTerminal', () => {
     expect(output.join('')).toContain('\x1b[1;3H ');
     expect(output.join('')).toContain('\x1b[1;4H ');
   });
+
+  it('writes styled cells with ANSI color codes', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(1, 3, (chunk) => output.push(chunk));
+
+    terminal.setChar(0, 0, '●', 32);
+    terminal.flush();
+
+    expect(output.join('')).toContain('\x1b[32m●\x1b[0m');
+  });
 });
