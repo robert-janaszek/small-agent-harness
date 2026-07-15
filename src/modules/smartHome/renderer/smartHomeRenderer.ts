@@ -24,6 +24,8 @@ export class SmartHomeRenderer {
   private activityTick = 0;
   private harnessActive = false;
   private activityTimer: ReturnType<typeof setInterval> | null = null;
+  private runStartedAt: number | null = null;
+  private elapsedMs = 0;
 
   constructor(terminal: DiffTerminal, command: string) {
     this.terminal = terminal;
@@ -32,6 +34,8 @@ export class SmartHomeRenderer {
 
   async run(): Promise<number> {
     this.harnessActive = true;
+    this.runStartedAt = Date.now();
+    this.elapsedMs = 0;
     this.startActivityTimer();
     this.redraw();
 
@@ -57,9 +61,19 @@ export class SmartHomeRenderer {
     });
 
     this.harnessActive = false;
+    this.elapsedMs = this.currentElapsedMs();
+    this.runStartedAt = null;
     this.stopActivityTimer();
     this.redraw();
     return exitCode;
+  }
+
+  private currentElapsedMs(): number {
+    if (this.runStartedAt !== null) {
+      return Date.now() - this.runStartedAt;
+    }
+
+    return this.elapsedMs;
   }
 
   private startActivityTimer(): void {
@@ -88,6 +102,7 @@ export class SmartHomeRenderer {
       tokenCounter: this.tokenCounter,
       activityTick: this.activityTick,
       activityActive: this.harnessActive,
+      elapsedMs: this.currentElapsedMs(),
     });
   }
 

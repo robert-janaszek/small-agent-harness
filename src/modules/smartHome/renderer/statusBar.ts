@@ -6,6 +6,7 @@ import {
   paintSegments,
   STATUS_BAR_GAP,
 } from './activitySpinner';
+import { formatStopwatch, stopwatchSegments, STOPWATCH_WIDTH } from './stopwatch';
 import { tokenCounterSegments, TOKEN_COUNT_FIELD_WIDTH, TOKEN_ITERATION_FIELD_WIDTH } from './tokenCounter';
 import type { TokenCounterState } from './tokenCounter';
 
@@ -16,14 +17,17 @@ export type StatusBarOptions = {
   tokenCounter: TokenCounterState | null;
   activityTick: number;
   activityActive: boolean;
+  elapsedMs: number;
 };
 
 export function statusBarWidth(tokenCounter: TokenCounterState | null): number {
-  if (!tokenCounter) {
-    return ACTIVITY_SPINNER_WIDTH;
+  let width = ACTIVITY_SPINNER_WIDTH + STATUS_BAR_GAP + STOPWATCH_WIDTH;
+
+  if (tokenCounter) {
+    width += STATUS_BAR_GAP + TOKEN_COUNTER_WIDTH;
   }
 
-  return ACTIVITY_SPINNER_WIDTH + STATUS_BAR_GAP + TOKEN_COUNTER_WIDTH;
+  return width;
 }
 
 export function paintStatusBar(
@@ -45,6 +49,10 @@ export function paintStatusBar(
   );
   col += ACTIVITY_SPINNER_WIDTH;
 
+  col += STATUS_BAR_GAP;
+  paintSegments(terminal, row, col, stopwatchSegments(options.elapsedMs));
+  col += STOPWATCH_WIDTH;
+
   if (!options.tokenCounter) {
     return;
   }
@@ -58,13 +66,16 @@ export function formatStatusBar(options: StatusBarOptions): string {
     ? `[${activityFrame(options.activityTick)}]`
     : '[✓]';
 
+  const stopwatch = formatStopwatch(options.elapsedMs);
   const counter = options.tokenCounter
     ? tokenCounterSegments(options.tokenCounter).map((segment) => segment.text).join('')
     : '';
 
-  if (!counter) {
-    return spinner;
+  let line = `${spinner}${' '.repeat(STATUS_BAR_GAP)}${stopwatch}`;
+
+  if (counter) {
+    line += `${' '.repeat(STATUS_BAR_GAP)}${counter}`;
   }
 
-  return `${spinner}${' '.repeat(STATUS_BAR_GAP)}${counter}`;
+  return line;
 }
