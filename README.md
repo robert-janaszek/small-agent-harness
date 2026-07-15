@@ -230,6 +230,27 @@ npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inp
 
 ---
 
+## TUI renderer
+
+For a human-readable split view (Claude Code style), use the smart home renderer. It **spawns** the harness as a child process, reads JSONL from stdout, and draws a TUI:
+
+- **Left panel** — event log (`tool_call`, `tool_result`, tokens, agent response, …)
+- **Right panel** — ASCII floor-plan of the home; updates on `context_delta`
+- **Diff rendering** — only changed terminal cells are rewritten (no full-screen clear)
+
+Requires an interactive terminal (TTY):
+
+```bash
+npm run render -- turn off all lights in the living room
+```
+
+| Command | Output |
+|---------|--------|
+| `npm start -- <command>` | JSONL on stdout (machine mode) |
+| `npm run render -- <command>` | Split-view TUI (human mode) |
+
+---
+
 ## Adding your own module
 
 The harness does not depend on smart home. To add another domain:
@@ -259,6 +280,8 @@ src/
 ├── cli/                    # Entry point + user input + JSONL protocol
 │   ├── main.ts
 │   ├── jsonl.ts            # emit() — stdout JSON Lines
+│   ├── render.ts           # TUI renderer entry (spawn + split view)
+│   ├── tui/                # diff terminal + split layout
 │   └── readUserCommand.ts  # CLI batch / interactive input (prompt on stderr)
 ├── tools/                  # Tool framework
 │   ├── defineTool.ts       # Tool factory + Zod → OpenAI parameters
@@ -271,6 +294,7 @@ src/
         ├── devices.ts      # In-memory state + helpers
         ├── schemas.ts      # Zod argument schemas
         ├── context.ts      # Context factory + context_delta emitter
+        └── renderer/       # TUI: spawn harness, floor-plan, event log
         └── *.tool.ts       # One file per tool
 ```
 
@@ -297,6 +321,7 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run dev` | Run the agent (batch or interactive) |
 | `npm start` | Same as `dev` |
 | `npm start -- <command>` | Batch mode: run a single command from CLI args |
+| `npm run render -- <command>` | TUI split-view renderer (requires TTY) |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:system` | E2E tests against local model |
 | `npm run build` | Compile TypeScript to `dist/` |
