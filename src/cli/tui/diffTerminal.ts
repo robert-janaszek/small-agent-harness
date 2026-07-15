@@ -1,4 +1,4 @@
-export type AnsiColor = 31 | 32 | 33 | 90;
+export type AnsiColor = 31 | 32 | 33 | 35 | 36 | 37 | 90;
 
 export type CharCell = { ch: string; fg?: AnsiColor };
 

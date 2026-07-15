@@ -6,6 +6,10 @@ import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
 import { applyContextDelta, createHomeState } from './homeState';
 import { readHarnessEvents, spawnHarness } from './spawnHarness';
+import { paintStatusBar } from './statusBar';
+import type { TokenCounterState } from './tokenCounter';
+
+const ACTIVITY_INTERVAL_MS = 120;
 
 function isHarnessEvent(raw: unknown): raw is HarnessEvent {
   return typeof raw === 'object' && raw !== null && 'type' in raw;
@@ -16,6 +20,12 @@ export class SmartHomeRenderer {
   private command: string;
   private eventLog = new EventLog();
   private homeState = createHomeState();
+  private tokenCounter: TokenCounterState | null = null;
+  private activityTick = 0;
+  private harnessActive = false;
+  private activityTimer: ReturnType<typeof setInterval> | null = null;
+  private runStartedAt: number | null = null;
+  private elapsedMs = 0;
 
   constructor(terminal: DiffTerminal, command: string) {
     this.terminal = terminal;
@@ -23,6 +33,10 @@ export class SmartHomeRenderer {
   }
 
   async run(): Promise<number> {
+    this.harnessActive = true;
+    this.runStartedAt = Date.now();
+    this.elapsedMs = 0;
+    this.startActivityTimer();
     this.redraw();
 
     const child = spawnHarness(this.command);
@@ -46,8 +60,59 @@ export class SmartHomeRenderer {
       child.once('close', () => resolve());
     });
 
+    this.harnessActive = false;
+    this.elapsedMs = this.currentElapsedMs();
+    this.runStartedAt = null;
+    this.stopActivityTimer();
     this.redraw();
     return exitCode;
+  }
+
+  private currentElapsedMs(): number {
+    if (this.runStartedAt !== null) {
+      return Date.now() - this.runStartedAt;
+    }
+
+    return this.elapsedMs;
+  }
+
+  private startActivityTimer(): void {
+    this.activityTimer = setInterval(() => {
+      this.activityTick += 1;
+      this.pulseStatusBar();
+    }, ACTIVITY_INTERVAL_MS);
+  }
+
+  private stopActivityTimer(): void {
+    if (this.activityTimer !== null) {
+      clearInterval(this.activityTimer);
+      this.activityTimer = null;
+    }
+  }
+
+  private statusRow(): number {
+    return this.terminal.height - 1;
+  }
+
+  private paintStatusBarOnTerminal(): void {
+    const split = getSplitColumns(this.terminal.width);
+    const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
+
+    paintStatusBar(this.terminal, split.dividerCol + 1, rightWidth, this.statusRow(), {
+      tokenCounter: this.tokenCounter,
+      activityTick: this.activityTick,
+      activityActive: this.harnessActive,
+      elapsedMs: this.currentElapsedMs(),
+    });
+  }
+
+  private pulseStatusBar(): void {
+    if (!this.harnessActive) {
+      return;
+    }
+
+    this.paintStatusBarOnTerminal();
+    this.terminal.flush();
   }
 
   private redraw(): void {
@@ -63,6 +128,7 @@ export class SmartHomeRenderer {
 
     drawVerticalDivider(this.terminal, split.dividerCol);
     paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, this.terminal.height, this.homeState);
+    this.paintStatusBarOnTerminal();
     this.terminal.flush();
   }
 
@@ -71,7 +137,15 @@ export class SmartHomeRenderer {
       return;
     }
 
-    this.eventLog.append(raw);
+    if (raw.type === 'tokens') {
+      this.tokenCounter = { usage: raw.usage, iteration: raw.iteration };
+    } else if (raw.type === 'agent_response') {
+      this.tokenCounter = { usage: raw.tokenUsage, iteration: raw.iterations };
+      this.eventLog.append(raw);
+    } else if (raw.type !== 'context_delta' || raw.changes.length > 0) {
+      this.eventLog.append(raw);
+    }
+
     if (raw.type === 'context_delta') {
       applyContextDelta(this.homeState, raw.changes);
     }
