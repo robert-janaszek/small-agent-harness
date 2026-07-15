@@ -2,7 +2,7 @@ import type { AnsiColor } from '../../../cli/tui/diffTerminal';
 
 export const STOPWATCH_TIME_WIDTH = 5;
 export const STOPWATCH_WIDTH = 1 + STOPWATCH_TIME_WIDTH;
-const STOPWATCH_FG: AnsiColor = 90;
+const STOPWATCH_FG: AnsiColor = 35;
 
 type StopwatchSegment = { text: string; fg?: AnsiColor };
 
