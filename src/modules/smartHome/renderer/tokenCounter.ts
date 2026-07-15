@@ -8,6 +8,9 @@ export type TokenCounterState = {
 
 type TokenSegment = { text: string; fg?: AnsiColor };
 
+export const TOKEN_COUNT_FIELD_WIDTH = 5;
+export const TOKEN_ITERATION_FIELD_WIDTH = 2;
+
 export function formatCompactCount(n: number): string {
   if (n < 1000) {
     return String(n);
@@ -28,24 +31,29 @@ export function formatCompactCount(n: number): string {
   return `${millions.toFixed(1).replace(/\.0$/, '')}M`;
 }
 
+function padCountField(value: string): string {
+  return value.padStart(TOKEN_COUNT_FIELD_WIDTH, ' ');
+}
+
+function padIterationField(value: number): string {
+  return String(value).padStart(TOKEN_ITERATION_FIELD_WIDTH, ' ');
+}
+
 export function tokenCounterSegments(state: TokenCounterState): TokenSegment[] {
   const { usage, iteration } = state;
-  const prompt = formatCompactCount(usage.prompt_tokens);
-  const completion = formatCompactCount(usage.completion_tokens);
-  const total = formatCompactCount(usage.total_tokens);
 
   return [
     { text: '↑', fg: 36 },
-    { text: prompt, fg: 36 },
-    { text: '  ' },
+    { text: padCountField(formatCompactCount(usage.prompt_tokens)), fg: 36 },
+    { text: ' ' },
     { text: '↓', fg: 33 },
-    { text: completion, fg: 33 },
-    { text: '  ' },
+    { text: padCountField(formatCompactCount(usage.completion_tokens)), fg: 33 },
+    { text: ' ' },
     { text: 'Σ', fg: 32 },
-    { text: total, fg: 32 },
-    { text: '  ' },
+    { text: padCountField(formatCompactCount(usage.total_tokens)), fg: 32 },
+    { text: ' ' },
     { text: '↻', fg: 37 },
-    { text: String(iteration), fg: 37 },
+    { text: padIterationField(iteration), fg: 37 },
   ];
 }
 
