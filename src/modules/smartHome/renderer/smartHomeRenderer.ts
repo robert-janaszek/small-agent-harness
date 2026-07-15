@@ -6,6 +6,7 @@ import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
 import { applyContextDelta, createHomeState } from './homeState';
 import { readHarnessEvents, spawnHarness } from './spawnHarness';
+import { paintTokenCounter, type TokenCounterState } from './tokenCounter';
 
 function isHarnessEvent(raw: unknown): raw is HarnessEvent {
   return typeof raw === 'object' && raw !== null && 'type' in raw;
@@ -16,6 +17,7 @@ export class SmartHomeRenderer {
   private command: string;
   private eventLog = new EventLog();
   private homeState = createHomeState();
+  private tokenCounter: TokenCounterState | null = null;
 
   constructor(terminal: DiffTerminal, command: string) {
     this.terminal = terminal;
@@ -63,6 +65,13 @@ export class SmartHomeRenderer {
 
     drawVerticalDivider(this.terminal, split.dividerCol);
     paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, this.terminal.height, this.homeState);
+    paintTokenCounter(
+      this.terminal,
+      split.dividerCol + 1,
+      rightWidth,
+      this.terminal.height - 1,
+      this.tokenCounter,
+    );
     this.terminal.flush();
   }
 
@@ -71,7 +80,15 @@ export class SmartHomeRenderer {
       return;
     }
 
-    this.eventLog.append(raw);
+    if (raw.type === 'tokens') {
+      this.tokenCounter = { usage: raw.usage, iteration: raw.iteration };
+    } else if (raw.type === 'agent_response') {
+      this.tokenCounter = { usage: raw.tokenUsage, iteration: raw.iterations };
+      this.eventLog.append(raw);
+    } else if (raw.type !== 'context_delta' || raw.changes.length > 0) {
+      this.eventLog.append(raw);
+    }
+
     if (raw.type === 'context_delta') {
       applyContextDelta(this.homeState, raw.changes);
     }
