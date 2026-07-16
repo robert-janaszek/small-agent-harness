@@ -282,7 +282,7 @@ In serve mode, the harness reads **one JSON object per line** from stdin:
 ← {"type":"session_end","turnCount":2}
 ```
 
-Any language can implement a renderer by spawning `npm start -- --serve` with piped stdin/stdout. The TypeScript TUI (`npm run render`) is a reference client built on this protocol.
+Any language can implement a renderer by spawning `npm run harness -- --serve` with piped stdin/stdout. The TypeScript TUI (`npm start`) is a reference client built on this protocol.
 
 ---
 
@@ -298,16 +298,16 @@ For a human-readable split view (Claude Code style), use the smart home renderer
 Requires an interactive terminal (TTY):
 
 ```bash
-npm run render -- turn off all lights in the living room
-npm run render
+npm start -- turn off all lights in the living room
+npm start
 ```
 
 | Command | Output |
 |---------|--------|
-| `npm start -- <command>` | JSONL on stdout, single turn, exit |
-| `npm start` | Interactive REPL (multi-turn) |
-| `npm start -- --serve` | JSONL stdin/stdout session (for external renderers) |
-| `npm run render [-- <command>]` | Split-view TUI (multi-turn reference client) |
+| `npm start [-- <command>]` | Split-view TUI (multi-turn, default) |
+| `npm run harness -- <command>` | JSONL on stdout, single turn, exit |
+| `npm run harness` | Interactive REPL (multi-turn) |
+| `npm run harness -- --serve` | JSONL stdin/stdout session (for external renderers) |
 
 ---
 
@@ -381,11 +381,9 @@ Results will vary widely between models and quantizations. This repo is meant to
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Run the agent (batch or interactive) |
-| `npm start` | Same as `dev` |
-| `npm start -- <command>` | Batch mode: run a single command from CLI args |
-| `npm start -- --serve` | Serve mode: multi-turn JSONL session on stdin/stdout |
-| `npm run render [-- <command>]` | TUI split-view renderer (requires TTY) |
+| `npm start [-- <command>]` | TUI split-view renderer (requires TTY, default) |
+| `npm run harness [-- args]` | Headless harness CLI (batch, REPL, or `--serve`) |
+| `npm run dev` | Same as `harness` |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:system` | E2E tests against local model |
 | `npm run build` | Compile TypeScript to `dist/` |

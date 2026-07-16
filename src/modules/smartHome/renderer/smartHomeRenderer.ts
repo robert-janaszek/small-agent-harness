@@ -1,7 +1,7 @@
 import type { HarnessEvent } from '../../../cli/jsonl';
 import { HarnessSessionClient } from '../../../cli/harnessClient';
 import { DiffTerminal } from '../../../cli/tui/diffTerminal';
-import { createInputPrompt } from '../../../cli/tui/inputPrompt';
+import { paintInputLine, TerminalInputLine } from '../../../cli/tui/inputPrompt';
 import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayout';
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
@@ -11,6 +11,14 @@ import { paintStatusBar } from './statusBar';
 import type { TokenCounterState } from './tokenCounter';
 
 const ACTIVITY_INTERVAL_MS = 120;
+
+function contentHeight(terminalHeight: number): number {
+  return Math.max(1, terminalHeight - 1);
+}
+
+function inputRow(terminalHeight: number): number {
+  return terminalHeight - 1;
+}
 
 export class SmartHomeRenderer {
   private terminal: DiffTerminal;
@@ -23,11 +31,14 @@ export class SmartHomeRenderer {
   private activityTimer: ReturnType<typeof setInterval> | null = null;
   private runStartedAt: number | null = null;
   private elapsedMs = 0;
-  private inputPrompt = createInputPrompt();
+  private inputLine: TerminalInputLine;
 
   constructor(terminal: DiffTerminal, initialCommand: string | null = null) {
     this.terminal = terminal;
     this.initialCommand = initialCommand;
+    this.inputLine = new TerminalInputLine(() => {
+      this.redraw();
+    });
   }
 
   async run(): Promise<number> {
@@ -62,10 +73,7 @@ export class SmartHomeRenderer {
         }
       }
 
-      this.terminal.leave();
-      const command = await this.inputPrompt.read();
-      this.terminal.enter();
-      this.redraw();
+      const command = await this.inputLine.readLine();
 
       if (command === null || command === '/exit') {
         client.shutdown();
@@ -83,7 +91,7 @@ export class SmartHomeRenderer {
     this.elapsedMs = this.currentElapsedMs();
     this.runStartedAt = null;
     this.stopActivityTimer();
-    this.inputPrompt.close();
+    this.inputLine.close();
     this.redraw();
 
     return client.waitForExit();
@@ -95,6 +103,10 @@ export class SmartHomeRenderer {
     }
 
     return this.elapsedMs;
+  }
+
+  refresh(): void {
+    this.redraw();
   }
 
   private startActivityTimer(): void {
@@ -111,15 +123,11 @@ export class SmartHomeRenderer {
     }
   }
 
-  private statusRow(): number {
-    return this.terminal.height - 1;
-  }
-
   private paintStatusBarOnTerminal(): void {
     const split = getSplitColumns(this.terminal.width);
     const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
 
-    paintStatusBar(this.terminal, split.dividerCol + 1, rightWidth, this.statusRow(), {
+    paintStatusBar(this.terminal, split.dividerCol + 1, rightWidth, inputRow(this.terminal.height), {
       tokenCounter: this.tokenCounter,
       activityTick: this.activityTick,
       activityActive: this.harnessActive,
@@ -138,17 +146,21 @@ export class SmartHomeRenderer {
 
   private redraw(): void {
     const split = getSplitColumns(this.terminal.width);
-    const leftLines = this.eventLog.render(this.terminal.height, split.leftWidth);
+    const rows = contentHeight(this.terminal.height);
+    const leftLines = this.eventLog.render(rows, split.leftWidth);
     const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
+    const row = inputRow(this.terminal.height);
 
     this.terminal.clear();
 
-    for (let row = 0; row < this.terminal.height; row++) {
-      this.terminal.fill(row, 0, (leftLines[row] ?? '').padEnd(split.leftWidth).slice(0, split.leftWidth));
+    for (let lineRow = 0; lineRow < rows; lineRow++) {
+      this.terminal.fill(lineRow, 0, (leftLines[lineRow] ?? '').padEnd(split.leftWidth).slice(0, split.leftWidth));
     }
 
     drawVerticalDivider(this.terminal, split.dividerCol);
-    paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, this.terminal.height, this.homeState);
+    paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, rows, this.homeState);
+
+    paintInputLine(this.terminal, row, split.leftWidth, this.inputLine.getState());
     this.paintStatusBarOnTerminal();
     this.terminal.flush();
   }

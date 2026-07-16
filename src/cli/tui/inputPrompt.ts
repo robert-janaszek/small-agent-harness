@@ -1,32 +1,170 @@
-import * as readline from 'readline/promises';
-import { stdin as input, stderr as output } from 'process';
+import { stdin } from 'node:process';
 
-export type InputPrompt = {
-  read: () => Promise<string | null>;
-  close: () => void;
+import type { AnsiColor, DiffTerminal } from './diffTerminal';
+
+export const INPUT_PREFIX = '> ';
+
+export type InputLineView = {
+  line: string;
+  cursorCol: number;
 };
 
-export function createInputPrompt(): InputPrompt {
-  const rl = readline.createInterface({ input, output });
-  let closed = false;
+export type InputLineState = {
+  value: string;
+  cursor: number;
+  active: boolean;
+};
 
-  return {
-    async read(): Promise<string | null> {
-      if (closed) {
-        return null;
-      }
+export function getInputLineView(value: string, cursor: number, width: number): InputLineView {
+  const prefix = INPUT_PREFIX;
+  const maxInputWidth = Math.max(0, width - prefix.length);
+  let visible = value;
+  let visibleCursor = cursor;
 
-      try {
-        return (await rl.question('> ')).trim();
-      } catch {
-        return null;
+  if (visible.length > maxInputWidth) {
+    const scrollStart = Math.max(0, Math.min(cursor - maxInputWidth + 1, value.length - maxInputWidth));
+    visible = value.slice(scrollStart, scrollStart + maxInputWidth);
+    visibleCursor = cursor - scrollStart;
+  }
+
+  const line = (prefix + visible).padEnd(width).slice(0, width);
+  const cursorCol = Math.min(prefix.length + visibleCursor, width - 1);
+
+  return { line, cursorCol };
+}
+
+export function paintInputLine(
+  terminal: DiffTerminal,
+  row: number,
+  width: number,
+  state: InputLineState,
+  cursorColor: AnsiColor = 36,
+): void {
+  const { line, cursorCol } = getInputLineView(state.value, state.cursor, width);
+  terminal.fill(row, 0, line);
+
+  if (!state.active) {
+    return;
+  }
+
+  const cursorChar = line[cursorCol] ?? ' ';
+  terminal.setChar(row, cursorCol, cursorChar === ' ' ? '▁' : cursorChar, cursorColor);
+}
+
+export class TerminalInputLine {
+  private value = '';
+  private cursor = 0;
+  private active = false;
+  private resolve: ((value: string | null) => void) | null = null;
+  private readonly onUpdate: () => void;
+  private readonly handleData: (chunk: Buffer) => void;
+
+  constructor(onUpdate: () => void) {
+    this.onUpdate = onUpdate;
+    this.handleData = (chunk) => {
+      this.handleKey(chunk);
+    };
+  }
+
+  getState(): InputLineState {
+    return {
+      value: this.value,
+      cursor: this.cursor,
+      active: this.active,
+    };
+  }
+
+  isActive(): boolean {
+    return this.active;
+  }
+
+  async readLine(): Promise<string | null> {
+    if (this.active || !stdin.isTTY) {
+      return null;
+    }
+
+    this.active = true;
+    this.value = '';
+    this.cursor = 0;
+    this.onUpdate();
+
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on('data', this.handleData);
+
+    return new Promise((resolve) => {
+      this.resolve = resolve;
+    });
+  }
+
+  close(): void {
+    if (this.active) {
+      this.finish(null);
+    }
+  }
+
+  private handleKey(chunk: Buffer): void {
+    if (chunk.length === 1 && chunk[0] === 3) {
+      this.finish(null);
+      return;
+    }
+
+    const key = chunk.toString();
+
+    if (key === '\r' || key === '\n') {
+      this.finish(this.value.trim());
+      return;
+    }
+
+    if (key === '\u007f' || key === '\b') {
+      if (this.cursor > 0) {
+        this.value = `${this.value.slice(0, this.cursor - 1)}${this.value.slice(this.cursor)}`;
+        this.cursor -= 1;
+        this.onUpdate();
       }
-    },
-    close(): void {
-      if (!closed) {
-        closed = true;
-        rl.close();
+      return;
+    }
+
+    if (key === '\u001b[D') {
+      if (this.cursor > 0) {
+        this.cursor -= 1;
+        this.onUpdate();
       }
-    },
-  };
+      return;
+    }
+
+    if (key === '\u001b[C') {
+      if (this.cursor < this.value.length) {
+        this.cursor += 1;
+        this.onUpdate();
+      }
+      return;
+    }
+
+    if (key.startsWith('\u001b')) {
+      return;
+    }
+
+    if (chunk.every((byte) => byte >= 32 && byte < 127)) {
+      this.value = `${this.value.slice(0, this.cursor)}${key}${this.value.slice(this.cursor)}`;
+      this.cursor += key.length;
+      this.onUpdate();
+    }
+  }
+
+  private finish(result: string | null): void {
+    stdin.off('data', this.handleData);
+    if (stdin.isTTY) {
+      stdin.setRawMode(false);
+    }
+
+    this.active = false;
+    this.value = '';
+    this.cursor = 0;
+    this.onUpdate();
+
+    const resolve = this.resolve;
+    this.resolve = null;
+    resolve?.(result);
+  }
 }

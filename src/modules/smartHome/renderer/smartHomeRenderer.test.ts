@@ -12,17 +12,19 @@ function countCursorMoves(output: string): number {
 }
 
 function makeRedraw(terminal: DiffTerminal, eventLog: EventLog, homeState: ReturnType<typeof createHomeState>) {
+  const rows = Math.max(1, terminal.height - 1);
+
   return (): void => {
     const split = getSplitColumns(terminal.width);
-    const leftLines = eventLog.render(terminal.height, split.leftWidth);
+    const leftLines = eventLog.render(rows, split.leftWidth);
     const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
 
     terminal.clear();
-    for (let row = 0; row < terminal.height; row++) {
+    for (let row = 0; row < rows; row++) {
       terminal.fill(row, 0, (leftLines[row] ?? '').padEnd(split.leftWidth).slice(0, split.leftWidth));
     }
     drawVerticalDivider(terminal, split.dividerCol);
-    paintHomePanel(terminal, split.dividerCol + 1, rightWidth, terminal.height, homeState);
+    paintHomePanel(terminal, split.dividerCol + 1, rightWidth, rows, homeState);
     terminal.flush();
   };
 }

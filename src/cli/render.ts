@@ -14,6 +14,11 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  if (!process.stdin.isTTY) {
+    process.stderr.write('TUI renderer requires an interactive terminal (TTY).\n');
+    process.exit(1);
+  }
+
   const command = process.argv.slice(2).join(' ').trim() || null;
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     process.stderr.write('Usage: npm start [-- <initial-command>]\n');
@@ -34,12 +39,13 @@ async function main(): Promise<void> {
   });
   process.on('SIGTERM', cleanup);
 
+  const renderer = new SmartHomeRenderer(terminal, command);
+
   process.stdout.on('resize', () => {
     const size = getTerminalSize();
     terminal.resize(size.rows, size.cols);
+    renderer.refresh();
   });
-
-  const renderer = new SmartHomeRenderer(terminal, command);
 
   try {
     const exitCode = await renderer.run();
