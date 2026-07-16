@@ -37,6 +37,10 @@ export function formatEvent(event: HarnessEvent): string {
       return `state Δ ${event.changes.length} change(s)`;
     case 'agent_response':
       return `agent: ${truncate(event.content)}`;
+    case 'ready':
+      return `session ready (protocol v${event.protocolVersion})`;
+    case 'session_end':
+      return `session ended (${event.turnCount} turn(s))`;
     case 'error':
       return `ERROR: ${event.message}`;
     default: {

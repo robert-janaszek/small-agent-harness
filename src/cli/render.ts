@@ -14,10 +14,10 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const command = process.argv.slice(2).join(' ').trim();
-  if (!command) {
-    process.stderr.write('Usage: npm run render -- <command>\n');
-    process.exit(1);
+  const command = process.argv.slice(2).join(' ').trim() || null;
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    process.stderr.write('Usage: npm start [-- <initial-command>]\n');
+    process.exit(0);
   }
 
   const { rows, cols } = getTerminalSize();

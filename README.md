@@ -67,22 +67,42 @@ MODEL_NAME=google/gemma-3-12b
 HARNESS_MAX_ITERATIONS=15
 ```
 
-Start your local model server, then run the agent.
+Start your local model server, then run the TUI renderer:
 
-**Batch mode** — pass the command as CLI arguments:
+```bash
+npm start
+```
+
+Or pass an initial command:
 
 ```bash
 npm start -- turn off all lights in the living room
 ```
 
-**Interactive mode** — no arguments; the terminal waits for input:
+For headless CLI usage (JSONL output, scripts, `--serve` mode), use `npm run harness` instead.
+
+**Batch mode** — pass the command as CLI arguments (one shot, process exits):
 
 ```bash
-npm start
-> Is anyone home? check if there are any lights on
+npm run harness -- turn off all lights in the living room
 ```
 
-The command is read by `readUserCommand()`: joined CLI args in batch mode, or a `> ` prompt when run without arguments.
+**Interactive REPL** — multi-turn session in the terminal:
+
+```bash
+npm run harness
+> turn off all lights in the living room
+> are any lights still on?
+> /exit
+```
+
+**Serve mode** — long-lived JSONL session for external renderers (stdin commands, stdout events):
+
+```bash
+npm run harness -- --serve
+```
+
+The command is read by `readUserCommand()` in batch mode, or via REPL / `--serve` for multi-turn sessions.
 
 ---
 
@@ -104,9 +124,11 @@ Config is loaded lazily: `.env` is read on the first call to `getHarnessConfig()
 ```text
 cli/main.ts
   └── readUserCommand()        ← CLI args (batch) or interactive prompt
+  └── --serve / REPL           ← multi-turn session modes
   └── Harness(agent, options?)
+        ├── messageHistory     ← persists across turns within a session
         ├── ChatCompletionClient   ← createOpenAiClient() or inject a mock
-        ├── agent loop             ← system prompt + user command + tool history
+        ├── agent loop             ← system prompt + full history + tools
         └── runTools()             ← Zod-validated tool execution
 
 modules/smartHome/
@@ -118,7 +140,7 @@ modules/smartHome/
 
 ### Core concepts
 
-**`Harness`** — domain-agnostic loop. Calls the LLM, executes tool calls, repeats until the model returns a text response or `maxIterations` is reached. Returns a structured `HarnessRunResult` (`content`, token usage, iteration count). Throws if the iteration limit is hit or the API returns an empty `choices` array.
+**`Harness`** — domain-agnostic loop. Calls the LLM, executes tool calls, repeats until the model returns a text response or `maxIterations` is reached. Maintains `messageHistory` across multiple `run()` calls within a session. Returns a structured `HarnessRunResult` (`content`, token usage, iteration count). Throws if the iteration limit is hit or the API returns an empty `choices` array.
 
 **`Agent`** — a system prompt, a list of tools, and an optional `onToolRound` callback. The harness core never imports domain modules.
 
@@ -170,13 +192,13 @@ System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when
 
 ```bash
 # Control
-npm start -- turn off all lights in the living room
-npm start -- set the living room air conditioning to 24 degrees and turn it on
-npm start -- turn off the water valve in the bathroom
-npm start -- turn on the bedroom ceiling light
+npm run harness -- turn off all lights in the living room
+npm run harness -- set the living room air conditioning to 24 degrees and turn it on
+npm run harness -- turn off the water valve in the bathroom
+npm run harness -- turn on the bedroom ceiling light
 
 # Status / query (read-only — should not mutate devices)
-npm start -- Is anyone home? check if there are any lights on
+npm run harness -- Is anyone home? check if there are any lights on
 ```
 
 After each run, stdout is a stream of JSON Lines (one event per line). An external process can spawn the harness and parse each line. Interactive mode writes the `> ` prompt to stderr so stdout stays machine-readable.
@@ -189,13 +211,15 @@ The harness writes **one JSON object per line** to stdout. Each object has a `ty
 
 | `type` | When | Fields |
 |--------|------|--------|
-| `user_command` | Start of `Harness.run()` | `command` |
+| `ready` | Start of `--serve` session | `protocolVersion` |
+| `user_command` | Start of each turn | `command` |
 | `assistant_message` | Model returns text before tool calls | `content` |
 | `tool_call` | Before executing a tool | `name`, `args`, `toolCallId` |
 | `tool_result` | After executing a tool | `name`, `content`, `toolCallId` |
-| `tokens` | After each LLM call | `iteration`, `usage` (cumulative) |
+| `tokens` | After each LLM call | `iteration`, `usage` (cumulative per turn) |
 | `context_delta` | After each tool round (smart home) | `changes[]` — only devices that changed |
-| `agent_response` | Final text response | `content`, `iterations`, `tokenUsage` |
+| `agent_response` | Final text response for a turn | `content`, `iterations`, `tokenUsage` |
+| `session_end` | End of session | `turnCount` |
 | `error` | CLI or runtime failure | `message` |
 
 Example lines:
@@ -214,40 +238,76 @@ Parsing from another process:
 
 ```bash
 # -s hides npm's own stdout banner; stderr holds only the interactive prompt
-npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs | .type'
+npm run harness -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs | .type'
 ```
 
 Process every event type:
 
 ```bash
-npm start -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs'
+npm run harness -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs'
 ```
 
 **Do not use `echo "$line" | jq` on macOS.** Builtin `echo` interprets `\n` inside JSON strings as real newlines, which breaks valid JSONL. Use `jq -cn 'inputs'` (reads one JSON object per line) or `printf '%s\n' "$line" | jq .` in a `while read` loop.
 
 - **stdout** — JSONL events only (dotenv load is silent)
-- **stderr** — interactive `> ` prompt (when no CLI args are provided)
+- **stderr** — interactive `> ` prompt (REPL mode) or debug; never parse as protocol
+
+---
+
+## JSONL input protocol (`--serve`)
+
+In serve mode, the harness reads **one JSON object per line** from stdin:
+
+| `type` | Fields | Description |
+|--------|--------|-------------|
+| `user_command` | `command` | Start a new turn (wait for `agent_response` before sending another) |
+| `shutdown` | — | End the session gracefully |
+
+**Stream rules:**
+- **stdout** — harness events (machine-readable)
+- **stdin** — client commands (machine-readable)
+- **stderr** — ignored by clients; do not use for protocol
+
+**Session flow:**
+
+```text
+← {"type":"ready","protocolVersion":1}
+→ {"type":"user_command","command":"turn off all lights"}
+← {"type":"user_command","command":"turn off all lights"}
+← {"type":"tool_call",...}
+← {"type":"agent_response",...}
+→ {"type":"user_command","command":"are any lights still on?"}
+← ...
+→ {"type":"shutdown"}
+← {"type":"session_end","turnCount":2}
+```
+
+Any language can implement a renderer by spawning `npm start -- --serve` with piped stdin/stdout. The TypeScript TUI (`npm run render`) is a reference client built on this protocol.
 
 ---
 
 ## TUI renderer
 
-For a human-readable split view (Claude Code style), use the smart home renderer. It **spawns** the harness as a child process, reads JSONL from stdout, and draws a TUI:
+For a human-readable split view (Claude Code style), use the smart home renderer. It **spawns** the harness in `--serve` mode, sends commands on stdin, reads JSONL from stdout, and draws a TUI:
 
 - **Left panel** — event log (`tool_call`, `tool_result`, tokens, agent response, …)
 - **Right panel** — ASCII floor-plan of the home; updates on `context_delta`
 - **Diff rendering** — only changed terminal cells are rewritten (no full-screen clear)
+- **Multi-turn** — after each `agent_response`, enter another command; `/exit` ends the session
 
 Requires an interactive terminal (TTY):
 
 ```bash
 npm run render -- turn off all lights in the living room
+npm run render
 ```
 
 | Command | Output |
 |---------|--------|
-| `npm start -- <command>` | JSONL on stdout (machine mode) |
-| `npm run render -- <command>` | Split-view TUI (human mode) |
+| `npm start -- <command>` | JSONL on stdout, single turn, exit |
+| `npm start` | Interactive REPL (multi-turn) |
+| `npm start -- --serve` | JSONL stdin/stdout session (for external renderers) |
+| `npm run render [-- <command>]` | Split-view TUI (multi-turn reference client) |
 
 ---
 
@@ -279,7 +339,10 @@ src/
 │   └── loadEnv.ts          # Idempotent dotenv loader
 ├── cli/                    # Entry point + user input + JSONL protocol
 │   ├── main.ts
-│   ├── jsonl.ts            # emit() — stdout JSON Lines
+│   ├── jsonl.ts            # emit() — stdout JSON Lines + HarnessCommand types
+│   ├── sessionLoop.ts      # REPL and --serve session loops
+│   ├── harnessClient.ts    # spawn --serve, writeHarnessCommand, HarnessSessionClient
+│   ├── readHarnessCommands.ts
 │   ├── render.ts           # TUI renderer entry (spawn + split view)
 │   ├── tui/                # diff terminal + split layout
 │   └── readUserCommand.ts  # CLI batch / interactive input (prompt on stderr)
@@ -321,7 +384,8 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run dev` | Run the agent (batch or interactive) |
 | `npm start` | Same as `dev` |
 | `npm start -- <command>` | Batch mode: run a single command from CLI args |
-| `npm run render -- <command>` | TUI split-view renderer (requires TTY) |
+| `npm start -- --serve` | Serve mode: multi-turn JSONL session on stdin/stdout |
+| `npm run render [-- <command>]` | TUI split-view renderer (requires TTY) |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:system` | E2E tests against local model |
 | `npm run build` | Compile TypeScript to `dist/` |

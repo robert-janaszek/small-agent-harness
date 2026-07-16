@@ -1,23 +1,20 @@
 import type { HarnessEvent } from '../../../cli/jsonl';
+import { HarnessSessionClient } from '../../../cli/harnessClient';
 import { DiffTerminal } from '../../../cli/tui/diffTerminal';
+import { createInputPrompt } from '../../../cli/tui/inputPrompt';
 import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayout';
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
 import { applyContextDelta, createHomeState } from './homeState';
-import { readHarnessEvents, spawnHarness } from './spawnHarness';
 import { paintStatusBar } from './statusBar';
 import type { TokenCounterState } from './tokenCounter';
 
 const ACTIVITY_INTERVAL_MS = 120;
 
-function isHarnessEvent(raw: unknown): raw is HarnessEvent {
-  return typeof raw === 'object' && raw !== null && 'type' in raw;
-}
-
 export class SmartHomeRenderer {
   private terminal: DiffTerminal;
-  private command: string;
+  private initialCommand: string | null;
   private eventLog = new EventLog();
   private homeState = createHomeState();
   private tokenCounter: TokenCounterState | null = null;
@@ -26,46 +23,70 @@ export class SmartHomeRenderer {
   private activityTimer: ReturnType<typeof setInterval> | null = null;
   private runStartedAt: number | null = null;
   private elapsedMs = 0;
+  private inputPrompt = createInputPrompt();
 
-  constructor(terminal: DiffTerminal, command: string) {
+  constructor(terminal: DiffTerminal, initialCommand: string | null = null) {
     this.terminal = terminal;
-    this.command = command;
+    this.initialCommand = initialCommand;
   }
 
   async run(): Promise<number> {
+    const client = new HarnessSessionClient();
+    client.onEvent((event) => this.onEvent(event));
+
     this.harnessActive = true;
     this.runStartedAt = Date.now();
     this.elapsedMs = 0;
     this.startActivityTimer();
     this.redraw();
 
-    const child = spawnHarness(this.command);
-    let exitCode = 1;
+    await client.waitReady();
+    this.harnessActive = false;
+    this.redraw();
 
-    child.on('close', (code) => {
-      exitCode = code ?? 1;
-    });
+    let nextCommand = this.initialCommand;
 
-    const readDone = readHarnessEvents(child.stdout!, (raw) => this.onEvent(raw));
-    child.stderr?.on('data', () => {
-      // harness batch mode should stay quiet on stderr
-    });
+    while (!client.hasSessionEnded()) {
+      if (nextCommand) {
+        this.harnessActive = true;
+        this.redraw();
+        client.sendCommand(nextCommand);
+        await client.waitForTurn();
+        this.harnessActive = false;
+        this.elapsedMs = this.currentElapsedMs();
+        this.redraw();
+        nextCommand = null;
 
-    await readDone;
-    await new Promise<void>((resolve) => {
-      if (child.exitCode !== null) {
-        resolve();
-        return;
+        if (client.hasSessionEnded()) {
+          break;
+        }
       }
-      child.once('close', () => resolve());
-    });
+
+      this.terminal.leave();
+      const command = await this.inputPrompt.read();
+      this.terminal.enter();
+      this.redraw();
+
+      if (command === null || command === '/exit') {
+        client.shutdown();
+        break;
+      }
+
+      if (command.length === 0) {
+        continue;
+      }
+
+      nextCommand = command;
+    }
 
     this.harnessActive = false;
     this.elapsedMs = this.currentElapsedMs();
     this.runStartedAt = null;
     this.stopActivityTimer();
+    this.inputPrompt.close();
     this.redraw();
-    return exitCode;
+
+    return client.waitForExit();
   }
 
   private currentElapsedMs(): number {
@@ -132,18 +153,16 @@ export class SmartHomeRenderer {
     this.terminal.flush();
   }
 
-  private onEvent(raw: unknown): void {
-    if (!isHarnessEvent(raw)) {
-      return;
-    }
-
+  private onEvent(raw: HarnessEvent): void {
     if (raw.type === 'tokens') {
       this.tokenCounter = { usage: raw.usage, iteration: raw.iteration };
     } else if (raw.type === 'agent_response') {
       this.tokenCounter = { usage: raw.tokenUsage, iteration: raw.iterations };
       this.eventLog.append(raw);
     } else if (raw.type !== 'context_delta' || raw.changes.length > 0) {
-      this.eventLog.append(raw);
+      if (raw.type !== 'ready' && raw.type !== 'session_end') {
+        this.eventLog.append(raw);
+      }
     }
 
     if (raw.type === 'context_delta') {

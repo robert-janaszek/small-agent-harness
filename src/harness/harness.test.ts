@@ -52,6 +52,37 @@ function assistantToolCall(
 }
 
 describe('Harness', () => {
+  it('accumulates message history across multiple runs', async () => {
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('first') }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('second') }],
+      });
+    const llmClient: ChatCompletionClient = { createChatCompletion };
+
+    const harness = new Harness(makeAgent(), { llmClient, config: testConfig });
+    await harness.run('hello');
+    await harness.run('again');
+
+    expect(harness.getTurnCount()).toBe(2);
+    expect(harness.getMessageHistory()).toEqual([
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'first' },
+      { role: 'user', content: 'again' },
+      { role: 'assistant', content: 'second' },
+    ]);
+    expect(createChatCompletion).toHaveBeenCalledTimes(2);
+    expect(createChatCompletion.mock.calls[1][0].messages).toEqual([
+      { role: 'system', content: 'test prompt' },
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'first' },
+      { role: 'user', content: 'again' },
+    ]);
+  });
+
   it('finishes when the model returns a text response', async () => {
     const createChatCompletion = vi.fn().mockResolvedValue({
       choices: [{ message: assistantMessage('done') }],
