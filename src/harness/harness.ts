@@ -6,7 +6,7 @@ import {
 import { getHarnessConfig } from './harness.config';
 import type { HarnessConfig } from './harness.config.validate';
 import { createOpenAiClient } from '../client/createOpenAiClient';
-import { hasToolCalls, runTools, toAssistantHistoryMessage } from '../tools/runTools';
+import { hasToolCalls, runTools, toAssistantHistoryMessage, formatMessageContent } from '../tools/runTools';
 import { Agent } from './agent.type';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { emit } from '../cli/jsonl';
@@ -114,8 +114,14 @@ export class Harness {
         continue;
       }
 
+      const content = formatMessageContent(responseMessage.content);
+      if (!content) {
+        this.messageHistory.pop();
+        continue;
+      }
+
       const result = {
-        content: responseMessage.content ?? '',
+        content,
         tokenUsage,
         iterations: iteration,
       };

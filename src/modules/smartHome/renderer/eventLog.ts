@@ -57,6 +57,12 @@ export class EventLog {
     if (event.type === 'context_delta' && event.changes.length === 0) {
       return;
     }
+    if (
+      (event.type === 'agent_response' || event.type === 'assistant_message') &&
+      event.content.trim().length === 0
+    ) {
+      return;
+    }
     this.lines.push(formatEvent(event));
   }
 

@@ -83,6 +83,28 @@ describe('Harness', () => {
     ]);
   });
 
+  it('retries when the model returns an empty text response', async () => {
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('') }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('done') }],
+      });
+    const llmClient: ChatCompletionClient = { createChatCompletion };
+
+    const harness = new Harness(makeAgent(), { llmClient, config: testConfig });
+    const result = await harness.run('hello');
+
+    expect(result.content).toBe('done');
+    expect(createChatCompletion).toHaveBeenCalledTimes(2);
+    expect(harness.getMessageHistory()).toEqual([
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'done' },
+    ]);
+  });
+
   it('finishes when the model returns a text response', async () => {
     const createChatCompletion = vi.fn().mockResolvedValue({
       choices: [{ message: assistantMessage('done') }],
