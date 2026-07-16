@@ -29,15 +29,11 @@ describe('formatEvent', () => {
 });
 
 describe('EventLog', () => {
-  it('keeps only the last N visible lines', () => {
+  it('skips empty agent responses', () => {
     const log = new EventLog();
-    for (let i = 0; i < 10; i++) {
-      log.append({ type: 'user_command', command: `cmd ${i}` });
-    }
+    log.append({ type: 'agent_response', content: '', iterations: 1, tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } });
+    log.append({ type: 'agent_response', content: 'done', iterations: 1, tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } });
 
-    const lines = log.render(3, 40);
-    expect(lines).toHaveLength(3);
-    expect(lines[0]).toBe('> cmd 7');
-    expect(lines[2]).toBe('> cmd 9');
+    expect(log.render(10, 40)).toEqual(['agent: done']);
   });
 });

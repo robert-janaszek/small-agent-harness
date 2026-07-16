@@ -6,7 +6,7 @@ import {
 import { getHarnessConfig } from './harness.config';
 import type { HarnessConfig } from './harness.config.validate';
 import { createOpenAiClient } from '../client/createOpenAiClient';
-import { hasToolCalls, runTools, toAssistantHistoryMessage } from '../tools/runTools';
+import { hasToolCalls, runTools, toAssistantHistoryMessage, formatMessageContent } from '../tools/runTools';
 import { Agent } from './agent.type';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { emit } from '../cli/jsonl';
@@ -39,20 +39,29 @@ export class Harness {
   private agent: Agent;
   private llmClient: ChatCompletionClient;
   private config: HarnessConfig;
-  private userCommand: string;
-  private conversationWindow: ChatCompletionMessageParam[];
+  private messageHistory: ChatCompletionMessageParam[];
+  private turnCount: number;
 
   constructor(agent: Agent, options: HarnessOptions = {}) {
     this.agent = agent;
     this.config = options.config ?? getHarnessConfig();
     this.llmClient = options.llmClient ?? createOpenAiClient(this.config);
-    this.userCommand = '';
-    this.conversationWindow = [];
+    this.messageHistory = [];
+    this.turnCount = 0;
+  }
+
+  public getMessageHistory(): readonly ChatCompletionMessageParam[] {
+    return this.messageHistory;
+  }
+
+  public getTurnCount(): number {
+    return this.turnCount;
   }
 
   public async run(userCommand: string): Promise<HarnessRunResult> {
-    this.userCommand = userCommand;
     emit({ type: 'user_command', command: userCommand });
+    this.messageHistory.push({ role: 'user', content: userCommand });
+    this.turnCount += 1;
 
     const tokenUsage = {
       prompt_tokens: 0,
@@ -69,8 +78,7 @@ export class Harness {
           role: 'system',
           content: this.agent.prompt,
         },
-        { role: 'user', content: this.userCommand },
-        ...this.conversationWindow,
+        ...this.messageHistory,
       ];
 
       const response = await this.llmClient.createChatCompletion({
@@ -89,7 +97,7 @@ export class Harness {
         emit({ type: 'tokens', iteration, usage: tokenUsage });
       }
 
-      this.conversationWindow.push(toAssistantHistoryMessage(responseMessage));
+      this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
 
       if (hasToolCalls(responseMessage)) {
         const toolResponse = await runTools(responseMessage, this.agent.tools, {
@@ -99,15 +107,21 @@ export class Harness {
           onToolResult: (name, content, toolCallId) =>
             emit({ type: 'tool_result', name, content, toolCallId }),
         });
-        this.conversationWindow.push(...toolResponse);
+        this.messageHistory.push(...toolResponse);
 
         this.agent.onToolRound?.();
 
         continue;
       }
 
+      const content = formatMessageContent(responseMessage.content);
+      if (!content) {
+        this.messageHistory.pop();
+        continue;
+      }
+
       const result = {
-        content: responseMessage.content ?? '',
+        content,
         tokenUsage,
         iterations: iteration,
       };
