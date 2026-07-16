@@ -13,6 +13,7 @@ export type InputLineState = {
   value: string;
   cursor: number;
   active: boolean;
+  blocked: boolean;
 };
 
 export function getInputLineView(value: string, cursor: number, width: number): InputLineView {
@@ -40,10 +41,11 @@ export function paintInputLine(
   state: InputLineState,
   cursorColor: AnsiColor = 36,
 ): void {
-  const { line, cursorCol } = getInputLineView(state.value, state.cursor, width);
+  const displayValue = state.blocked ? '' : state.value;
+  const { line, cursorCol } = getInputLineView(displayValue, state.blocked ? 0 : state.cursor, width);
   terminal.fill(row, 0, line);
 
-  if (!state.active) {
+  if (!state.active || state.blocked) {
     return;
   }
 
@@ -55,15 +57,27 @@ export class TerminalInputLine {
   private value = '';
   private cursor = 0;
   private active = false;
+  private blocked = false;
   private resolve: ((value: string | null) => void) | null = null;
+  private onInterrupt: (() => void) | null = null;
   private readonly onUpdate: () => void;
-  private readonly handleData: (chunk: Buffer) => void;
+  private readonly handleInputData: (chunk: Buffer) => void;
+  private readonly handleBlockedData: (chunk: Buffer) => void;
 
   constructor(onUpdate: () => void) {
     this.onUpdate = onUpdate;
-    this.handleData = (chunk) => {
+    this.handleInputData = (chunk) => {
       this.handleKey(chunk);
     };
+    this.handleBlockedData = (chunk) => {
+      if (chunk.length === 1 && chunk[0] === 3) {
+        this.onInterrupt?.();
+      }
+    };
+  }
+
+  setOnInterrupt(handler: (() => void) | null): void {
+    this.onInterrupt = handler;
   }
 
   getState(): InputLineState {
@@ -71,6 +85,7 @@ export class TerminalInputLine {
       value: this.value,
       cursor: this.cursor,
       active: this.active,
+      blocked: this.blocked,
     };
   }
 
@@ -78,8 +93,35 @@ export class TerminalInputLine {
     return this.active;
   }
 
+  isBlocked(): boolean {
+    return this.blocked;
+  }
+
+  block(): void {
+    if (this.blocked || !stdin.isTTY || this.active) {
+      return;
+    }
+
+    this.blocked = true;
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on('data', this.handleBlockedData);
+    this.onUpdate();
+  }
+
+  unblock(): void {
+    if (!this.blocked || this.active) {
+      return;
+    }
+
+    this.blocked = false;
+    stdin.off('data', this.handleBlockedData);
+    stdin.setRawMode(false);
+    this.onUpdate();
+  }
+
   async readLine(): Promise<string | null> {
-    if (this.active || !stdin.isTTY) {
+    if (this.active || this.blocked || !stdin.isTTY) {
       return null;
     }
 
@@ -90,7 +132,7 @@ export class TerminalInputLine {
 
     stdin.setRawMode(true);
     stdin.resume();
-    stdin.on('data', this.handleData);
+    stdin.on('data', this.handleInputData);
 
     return new Promise((resolve) => {
       this.resolve = resolve;
@@ -100,6 +142,9 @@ export class TerminalInputLine {
   close(): void {
     if (this.active) {
       this.finish(null);
+    }
+    if (this.blocked) {
+      this.unblock();
     }
   }
 
@@ -153,7 +198,7 @@ export class TerminalInputLine {
   }
 
   private finish(result: string | null): void {
-    stdin.off('data', this.handleData);
+    stdin.off('data', this.handleInputData);
     if (stdin.isTTY) {
       stdin.setRawMode(false);
     }

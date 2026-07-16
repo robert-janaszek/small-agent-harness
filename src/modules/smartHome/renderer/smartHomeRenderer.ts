@@ -41,28 +41,43 @@ export class SmartHomeRenderer {
     });
   }
 
+  private interrupted = false;
+
   async run(): Promise<number> {
     const client = new HarnessSessionClient();
     client.onEvent((event) => this.onEvent(event));
+    this.inputLine.setOnInterrupt(() => {
+      this.interrupted = true;
+      client.shutdown();
+    });
 
     this.harnessActive = true;
     this.runStartedAt = Date.now();
     this.elapsedMs = 0;
     this.startActivityTimer();
+    this.inputLine.block();
     this.redraw();
 
     await client.waitReady();
     this.harnessActive = false;
+    this.inputLine.unblock();
     this.redraw();
 
     let nextCommand = this.initialCommand;
 
     while (!client.hasSessionEnded()) {
+      if (this.interrupted) {
+        client.shutdown();
+        break;
+      }
+
       if (nextCommand) {
         this.harnessActive = true;
+        this.inputLine.block();
         this.redraw();
         client.sendCommand(nextCommand);
         await client.waitForTurn();
+        this.inputLine.unblock();
         this.harnessActive = false;
         this.elapsedMs = this.currentElapsedMs();
         this.redraw();
@@ -160,7 +175,10 @@ export class SmartHomeRenderer {
     drawVerticalDivider(this.terminal, split.dividerCol);
     paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, rows, this.homeState);
 
-    paintInputLine(this.terminal, row, split.leftWidth, this.inputLine.getState());
+    paintInputLine(this.terminal, row, split.leftWidth, {
+      ...this.inputLine.getState(),
+      blocked: this.harnessActive || this.inputLine.isBlocked(),
+    });
     this.paintStatusBarOnTerminal();
     this.terminal.flush();
   }
