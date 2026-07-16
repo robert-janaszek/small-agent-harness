@@ -188,7 +188,9 @@ export class SmartHomeRenderer {
       this.tokenCounter = { usage: raw.usage, iteration: raw.iteration };
     } else if (raw.type === 'agent_response') {
       this.tokenCounter = { usage: raw.tokenUsage, iteration: raw.iterations };
-      this.eventLog.append(raw);
+      if (raw.content.trim().length > 0) {
+        this.eventLog.append(raw);
+      }
     } else if (raw.type !== 'context_delta' || raw.changes.length > 0) {
       if (raw.type !== 'ready' && raw.type !== 'session_end') {
         this.eventLog.append(raw);
