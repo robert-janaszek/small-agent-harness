@@ -172,6 +172,9 @@ The prompt also distinguishes **status/query** commands (read-only: `listDevices
 # Fast unit tests — no LLM required
 npm test
 
+# Unit tests with coverage report (text + HTML in coverage/)
+npm run test:coverage
+
 # End-to-end tests against a live local model (requires running inference server)
 npm run test:system
 
@@ -182,6 +185,7 @@ npm run test:watch
 | Suite | What it covers |
 |-------|----------------|
 | `npm test` | Config validation, `Harness` loop (mocked LLM), `runTools`, all smart home tools, integration scenario with poisoned tool |
+| `npm run test:coverage` | Same as `npm test`, plus V8 coverage (`text` + `html` under `coverage/`) |
 | `npm run test:system` | Full agent runs: lights off, AC on + temperature, water valve — skipped automatically if the API is unreachable |
 
 System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when no server is available, so CI and offline development still work with unit tests only. They check `HarnessRunResult.iterations < maxIterations` and domain state in `agent.context` — not only side effects that could occur before the loop fails.
@@ -385,6 +389,7 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run harness [-- args]` | Headless harness CLI (batch, REPL, or `--serve`) |
 | `npm run dev` | Same as `harness` |
 | `npm test` | Unit tests (no LLM) |
+| `npm run test:coverage` | Unit tests with V8 coverage report |
 | `npm run test:system` | E2E tests against local model |
 | `npm run build` | Compile TypeScript to `dist/` |
 

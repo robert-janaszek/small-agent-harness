@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx src/cli/main.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:system": "vitest run --config vitest.system.config.ts",
     "test:watch": "vitest",
     "build": "tsc",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
     "typescript": "^7.0.2",
