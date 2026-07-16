@@ -117,7 +117,6 @@ export class Harness {
       const content = formatMessageContent(responseMessage.content);
       if (!content) {
         this.messageHistory.pop();
-        continue;
       }
 
       const result = {
