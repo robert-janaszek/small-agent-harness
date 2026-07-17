@@ -105,6 +105,7 @@ export class HarnessSessionClient {
   private readonly eventListeners = new Set<(event: HarnessEvent) => void>();
   private turnWaiter: ((event: HarnessEvent) => void) | null = null;
   private readyWaiter: (() => void) | null = null;
+  private readonly sessionEndedListeners = new Set<() => void>();
   private readonly eventsDone: Promise<void>;
 
   constructor() {
@@ -115,6 +116,8 @@ export class HarnessSessionClient {
       this.sessionEnded = true;
       this.resolveTurnWaiter({ type: 'error', message: 'Harness process exited.' });
       this.readyWaiter?.();
+      this.readyWaiter = null;
+      this.notifySessionEnded();
     });
 
     this.eventsDone = readHarnessEvents(this.child.stdout!, (raw) => {
@@ -133,6 +136,18 @@ export class HarnessSessionClient {
     };
   }
 
+  onSessionEnded(listener: () => void): () => void {
+    if (this.sessionEnded) {
+      listener();
+      return () => {};
+    }
+
+    this.sessionEndedListeners.add(listener);
+    return () => {
+      this.sessionEndedListeners.delete(listener);
+    };
+  }
+
   async waitReady(): Promise<void> {
     if (this.ready) {
       return;
@@ -145,6 +160,12 @@ export class HarnessSessionClient {
 
   sendCommand(command: string): void {
     writeHarnessCommand(this.child.stdin!, { type: 'user_command', command });
+  }
+
+  cancelTurn(): void {
+    if (!this.sessionEnded && this.child.stdin) {
+      writeHarnessCommand(this.child.stdin, { type: 'cancel' });
+    }
   }
 
   async waitForTurn(): Promise<HarnessEvent> {
@@ -189,6 +210,7 @@ export class HarnessSessionClient {
 
     if (event.type === 'session_end') {
       this.sessionEnded = true;
+      this.notifySessionEnded();
     }
 
     if (isTurnBoundaryEvent(event)) {
@@ -202,5 +224,12 @@ export class HarnessSessionClient {
       this.turnWaiter = null;
       waiter(event);
     }
+  }
+
+  private notifySessionEnded(): void {
+    for (const listener of this.sessionEndedListeners) {
+      listener();
+    }
+    this.sessionEndedListeners.clear();
   }
 }

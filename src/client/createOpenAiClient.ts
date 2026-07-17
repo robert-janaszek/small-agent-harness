@@ -11,6 +11,6 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
   });
 
   return {
-    createChatCompletion: (params) => openai.chat.completions.create(params),
+    createChatCompletion: (params, options) => openai.chat.completions.create(params, options),
   };
 }

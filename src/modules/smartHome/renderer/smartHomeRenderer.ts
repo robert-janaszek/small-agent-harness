@@ -1,7 +1,7 @@
 import type { HarnessEvent } from '../../../cli/jsonl';
 import { HarnessSessionClient } from '../../../cli/harnessClient';
 import { DiffTerminal } from '../../../cli/tui/diffTerminal';
-import { paintInputLine, TerminalInputLine } from '../../../cli/tui/inputPrompt';
+import { paintInputLine, paintQueueBanner, TerminalInputLine } from '../../../cli/tui/inputPrompt';
 import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayout';
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
@@ -12,12 +12,17 @@ import type { TokenCounterState } from './tokenCounter';
 
 const ACTIVITY_INTERVAL_MS = 120;
 
-function contentHeight(terminalHeight: number): number {
-  return Math.max(1, terminalHeight - 1);
+function contentHeight(terminalHeight: number, queueLength: number): number {
+  const reservedRows = queueLength > 0 ? 2 : 1;
+  return Math.max(1, terminalHeight - reservedRows);
 }
 
 function inputRow(terminalHeight: number): number {
   return terminalHeight - 1;
+}
+
+function queueBannerRow(terminalHeight: number, queueLength: number): number | null {
+  return queueLength > 0 ? terminalHeight - 2 : null;
 }
 
 export class SmartHomeRenderer {
@@ -28,10 +33,13 @@ export class SmartHomeRenderer {
   private tokenCounter: TokenCounterState | null = null;
   private activityTick = 0;
   private harnessActive = false;
+  private harnessReady = false;
   private activityTimer: ReturnType<typeof setInterval> | null = null;
   private runStartedAt: number | null = null;
   private elapsedMs = 0;
   private inputLine: TerminalInputLine;
+  private commandQueue: string[] = [];
+  private dispatching = false;
 
   constructor(terminal: DiffTerminal, initialCommand: string | null = null) {
     this.terminal = terminal;
@@ -46,61 +54,55 @@ export class SmartHomeRenderer {
   async run(): Promise<number> {
     const client = new HarnessSessionClient();
     client.onEvent((event) => this.onEvent(event));
+
+    this.runStartedAt = Date.now();
+    this.elapsedMs = 0;
+    this.startActivityTimer();
+
     this.inputLine.setOnInterrupt(() => {
+      if (this.harnessReady && this.harnessActive) {
+        client.cancelTurn();
+        return;
+      }
+
       this.interrupted = true;
       client.shutdown();
     });
 
-    this.harnessActive = true;
-    this.runStartedAt = Date.now();
-    this.elapsedMs = 0;
-    this.startActivityTimer();
-    this.inputLine.block();
-    this.redraw();
-
-    await client.waitReady();
-    this.harnessActive = false;
-    this.inputLine.unblock();
-    this.redraw();
-
-    let nextCommand = this.initialCommand;
-
-    while (!client.hasSessionEnded()) {
-      if (this.interrupted) {
-        client.shutdown();
-        break;
+    this.inputLine.start((command) => {
+      if (this.interrupted || client.hasSessionEnded()) {
+        return;
       }
 
-      if (nextCommand) {
-        this.harnessActive = true;
-        this.inputLine.block();
-        this.redraw();
-        client.sendCommand(nextCommand);
-        await client.waitForTurn();
-        this.inputLine.unblock();
-        this.harnessActive = false;
-        this.elapsedMs = this.currentElapsedMs();
-        this.redraw();
-        nextCommand = null;
-
-        if (client.hasSessionEnded()) {
-          break;
-        }
-      }
-
-      const command = await this.inputLine.readLine();
-
-      if (command === null || command === '/exit') {
+      if (command === '/exit') {
+        this.interrupted = true;
         client.shutdown();
-        break;
+        return;
       }
 
       if (command.length === 0) {
-        continue;
+        return;
       }
 
-      nextCommand = command;
+      this.commandQueue.push(command);
+      this.redraw();
+      void this.drainQueue(client);
+    });
+
+    this.harnessActive = true;
+    this.redraw();
+
+    await client.waitReady();
+    this.harnessReady = true;
+    this.harnessActive = false;
+
+    if (this.initialCommand) {
+      this.commandQueue.push(this.initialCommand);
+      this.redraw();
     }
+
+    void this.drainQueue(client);
+    await this.waitForSessionEnd(client);
 
     this.harnessActive = false;
     this.elapsedMs = this.currentElapsedMs();
@@ -110,6 +112,52 @@ export class SmartHomeRenderer {
     this.redraw();
 
     return client.waitForExit();
+  }
+
+  private async waitForSessionEnd(client: HarnessSessionClient): Promise<void> {
+    if (client.hasSessionEnded() || this.interrupted) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      const unsubscribe = client.onSessionEnded(() => {
+        unsubscribe();
+        resolve();
+      });
+    });
+  }
+
+  private async drainQueue(client: HarnessSessionClient): Promise<void> {
+    if (this.dispatching || !this.harnessReady) {
+      return;
+    }
+
+    this.dispatching = true;
+
+    while (this.commandQueue.length > 0 && !this.interrupted && !client.hasSessionEnded()) {
+      const command = this.commandQueue.shift()!;
+      this.redraw();
+      await this.runTurn(client, command);
+    }
+
+    this.dispatching = false;
+
+    if (this.commandQueue.length > 0) {
+      void this.drainQueue(client);
+    }
+  }
+
+  private async runTurn(client: HarnessSessionClient, command: string): Promise<void> {
+    this.harnessActive = true;
+    if (this.runStartedAt === null) {
+      this.runStartedAt = Date.now();
+    }
+
+    client.sendCommand(command);
+    await client.waitForTurn();
+    this.harnessActive = false;
+    this.elapsedMs = this.currentElapsedMs();
+    this.redraw();
   }
 
   private currentElapsedMs(): number {
@@ -161,10 +209,12 @@ export class SmartHomeRenderer {
 
   private redraw(): void {
     const split = getSplitColumns(this.terminal.width);
-    const rows = contentHeight(this.terminal.height);
+    const queueLength = this.commandQueue.length;
+    const rows = contentHeight(this.terminal.height, queueLength);
     const leftLines = this.eventLog.render(rows, split.leftWidth);
     const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
     const row = inputRow(this.terminal.height);
+    const bannerRow = queueBannerRow(this.terminal.height, queueLength);
 
     this.terminal.clear();
 
@@ -175,10 +225,11 @@ export class SmartHomeRenderer {
     drawVerticalDivider(this.terminal, split.dividerCol);
     paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, rows, this.homeState);
 
-    paintInputLine(this.terminal, row, split.leftWidth, {
-      ...this.inputLine.getState(),
-      blocked: this.harnessActive || this.inputLine.isBlocked(),
-    });
+    if (bannerRow !== null) {
+      paintQueueBanner(this.terminal, bannerRow, split.leftWidth, queueLength);
+    }
+
+    paintInputLine(this.terminal, row, split.leftWidth, this.inputLine.getState());
     this.paintStatusBarOnTerminal();
     this.terminal.flush();
   }

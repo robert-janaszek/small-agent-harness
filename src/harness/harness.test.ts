@@ -7,6 +7,7 @@ import { Harness } from './harness';
 import { Agent } from './agent.type';
 import type { HarnessConfig } from './harness.config.validate';
 import type { ChatCompletionClient } from '../client/llmClient.type';
+import { resetEmitWriter, setEmitWriter, type HarnessEvent } from '../cli/jsonl';
 import { createTool } from '../tools/defineTool';
 import { Tool } from '../tools/types';
 
@@ -118,15 +119,18 @@ describe('Harness', () => {
       iterations: 1,
     });
     expect(createChatCompletion).toHaveBeenCalledTimes(1);
-    expect(createChatCompletion).toHaveBeenCalledWith({
-      model: 'test-model',
-      messages: [
-        { role: 'system', content: 'test prompt' },
-        { role: 'user', content: 'hello' },
-      ],
-      tools: [],
-      tool_choice: 'auto',
-    });
+    expect(createChatCompletion).toHaveBeenCalledWith(
+      {
+        model: 'test-model',
+        messages: [
+          { role: 'system', content: 'test prompt' },
+          { role: 'user', content: 'hello' },
+        ],
+        tools: [],
+        tool_choice: 'auto',
+      },
+      { signal: undefined },
+    );
   });
 
   it('runs tools and continues the loop', async () => {
@@ -202,5 +206,78 @@ describe('Harness', () => {
 
     await expect(harness.run('loop')).rejects.toThrow('Max iterations reached');
     expect(createChatCompletion).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws AbortError when signal is aborted before run starts', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    const createChatCompletion = vi.fn();
+    const harness = new Harness(makeAgent(), {
+      llmClient: { createChatCompletion },
+      config: testConfig,
+    });
+
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(harness.run('hello', { signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(createChatCompletion).not.toHaveBeenCalled();
+    expect(harness.getMessageHistory()).toEqual([]);
+    expect(harness.getTurnCount()).toBe(0);
+    expect(events.some((event) => event.type === 'agent_response')).toBe(false);
+
+    resetEmitWriter();
+  });
+
+  it('rolls back history and turnCount when a run is aborted mid-turn', async () => {
+    const echoTool = createTool({
+      name: 'echo',
+      description: 'echo',
+      argsSchema: z.object({ text: z.string() }),
+      call: async (args) => `echo:${args.text}`,
+    });
+
+    const controller = new AbortController();
+    let callCount = 0;
+
+    const createChatCompletion = vi.fn().mockImplementation((_params, options?: { signal?: AbortSignal }) => {
+      callCount += 1;
+
+      if (callCount === 1) {
+        return Promise.resolve({
+          choices: [{ message: assistantMessage('first') }],
+        });
+      }
+
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        });
+      });
+    });
+
+    const harness = new Harness(makeAgent([echoTool]), {
+      llmClient: { createChatCompletion },
+      config: testConfig,
+    });
+
+    await harness.run('hello');
+    expect(harness.getTurnCount()).toBe(1);
+
+    const runPromise = harness.run('cancel me', { signal: controller.signal });
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(runPromise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(harness.getTurnCount()).toBe(1);
+    expect(harness.getMessageHistory()).toEqual([
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'first' },
+    ]);
   });
 });

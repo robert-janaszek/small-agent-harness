@@ -1,7 +1,11 @@
 import type { Harness } from '../harness/harness';
-import { emit, HARNESS_PROTOCOL_VERSION } from './jsonl';
-import { readHarnessCommands } from './readHarnessCommands';
+import { emit, HARNESS_PROTOCOL_VERSION, type HarnessCommand } from './jsonl';
+import { parseHarnessCommandLine } from './readHarnessCommands';
 import type { UserCommandReader } from './readUserCommand';
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
 
 export async function runHarnessSession(
   harness: Harness,
@@ -42,17 +46,26 @@ export async function runHarnessServeSession(
   emit({ type: 'ready', protocolVersion: HARNESS_PROTOCOL_VERSION });
 
   let shuttingDown = false;
+  let currentAbort: AbortController | null = null;
 
-  await readHarnessCommands(
-    stdin,
-    async (command) => {
+  await new Promise<void>((resolve, reject) => {
+    let buffer = '';
+    let commandChain = Promise.resolve();
+
+    const processCommand = async (command: HarnessCommand): Promise<void> => {
       if (shuttingDown) {
         return;
       }
 
       if (command.type === 'shutdown') {
         shuttingDown = true;
+        currentAbort?.abort();
         emit({ type: 'session_end', turnCount: harness.getTurnCount() });
+        return;
+      }
+
+      if (command.type === 'cancel') {
+        currentAbort?.abort();
         return;
       }
 
@@ -62,21 +75,69 @@ export async function runHarnessServeSession(
         return;
       }
 
+      currentAbort = new AbortController();
       try {
-        await harness.run(trimmed);
+        await harness.run(trimmed, { signal: currentAbort.signal });
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        emit({ type: 'error', message });
+        if (isAbortError(error)) {
+          emit({ type: 'error', message: 'Cancelled.' });
+        } else {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          emit({ type: 'error', message });
+        }
+      } finally {
+        currentAbort = null;
       }
-    },
-    (line) => {
-      emit({ type: 'error', message: `Invalid command line: ${line}` });
-    },
-  );
+    };
 
-  if (!shuttingDown) {
-    emit({ type: 'session_end', turnCount: harness.getTurnCount() });
-  }
+    const enqueue = (command: HarnessCommand): void => {
+      commandChain = commandChain.then(() => processCommand(command)).catch(reject);
+    };
+
+    stdin.on('data', (chunk: Buffer | string) => {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const command = parseHarnessCommandLine(line);
+        if (command?.type === 'cancel') {
+          currentAbort?.abort();
+          continue;
+        }
+
+        if (command) {
+          enqueue(command);
+          continue;
+        }
+
+        const trimmed = line.trim();
+        if (trimmed.length > 0) {
+          emit({ type: 'error', message: `Invalid command line: ${line}` });
+        }
+      }
+    });
+
+    stdin.on('end', () => {
+      const command = parseHarnessCommandLine(buffer);
+      if (command?.type === 'cancel') {
+        currentAbort?.abort();
+      } else if (command) {
+        enqueue(command);
+      }
+
+      commandChain
+        .then(() => {
+          if (!shuttingDown) {
+            emit({ type: 'session_end', turnCount: harness.getTurnCount() });
+          }
+          resolve();
+        })
+        .catch(reject);
+    });
+
+    stdin.on('error', reject);
+  });
 }
 
 export async function runHarnessReplSession(harness: Harness, reader: UserCommandReader): Promise<void> {

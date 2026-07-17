@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { getInputLineView, INPUT_PREFIX, TerminalInputLine } from './inputPrompt';
+import { formatQueueBanner, getInputLineView, INPUT_PREFIX, TerminalInputLine } from './inputPrompt';
 
 describe('getInputLineView', () => {
   it('renders prefix and value with cursor after text', () => {
@@ -21,7 +21,21 @@ describe('getInputLineView', () => {
   });
 });
 
-describe('TerminalInputLine.block', () => {
+describe('formatQueueBanner', () => {
+  it('returns empty string for zero tasks', () => {
+    expect(formatQueueBanner(0)).toBe('');
+  });
+
+  it('uses singular form for one task', () => {
+    expect(formatQueueBanner(1)).toBe('1 task pending');
+  });
+
+  it('uses plural form for multiple tasks', () => {
+    expect(formatQueueBanner(2)).toBe('2 tasks pending');
+  });
+});
+
+describe('TerminalInputLine.start', () => {
   const originalIsTTY = process.stdin.isTTY;
   const originalSetRawMode = process.stdin.setRawMode;
 
@@ -31,35 +45,39 @@ describe('TerminalInputLine.block', () => {
     process.stdin.removeAllListeners('data');
   });
 
-  it('swallows keystrokes while blocked', () => {
+  it('accumulates keystrokes and submits on Enter', () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
-    const setRawMode = vi.fn();
-    process.stdin.setRawMode = setRawMode as typeof process.stdin.setRawMode;
+    process.stdin.setRawMode = vi.fn() as typeof process.stdin.setRawMode;
 
+    const onSubmit = vi.fn();
     const input = new TerminalInputLine(() => undefined);
-    input.block();
+    input.start(onSubmit);
 
-    expect(setRawMode).toHaveBeenCalledWith(true);
-    expect(input.isBlocked()).toBe(true);
+    expect(process.stdin.setRawMode).toHaveBeenCalledWith(true);
+    expect(input.isActive()).toBe(true);
 
     process.stdin.emit('data', Buffer.from('hello'));
-    expect(input.getState().value).toBe('');
+    expect(input.getState().value).toBe('hello');
 
-    input.unblock();
-    expect(setRawMode).toHaveBeenLastCalledWith(false);
+    process.stdin.emit('data', Buffer.from('\r'));
+    expect(onSubmit).toHaveBeenCalledWith('hello');
+    expect(input.getState().value).toBe('');
+    expect(input.isActive()).toBe(true);
   });
 
-  it('calls onInterrupt for ctrl+c while blocked', () => {
+  it('calls onInterrupt for ctrl+c', () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
     process.stdin.setRawMode = vi.fn() as typeof process.stdin.setRawMode;
 
     const onInterrupt = vi.fn();
     const input = new TerminalInputLine(() => undefined);
     input.setOnInterrupt(onInterrupt);
-    input.block();
+    input.start(() => undefined);
 
+    process.stdin.emit('data', Buffer.from('draft'));
     process.stdin.emit('data', Buffer.from([3]));
 
     expect(onInterrupt).toHaveBeenCalledTimes(1);
+    expect(input.getState().value).toBe('draft');
   });
 });
