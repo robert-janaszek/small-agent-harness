@@ -120,11 +120,9 @@ export class SmartHomeRenderer {
     }
 
     await new Promise<void>((resolve) => {
-      const unsubscribe = client.onEvent((event) => {
-        if (event.type === 'session_end' || this.interrupted) {
-          unsubscribe();
-          resolve();
-        }
+      const unsubscribe = client.onSessionEnded(() => {
+        unsubscribe();
+        resolve();
       });
     });
   }
