@@ -16,6 +16,10 @@ export type HarnessOptions = {
   config?: HarnessConfig;
 };
 
+export type HarnessRunOptions = {
+  signal?: AbortSignal;
+};
+
 export type HarnessRunResult = {
   content: string;
   tokenUsage: {
@@ -58,7 +62,9 @@ export class Harness {
     return this.turnCount;
   }
 
-  public async run(userCommand: string): Promise<HarnessRunResult> {
+  public async run(userCommand: string, options?: HarnessRunOptions): Promise<HarnessRunResult> {
+    options?.signal?.throwIfAborted();
+
     emit({ type: 'user_command', command: userCommand });
     this.messageHistory.push({ role: 'user', content: userCommand });
     this.turnCount += 1;
@@ -71,6 +77,7 @@ export class Harness {
     let iteration = 0;
 
     while (iteration < this.config.maxIterations) {
+      options?.signal?.throwIfAborted();
       iteration++;
 
       const messages: ChatCompletionMessageParam[] = [
@@ -81,12 +88,15 @@ export class Harness {
         ...this.messageHistory,
       ];
 
-      const response = await this.llmClient.createChatCompletion({
-        model: this.config.modelName,
-        messages: messages,
-        tools: this.agent.tools,
-        tool_choice: 'auto',
-      });
+      const response = await this.llmClient.createChatCompletion(
+        {
+          model: this.config.modelName,
+          messages: messages,
+          tools: this.agent.tools,
+          tool_choice: 'auto',
+        },
+        { signal: options?.signal },
+      );
 
       const responseMessage = getResponseMessage(response);
 
@@ -100,6 +110,8 @@ export class Harness {
       this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
 
       if (hasToolCalls(responseMessage)) {
+        options?.signal?.throwIfAborted();
+
         const toolResponse = await runTools(responseMessage, this.agent.tools, {
           onAssistantMessage: (content) => emit({ type: 'assistant_message', content }),
           onToolCall: (name, args, toolCallId) =>

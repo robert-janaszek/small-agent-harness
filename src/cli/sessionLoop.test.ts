@@ -32,6 +32,10 @@ describe('parseHarnessCommandLine', () => {
     expect(parseHarnessCommandLine('{"type":"shutdown"}')).toEqual({ type: 'shutdown' });
   });
 
+  it('parses cancel', () => {
+    expect(parseHarnessCommandLine('{"type":"cancel"}')).toEqual({ type: 'cancel' });
+  });
+
   it('returns null for invalid json', () => {
     expect(parseHarnessCommandLine('not json')).toBeNull();
   });
@@ -75,6 +79,57 @@ describe('runHarnessServeSession', () => {
     expect(events.some((event) => event.type === 'agent_response' && event.content === 'second')).toBe(true);
     expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 2 });
     expect(harness.getTurnCount()).toBe(2);
+  });
+
+  it('cancels an in-flight turn and continues with the next command', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    let callCount = 0;
+    let firstCallStarted: (() => void) | null = null;
+    const firstCallStartedPromise = new Promise<void>((resolve) => {
+      firstCallStarted = resolve;
+    });
+
+    const createChatCompletion = vi.fn().mockImplementation((_params, options?: { signal?: AbortSignal }) => {
+      callCount += 1;
+      const signal = options?.signal;
+
+      if (callCount === 1) {
+        firstCallStarted?.();
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+          });
+        });
+      }
+
+      return Promise.resolve({
+        choices: [{ message: { role: 'assistant', content: 'second', refusal: null } }],
+      });
+    });
+
+    const llmClient: ChatCompletionClient = { createChatCompletion };
+    const harness = new Harness(makeAgent(), { llmClient, config: testConfig });
+
+    const stdin = new PassThrough();
+    const session = runHarnessServeSession(harness, stdin);
+
+    stdin.write('{"type":"user_command","command":"slow"}\n');
+    await firstCallStartedPromise;
+
+    stdin.write('{"type":"cancel"}\n');
+    stdin.write('{"type":"user_command","command":"again"}\n');
+    stdin.write('{"type":"shutdown"}\n');
+    stdin.end();
+
+    await session;
+
+    expect(events.some((event) => event.type === 'error' && event.message === 'Cancelled.')).toBe(true);
+    expect(events.some((event) => event.type === 'agent_response' && event.content === 'second')).toBe(true);
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 2 });
   });
 });
 

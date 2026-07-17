@@ -7,6 +7,7 @@ import { Harness } from './harness';
 import { Agent } from './agent.type';
 import type { HarnessConfig } from './harness.config.validate';
 import type { ChatCompletionClient } from '../client/llmClient.type';
+import { resetEmitWriter, setEmitWriter, type HarnessEvent } from '../cli/jsonl';
 import { createTool } from '../tools/defineTool';
 import { Tool } from '../tools/types';
 
@@ -118,15 +119,18 @@ describe('Harness', () => {
       iterations: 1,
     });
     expect(createChatCompletion).toHaveBeenCalledTimes(1);
-    expect(createChatCompletion).toHaveBeenCalledWith({
-      model: 'test-model',
-      messages: [
-        { role: 'system', content: 'test prompt' },
-        { role: 'user', content: 'hello' },
-      ],
-      tools: [],
-      tool_choice: 'auto',
-    });
+    expect(createChatCompletion).toHaveBeenCalledWith(
+      {
+        model: 'test-model',
+        messages: [
+          { role: 'system', content: 'test prompt' },
+          { role: 'user', content: 'hello' },
+        ],
+        tools: [],
+        tool_choice: 'auto',
+      },
+      { signal: undefined },
+    );
   });
 
   it('runs tools and continues the loop', async () => {
@@ -202,5 +206,29 @@ describe('Harness', () => {
 
     await expect(harness.run('loop')).rejects.toThrow('Max iterations reached');
     expect(createChatCompletion).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws AbortError when signal is aborted before run starts', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    const createChatCompletion = vi.fn();
+    const harness = new Harness(makeAgent(), {
+      llmClient: { createChatCompletion },
+      config: testConfig,
+    });
+
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(harness.run('hello', { signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(createChatCompletion).not.toHaveBeenCalled();
+    expect(events.some((event) => event.type === 'agent_response')).toBe(false);
+
+    resetEmitWriter();
   });
 });

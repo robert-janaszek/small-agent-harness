@@ -17,6 +17,7 @@ export const HARNESS_PROTOCOL_VERSION = 1;
 
 export type HarnessCommand =
   | { type: 'user_command'; command: string }
+  | { type: 'cancel' }
   | { type: 'shutdown' };
 
 export type HarnessEvent =
@@ -37,7 +38,7 @@ export function isHarnessCommand(raw: unknown): raw is HarnessCommand {
   }
 
   const type = (raw as { type: unknown }).type;
-  if (type === 'shutdown') {
+  if (type === 'shutdown' || type === 'cancel') {
     return true;
   }
 
