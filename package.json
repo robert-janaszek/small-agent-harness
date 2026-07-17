@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "build": "tsc",
     "harness": "tsx src/cli/main.ts",
+    "yaml-repair": "tsx src/cli/yamlRepair.ts",
     "start": "tsx src/cli/render.ts",
     "render": "tsx src/cli/render.ts"
   },
@@ -25,6 +26,7 @@
     "@opentelemetry/sdk-node": "^0.220.0",
     "dotenv": "^17.4.2",
     "openai": "^6.46.0",
+    "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

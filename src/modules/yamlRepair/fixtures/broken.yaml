@@ -1,0 +1,6692 @@
+# Home automation device catalog
+# Intentionally contains syntax errors and incomplete entries for agent repair.
+version: "1.4"
+site:
+  name: EdgeLab Home
+  timezone: Europe/Warsaw
+  floors:
+    - ground
+    - first
+    - basement
+
+defaults:
+  lights:
+    type: binary
+    defaultState: OFF
+    wattage: 9
+    protocol: zigbee
+  sensors:
+    type: sensor
+    unit: celsius
+    pollIntervalSec: 30
+    protocol: zigbee
+  covers:
+    type: cover
+    defaultPosition: 100
+    protocol: zwave
+  fans:
+    type: binary
+    defaultState: OFF
+    speedLevels: 3
+    protocol: zigbee
+  switches:
+    type: binary
+    defaultState: OFF
+    protocol: zigbee
+
+rooms:
+  livingRoom:
+    floor: ground
+    devices:
+      - id: l1
+        name: livingRoom_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: livingRoom_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: livingRoom_lights_3
+        group lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: livingRoom_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: livingRoom_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: livingRoom_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: livingRoom_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: livingRoom_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: livingRoom_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: livingRoom_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: livingRoom_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: livingRoom_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: livingRoom_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: livingRoom_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: livingRoom_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: livingRoom_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: livingRoom_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: livingRoom_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: livingRoom_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: livingRoom_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: livingRoom_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: livingRoom_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: livingRoom_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: livingRoom_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: livingRoom_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: livingRoom_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: livingRoom_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: livingRoom_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: livingRoom_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: livingRoom_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: livingRoom_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: livingRoom_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: livingRoom_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: livingRoom_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: livingRoom_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: livingRoom_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: livingRoom_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: livingRoom_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: livingRoom_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: livingRoom_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  bedroom:
+    floor: ground
+    devices:
+      - id: l1
+        name: bedroom_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: bedroom_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: bedroom_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: bedroom_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: bedroom_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: bedroom_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: bedroom_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: bedroom_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: bedroom_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: bedroom_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: bedroom_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: bedroom_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: bedroom_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: bedroom_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: bedroom_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: bedroom_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: bedroom_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: bedroom_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: bedroom_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: bedroom_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: bedroom_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: bedroom_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: bedroom_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: bedroom_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: bedroom_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: bedroom_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: bedroom_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: bedroom_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: bedroom_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: bedroom_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: bedroom_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: bedroom_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: bedroom_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: bedroom_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: bedroom_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: bedroom_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: bedroom_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: bedroom_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: bedroom_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: bedroom_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  kitchen:
+    floor: ground
+    devices:
+      - id: l1
+        name: kitchen_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: kitchen_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: kitchen_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: kitchen_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: kitchen_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: kitchen_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: kitchen_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: kitchen_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: kitchen_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: kitchen_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: kitchen_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: kitchen_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: kitchen_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: kitchen_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: kitchen_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: kitchen_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: kitchen_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: kitchen_sensors_2
+        group: sensors
+        type: sensor
+        unit celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: kitchen_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: kitchen_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: kitchen_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: kitchen_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: kitchen_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: kitchen_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: kitchen_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: kitchen_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: kitchen_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: kitchen_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: kitchen_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: kitchen_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: kitchen_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: kitchen_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: kitchen_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: kitchen_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: kitchen_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: kitchen_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: kitchen_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: kitchen_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: kitchen_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: kitchen_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  bathroom:
+    floor: ground
+    devices:
+      - id: l1
+        name: bathroom_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: bathroom_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: bathroom_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: bathroom_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: bathroom_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: bathroom_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: bathroom_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: bathroom_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: bathroom_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: bathroom_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: bathroom_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: bathroom_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: bathroom_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: bathroom_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: bathroom_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: bathroom_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: bathroom_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: bathroom_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: bathroom_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: bathroom_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: bathroom_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: bathroom_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: bathroom_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: bathroom_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: bathroom_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: bathroom_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: bathroom_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol zwave
+        enabled: true
+      - id: c4
+        name: bathroom_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: bathroom_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: bathroom_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: bathroom_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: bathroom_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: bathroom_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: bathroom_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: bathroom_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: bathroom_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: bathroom_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: bathroom_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: bathroom_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: bathroom_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  hallway:
+    floor: ground
+    devices:
+      - id: l1
+        name: hallway_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: hallway_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: __FILL_FROM_CONTEXT__
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: hallway_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: hallway_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: hallway_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: hallway_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: hallway_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: hallway_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: hallway_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: hallway_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: hallway_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: hallway_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: hallway_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: hallway_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: hallway_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: hallway_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: hallway_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: hallway_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: hallway_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: hallway_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: hallway_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: hallway_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: hallway_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: hallway_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: hallway_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: hallway_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: hallway_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: hallway_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: hallway_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: hallway_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: hallway_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: hallway_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: hallway_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: hallway_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: hallway_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: hallway_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: hallway_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: hallway_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: hallway_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: hallway_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  office:
+    floor: ground
+    devices:
+      - id: l1
+        name: office_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: office_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: office_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: office_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: office_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: __FILL_FROM_CONTEXT__
+        enabled: true
+      - id: l6
+        name: office_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: office_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: office_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: office_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: office_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: office_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: office_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: office_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: office_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: office_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: office_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: office_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: office_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: office_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: office_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: office_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: office_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: office_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: office_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: office_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: office_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: office_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: office_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: office_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: office_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: office_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: office_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: office_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: office_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: office_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: office_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: office_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: office_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: office_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: office_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  garage:
+    floor: ground
+    devices:
+      - id: l1
+        name: garage_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: garage_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: garage_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: garage_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: garage_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: garage_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: garage_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: garage_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: garage_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: garage_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: garage_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: garage_switches_4
+        group: switches
+        type: binary
+        defaultState: __FILL_FROM_CONTEXT__
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: garage_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: garage_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: garage_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: garage_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: garage_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: garage_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: garage_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: garage_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: garage_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: garage_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: garage_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: garage_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: garage_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: garage_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: garage_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: garage_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: garage_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: garage_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: garage_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: garage_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: garage_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: garage_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: garage_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: garage_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: garage_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: garage_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: garage_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: garage_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  basement:
+    floor: basement
+    devices:
+      - id: l1
+        name: basement_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: basement_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: basement_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: basement_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: basement_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: basement_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: basement_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: basement_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: basement_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: basement_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: basement_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: basement_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: basement_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: basement_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: basement_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: basement_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: basement_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: basement_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: basement_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: basement_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: basement_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: basement_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: basement_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: basement_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: basement_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: basement_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: basement_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: basement_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: basement_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: basement_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: basement_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: basement_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: basement_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: basement_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: basement_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: basement_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: basement_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: basement_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: basement_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: basement_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  attic:
+    floor: first
+    devices:
+      - id: l1
+        name: attic_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: attic_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: attic_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: attic_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: attic_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: attic_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: attic_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: attic_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: attic_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: attic_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: attic_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: attic_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: attic_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: attic_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: attic_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: attic_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: attic_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: attic_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: attic_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: attic_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: attic_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: attic_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: attic_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: attic_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: attic_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: attic_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: attic_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: attic_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: attic_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: attic_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: attic_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: attic_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: attic_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: attic_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: attic_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: attic_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: attic_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: attic_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: attic_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: attic_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  guestRoom:
+    floor: ground
+    devices:
+      - id: l1
+        name: guestRoom_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: guestRoom_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: guestRoom_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: guestRoom_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: guestRoom_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: guestRoom_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: guestRoom_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: guestRoom_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: guestRoom_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: guestRoom_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: guestRoom_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: guestRoom_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: guestRoom_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: guestRoom_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: guestRoom_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: guestRoom_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: guestRoom_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: guestRoom_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: guestRoom_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: guestRoom_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: guestRoom_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: guestRoom_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: guestRoom_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: guestRoom_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: guestRoom_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: guestRoom_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: guestRoom_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: guestRoom_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: guestRoom_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: guestRoom_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: guestRoom_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: guestRoom_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: guestRoom_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: guestRoom_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: guestRoom_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: guestRoom_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: guestRoom_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: guestRoom_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: guestRoom_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: guestRoom_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  diningRoom:
+    floor: ground
+    devices:
+      - id: l1
+        name: diningRoom_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: diningRoom_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: diningRoom_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: diningRoom_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: diningRoom_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: diningRoom_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: diningRoom_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: diningRoom_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: diningRoom_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: diningRoom_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: diningRoom_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: diningRoom_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: diningRoom_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: diningRoom_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: diningRoom_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: diningRoom_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: diningRoom_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: diningRoom_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: diningRoom_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: diningRoom_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: diningRoom_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: diningRoom_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: diningRoom_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: diningRoom_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: diningRoom_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: diningRoom_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: diningRoom_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: diningRoom_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: diningRoom_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: diningRoom_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: diningRoom_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: diningRoom_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: diningRoom_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: diningRoom_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: diningRoom_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: diningRoom_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: diningRoom_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: diningRoom_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: diningRoom_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: diningRoom_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  laundry:
+    floor: ground
+    devices:
+      - id: l1
+        name: laundry_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: laundry_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: laundry_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: laundry_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: laundry_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: laundry_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: laundry_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: laundry_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: laundry_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: laundry_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: laundry_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: laundry_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: laundry_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: laundry_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: laundry_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: laundry_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: laundry_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: laundry_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: laundry_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: laundry_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: laundry_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: laundry_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: laundry_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: laundry_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: laundry_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: laundry_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: laundry_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: laundry_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: laundry_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: laundry_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: laundry_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: laundry_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: laundry_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: laundry_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: laundry_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: laundry_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: laundry_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: laundry_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: laundry_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: laundry_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  nursery:
+    floor: ground
+    devices:
+      - id: l1
+        name: nursery_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: nursery_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: nursery_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: nursery_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: nursery_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: nursery_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: nursery_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: nursery_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: nursery_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: nursery_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: nursery_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: nursery_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: nursery_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: nursery_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: nursery_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: nursery_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: nursery_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: nursery_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: nursery_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: nursery_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: nursery_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: nursery_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: nursery_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: nursery_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: nursery_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: nursery_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: nursery_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: nursery_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: nursery_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: nursery_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: nursery_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: nursery_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: nursery_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: nursery_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: nursery_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: nursery_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: nursery_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: nursery_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: nursery_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: nursery_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  studio:
+    floor: ground
+    devices:
+      - id: l1
+        name: studio_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: studio_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: studio_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: studio_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: studio_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: studio_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: studio_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: studio_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: studio_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: studio_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: studio_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: studio_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: studio_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: studio_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: studio_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: studio_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: studio_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: studio_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: studio_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: studio_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: studio_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: studio_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: studio_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: studio_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: studio_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: studio_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: studio_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: studio_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: studio_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: studio_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: studio_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: studio_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: studio_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: studio_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: studio_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: studio_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: studio_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: studio_fans_6
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: studio_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: studio_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+  patio:
+    floor: ground
+    devices:
+      - id: l1
+        name: patio_lights_1
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l2
+        name: patio_lights_2
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l3
+        name: patio_lights_3
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l4
+        name: patio_lights_4
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l5
+        name: patio_lights_5
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l6
+        name: patio_lights_6
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l7
+        name: patio_lights_7
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: l8
+        name: patio_lights_8
+        group: lights
+        type: binary
+        defaultState: OFF
+        wattage: 9
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: patio_switches_1
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: patio_switches_2
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: patio_switches_3
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: patio_switches_4
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: patio_switches_5
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: patio_switches_6
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: patio_switches_7
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: patio_switches_8
+        group: switches
+        type: binary
+        defaultState: OFF
+        protocol: zigbee
+        enabled: true
+      - id: s1
+        name: patio_sensors_1
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s2
+        name: patio_sensors_2
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s3
+        name: patio_sensors_3
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s4
+        name: patio_sensors_4
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s5
+        name: patio_sensors_5
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s6
+        name: patio_sensors_6
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s7
+        name: patio_sensors_7
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: s8
+        name: patio_sensors_8
+        group: sensors
+        type: sensor
+        unit: celsius
+        pollIntervalSec: 30
+        protocol: zigbee
+        enabled: true
+      - id: c1
+        name: patio_covers_1
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c2
+        name: patio_covers_2
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c3
+        name: patio_covers_3
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c4
+        name: patio_covers_4
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c5
+        name: patio_covers_5
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c6
+        name: patio_covers_6
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c7
+        name: patio_covers_7
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: c8
+        name: patio_covers_8
+        group: covers
+        type: cover
+        defaultPosition: 100
+        protocol: zwave
+        enabled: true
+      - id: f1
+        name: patio_fans_1
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f2
+        name: patio_fans_2
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f3
+        name: patio_fans_3
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f4
+        name: patio_fans_4
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f5
+        name: patio_fans_5
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f6
+        name: patio_fans_6
+        group patio_fans_WRONG
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f7
+        name: patio_fans_7
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+      - id: f8
+        name: patio_fans_8
+        group: fans
+        type: binary
+        defaultState: OFF
+        speedLevels: 3
+        protocol: zigbee
+        enabled: true
+scenes:
+  scene_01:
+    label: Scene 1
+    actions:
+      - room: kitchen
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: bathroom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: hallway
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: office
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: garage
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: basement
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: attic
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: guestRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: diningRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: laundry
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: nursery
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: studio
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_02:
+    label: Scene 2
+    actions:
+      - room: bathroom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: hallway
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: office
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: garage
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: basement
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: attic
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: guestRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: diningRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: laundry
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: nursery
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: studio
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: patio
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_03:
+    label: Scene 3
+    actions:
+      - room: hallway
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: office
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: garage
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: basement
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: attic
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: guestRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: diningRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: laundry
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: nursery
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: studio
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: patio
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: livingRoom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_04:
+    label: Scene 4
+    actions:
+      - room: office
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: garage
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: basement
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: attic
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: guestRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: diningRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: laundry
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: nursery
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: studio
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: patio
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: livingRoom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: bedroom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_05:
+    label: Scene 5
+    actions:
+      - room: garage
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: basement
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: attic
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: guestRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: diningRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: laundry
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: nursery
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: studio
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: patio
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: livingRoom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: bedroom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: kitchen
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_06:
+    label: Scene 6
+    actions:
+      - room: basement
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: attic
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: guestRoom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: diningRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: laundry
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: nursery
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: studio
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: patio
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: livingRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: bedroom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: kitchen
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: bathroom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_07:
+    label: Scene 7
+    actions:
+      - room: attic
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: guestRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: diningRoom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: laundry
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: nursery
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: studio
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: patio
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: livingRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: bedroom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: kitchen
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: bathroom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: hallway
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_08:
+    label: Scene 8
+    actions:
+      - room: guestRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: diningRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: laundry
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: nursery
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: studio
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: patio
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: livingRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: bedroom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: kitchen
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: bathroom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: hallway
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: office
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_09:
+    label: Scene 9
+    actions:
+      - room: diningRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: laundry
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: nursery
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: studio
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: patio
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: livingRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: bedroom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: kitchen
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: bathroom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: hallway
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: office
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: garage
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_10:
+    label: Scene 10
+    actions:
+      - room: laundry
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: nursery
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: studio
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: patio
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: livingRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: bedroom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: kitchen
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: bathroom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: hallway
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: office
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: garage
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: basement
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_11:
+    label: Scene 11
+    actions:
+      - room: nursery
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: studio
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: patio
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: livingRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: bedroom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: kitchen
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: bathroom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: hallway
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: office
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: garage
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: basement
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: attic
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_12:
+    label: Scene 12
+    actions:
+      - room: studio
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: patio
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: livingRoom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: bedroom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: kitchen
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: bathroom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: hallway
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: office
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: garage
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: basement
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: attic
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: guestRoom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_13:
+    label: Scene 13
+    actions:
+      - room: patio
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: livingRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: bedroom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: kitchen
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: bathroom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: hallway
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: office
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: garage
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: basement
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: attic
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: guestRoom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: diningRoom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_14:
+    label: Scene 14
+    actions:
+      - room: livingRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: bedroom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: kitchen
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: bathroom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: hallway
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: office
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: garage
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: basement
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: attic
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: guestRoom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: diningRoom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: laundry
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_15:
+    label: Scene 15
+    actions:
+      - room: bedroom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: kitchen
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: bathroom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: hallway
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: office
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: garage
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: basement
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: attic
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: guestRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: diningRoom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: laundry
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: nursery
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_16:
+    label: Scene 16
+    actions:
+      - room: kitchen
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: bathroom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: hallway
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: office
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: garage
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: basement
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: attic
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: guestRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: diningRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: laundry
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: nursery
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: studio
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_17:
+    label: Scene 17
+    actions:
+      - room: bathroom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: hallway
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: office
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: garage
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: basement
+        group: lights
+        deviceId: l6
+        state: __FILL_FROM_CONTEXT__
+      - room: attic
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: guestRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: diningRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: laundry
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: nursery
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: studio
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: patio
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_18:
+    label: Scene 18
+    actions:
+      - room: hallway
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: office
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: garage
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: basement
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: attic
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: guestRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: diningRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: laundry
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: nursery
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: studio
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: patio
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: livingRoom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_19:
+    label: Scene 19
+    actions:
+      - room: office
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: garage
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: basement
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: attic
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: guestRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: diningRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: laundry
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: nursery
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: studio
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: patio
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: livingRoom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: bedroom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_20:
+    label: Scene 20
+    actions:
+      - room: garage
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: basement
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: attic
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: guestRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: diningRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: laundry
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: nursery
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: studio
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: patio
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: livingRoom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: bedroom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: kitchen
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_21:
+    label: Scene 21
+    actions:
+      - room: basement
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: attic
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: guestRoom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: diningRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: laundry
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: nursery
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: studio
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: patio
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: livingRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: bedroom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: kitchen
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: bathroom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_22:
+    label: Scene 22
+    actions:
+      - room: attic
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: guestRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: diningRoom
+        group covers
+        deviceId: c4
+        state: OFF
+      - room: laundry
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: nursery
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: studio
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: patio
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: livingRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: bedroom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: kitchen
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: bathroom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: hallway
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_23:
+    label: Scene 23
+    actions:
+      - room: guestRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: diningRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: laundry
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: nursery
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: studio
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: patio
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: livingRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: bedroom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: kitchen
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: bathroom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: hallway
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: office
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_24:
+    label: Scene 24
+    actions:
+      - room: diningRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: laundry
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: nursery
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: studio
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: patio
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: livingRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: bedroom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: kitchen
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: bathroom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: hallway
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: office
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: garage
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_25:
+    label: Scene 25
+    actions:
+      - room: laundry
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: nursery
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: studio
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: patio
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: livingRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: bedroom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: kitchen
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: bathroom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: hallway
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: office
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: garage
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: basement
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_26:
+    label: Scene 26
+    actions:
+      - room: nursery
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: studio
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: patio
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: livingRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: bedroom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: kitchen
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: bathroom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: hallway
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: office
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: garage
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: basement
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: attic
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_27:
+    label: Scene 27
+    actions:
+      - room: studio
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: patio
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: livingRoom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: bedroom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: kitchen
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: bathroom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: hallway
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: office
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: garage
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: basement
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: attic
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: guestRoom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_28:
+    label: Scene 28
+    actions:
+      - room: patio
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: livingRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: bedroom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: kitchen
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: bathroom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: hallway
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: office
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: garage
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: basement
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: attic
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: guestRoom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: diningRoom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_29:
+    label: Scene 29
+    actions:
+      - room: livingRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: bedroom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: kitchen
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: bathroom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: hallway
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: office
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: garage
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: basement
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: attic
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: guestRoom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: diningRoom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: laundry
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_30:
+    label: Scene 30
+    actions:
+      - room: bedroom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: kitchen
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: bathroom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: hallway
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: office
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: garage
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: basement
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: attic
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: guestRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: diningRoom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: laundry
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: nursery
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_31:
+    label: Scene 31
+    actions:
+      - room: kitchen
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: bathroom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: hallway
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: office
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: garage
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: basement
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: attic
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: guestRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: diningRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: laundry
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: nursery
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: studio
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_32:
+    label: Scene 32
+    actions:
+      - room: bathroom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: hallway
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: office
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: garage
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: basement
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: attic
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: guestRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: diningRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: laundry
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: nursery
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: studio
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: patio
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_33:
+    label: Scene 33
+    actions:
+      - room: hallway
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: office
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: garage
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: basement
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: attic
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: guestRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: diningRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: laundry
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: nursery
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: studio
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: patio
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: livingRoom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_34:
+    label: Scene 34
+    actions:
+      - room: office
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: garage
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: basement
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: attic
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: guestRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: diningRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: laundry
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: nursery
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: studio
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: patio
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: livingRoom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: bedroom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_35:
+    label: Scene 35
+    actions:
+      - room: garage
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: basement
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: attic
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: guestRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: diningRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: laundry
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: nursery
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: studio
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: patio
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: livingRoom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: bedroom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: kitchen
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_36:
+    label: Scene 36
+    actions:
+      - room: basement
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: attic
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: guestRoom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: diningRoom
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: laundry
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: nursery
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: studio
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: patio
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: livingRoom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: bedroom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: kitchen
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: bathroom
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_37:
+    label: Scene 37
+    actions:
+      - room: attic
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: guestRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: diningRoom
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: laundry
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: nursery
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: studio
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: patio
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: livingRoom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: bedroom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: kitchen
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: bathroom
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: hallway
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_38:
+    label: Scene 38
+    actions:
+      - room: guestRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: diningRoom
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: laundry
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: nursery
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: studio
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: patio
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: livingRoom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: bedroom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: kitchen
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: bathroom
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: hallway
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: office
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_39:
+    label: Scene 39
+    actions:
+      - room: diningRoom
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: laundry
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: nursery
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: studio
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: patio
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: livingRoom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: bedroom
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: kitchen
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: bathroom
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: hallway
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: office
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: garage
+        group: sensors
+        deviceId: s5
+        state: ON
+  scene_40:
+    label: Scene 40
+    actions:
+      - room: laundry
+        group: switches
+        deviceId: s2
+        state: OFF
+      - room: nursery
+        group: sensors
+        deviceId: s3
+        state: ON
+      - room: studio
+        group: covers
+        deviceId: c4
+        state: OFF
+      - room: patio
+        group: fans
+        deviceId: f5
+        state: ON
+      - room: livingRoom
+        group: lights
+        deviceId: l6
+        state: OFF
+      - room: bedroom
+        group: switches
+        deviceId: s7
+        state: ON
+      - room: kitchen
+        group: sensors
+        deviceId: s8
+        state: OFF
+      - room: bathroom
+        group: covers
+        deviceId: c1
+        state: ON
+      - room: hallway
+        group: fans
+        deviceId: f2
+        state: OFF
+      - room: office
+        group: lights
+        deviceId: l3
+        state: ON
+      - room: garage
+        group: switches
+        deviceId: s4
+        state: OFF
+      - room: basement
+        group: sensors
+        deviceId: s5
+        state: ON
+metadata:
+  generatedFor: yamlRepair module
+  deviceCount: 600
+  notes:
+    - Prefer defaults.* and sibling devices when filling FILL placeholders
+    - Binary defaultState is OFF unless a sibling says otherwise
+    - Light wattage defaults to 9
+    - Protocol is zigbee except covers which use zwave
+    - Scene action state should be ON or OFF like neighboring actions
