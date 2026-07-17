@@ -60,7 +60,7 @@ export class SmartHomeRenderer {
     this.startActivityTimer();
 
     this.inputLine.setOnInterrupt(() => {
-      if (this.harnessActive) {
+      if (this.harnessReady && this.harnessActive) {
         client.cancelTurn();
         return;
       }
