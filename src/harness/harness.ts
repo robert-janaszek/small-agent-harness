@@ -39,6 +39,10 @@ function getResponseMessage(response: OpenAI.Chat.Completions.ChatCompletion): O
   return message;
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 export class Harness {
   private agent: Agent;
   private llmClient: ChatCompletionClient;
@@ -65,86 +69,97 @@ export class Harness {
   public async run(userCommand: string, options?: HarnessRunOptions): Promise<HarnessRunResult> {
     options?.signal?.throwIfAborted();
 
-    emit({ type: 'user_command', command: userCommand });
-    this.messageHistory.push({ role: 'user', content: userCommand });
-    this.turnCount += 1;
+    const historyCheckpoint = this.messageHistory.length;
+    const turnCheckpoint = this.turnCount;
 
-    const tokenUsage = {
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      total_tokens: 0,
-    };
-    let iteration = 0;
+    try {
+      emit({ type: 'user_command', command: userCommand });
+      this.messageHistory.push({ role: 'user', content: userCommand });
+      this.turnCount += 1;
 
-    while (iteration < this.config.maxIterations) {
-      options?.signal?.throwIfAborted();
-      iteration++;
-
-      const messages: ChatCompletionMessageParam[] = [
-        {
-          role: 'system',
-          content: this.agent.prompt,
-        },
-        ...this.messageHistory,
-      ];
-
-      const response = await this.llmClient.createChatCompletion(
-        {
-          model: this.config.modelName,
-          messages: messages,
-          tools: this.agent.tools,
-          tool_choice: 'auto',
-        },
-        { signal: options?.signal },
-      );
-
-      const responseMessage = getResponseMessage(response);
-
-      if (response.usage) {
-        tokenUsage.prompt_tokens += response.usage.prompt_tokens;
-        tokenUsage.completion_tokens += response.usage.completion_tokens;
-        tokenUsage.total_tokens += response.usage.total_tokens;
-        emit({ type: 'tokens', iteration, usage: tokenUsage });
-      }
-
-      this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
-
-      if (hasToolCalls(responseMessage)) {
-        options?.signal?.throwIfAborted();
-
-        const toolResponse = await runTools(responseMessage, this.agent.tools, {
-          onAssistantMessage: (content) => emit({ type: 'assistant_message', content }),
-          onToolCall: (name, args, toolCallId) =>
-            emit({ type: 'tool_call', name, args, toolCallId }),
-          onToolResult: (name, content, toolCallId) =>
-            emit({ type: 'tool_result', name, content, toolCallId }),
-        });
-        this.messageHistory.push(...toolResponse);
-
-        this.agent.onToolRound?.();
-
-        continue;
-      }
-
-      const content = formatMessageContent(responseMessage.content);
-      if (!content) {
-        this.messageHistory.pop();
-      }
-
-      const result = {
-        content,
-        tokenUsage,
-        iterations: iteration,
+      const tokenUsage = {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
       };
-      emit({
-        type: 'agent_response',
-        content: result.content,
-        iterations: result.iterations,
-        tokenUsage: result.tokenUsage,
-      });
-      return result;
-    }
+      let iteration = 0;
 
-    throw new Error('Max iterations reached');
+      while (iteration < this.config.maxIterations) {
+        options?.signal?.throwIfAborted();
+        iteration++;
+
+        const messages: ChatCompletionMessageParam[] = [
+          {
+            role: 'system',
+            content: this.agent.prompt,
+          },
+          ...this.messageHistory,
+        ];
+
+        const response = await this.llmClient.createChatCompletion(
+          {
+            model: this.config.modelName,
+            messages: messages,
+            tools: this.agent.tools,
+            tool_choice: 'auto',
+          },
+          { signal: options?.signal },
+        );
+
+        const responseMessage = getResponseMessage(response);
+
+        if (response.usage) {
+          tokenUsage.prompt_tokens += response.usage.prompt_tokens;
+          tokenUsage.completion_tokens += response.usage.completion_tokens;
+          tokenUsage.total_tokens += response.usage.total_tokens;
+          emit({ type: 'tokens', iteration, usage: tokenUsage });
+        }
+
+        this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
+
+        if (hasToolCalls(responseMessage)) {
+          options?.signal?.throwIfAborted();
+
+          const toolResponse = await runTools(responseMessage, this.agent.tools, {
+            onAssistantMessage: (content) => emit({ type: 'assistant_message', content }),
+            onToolCall: (name, args, toolCallId) =>
+              emit({ type: 'tool_call', name, args, toolCallId }),
+            onToolResult: (name, content, toolCallId) =>
+              emit({ type: 'tool_result', name, content, toolCallId }),
+          });
+          this.messageHistory.push(...toolResponse);
+
+          this.agent.onToolRound?.();
+
+          continue;
+        }
+
+        const content = formatMessageContent(responseMessage.content);
+        if (!content) {
+          this.messageHistory.pop();
+        }
+
+        const result = {
+          content,
+          tokenUsage,
+          iterations: iteration,
+        };
+        emit({
+          type: 'agent_response',
+          content: result.content,
+          iterations: result.iterations,
+          tokenUsage: result.tokenUsage,
+        });
+        return result;
+      }
+
+      throw new Error('Max iterations reached');
+    } catch (error) {
+      if (isAbortError(error)) {
+        this.messageHistory.length = historyCheckpoint;
+        this.turnCount = turnCheckpoint;
+      }
+      throw error;
+    }
   }
 }

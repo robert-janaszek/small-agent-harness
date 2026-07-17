@@ -129,7 +129,7 @@ describe('runHarnessServeSession', () => {
 
     expect(events.some((event) => event.type === 'error' && event.message === 'Cancelled.')).toBe(true);
     expect(events.some((event) => event.type === 'agent_response' && event.content === 'second')).toBe(true);
-    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 2 });
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 1 });
   });
 });
 
