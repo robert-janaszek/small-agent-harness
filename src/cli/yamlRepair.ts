@@ -1,5 +1,6 @@
 import { Harness } from '../harness/harness';
 import { createYamlRepairAgent } from '../modules/yamlRepair/agent';
+import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { emit } from './jsonl';
 import { createUserCommandReader, readUserCommand } from './readUserCommand';
 import { runHarnessReplSession } from './sessionLoop';
@@ -16,27 +17,34 @@ function parseArgv(argv: string[]): { mode: 'batch' | 'repl'; command: string } 
 }
 
 async function main() {
-  const { mode } = parseArgv(process.argv.slice(2));
-  const agent = createYamlRepairAgent();
-  const harness = new Harness(agent);
-  console.error(`[yamlRepair] work file: ${agent.context.filePath}`);
+  initLangfuseTracing();
 
-  if (mode === 'repl') {
-    const reader = createUserCommandReader();
-    try {
-      await runHarnessReplSession(harness, reader);
-    } finally {
-      reader.close();
+  try {
+    const { mode } = parseArgv(process.argv.slice(2));
+    const agent = createYamlRepairAgent();
+    const harness = new Harness(agent);
+    console.error(`[yamlRepair] work file: ${agent.context.filePath}`);
+
+    if (mode === 'repl') {
+      const reader = createUserCommandReader();
+      try {
+        await runHarnessReplSession(harness, reader);
+      } finally {
+        reader.close();
+      }
+      return;
     }
-    return;
-  }
 
-  const userCommand = (await readUserCommand(process.argv.slice(2))) || DEFAULT_COMMAND;
-  await harness.run(userCommand);
+    const userCommand = (await readUserCommand(process.argv.slice(2))) || DEFAULT_COMMAND;
+    await harness.run(userCommand);
+  } finally {
+    await flushLangfuse();
+  }
 }
 
-main().catch((error: unknown) => {
+main().catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : 'Unknown error';
   emit({ type: 'error', message });
+  await flushLangfuse();
   process.exit(1);
 });
