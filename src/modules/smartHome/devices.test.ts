@@ -1,7 +1,23 @@
 import { describe, it, expect } from 'vitest';
 
-import { getAcState, isAcState } from './devices';
+import { getAcState, isAcState, resolveControlGroupKey } from './devices';
 import { createContext } from './context';
+
+describe('resolveControlGroupKey', () => {
+  const context = createContext();
+
+  it('resolves canonical and alias control groups case-insensitively', () => {
+    expect(resolveControlGroupKey(context, 'ac')).toBe('ac');
+    expect(resolveControlGroupKey(context, 'AC')).toBe('ac');
+    expect(resolveControlGroupKey(context, 'tv')).toBe('TV');
+    expect(resolveControlGroupKey(context, 'waterValve')).toBe('waterValve');
+    expect(resolveControlGroupKey(context, 'WATERVALVE')).toBe('waterValve');
+  });
+
+  it('returns undefined for unknown control groups', () => {
+    expect(resolveControlGroupKey(context, 'kitchen')).toBeUndefined();
+  });
+});
 
 describe('isAcState', () => {
   it('accepts valid AC state', () => {

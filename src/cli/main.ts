@@ -1,5 +1,6 @@
 import { Harness } from '../harness/harness';
 import { createSmartHomeAgent } from '../modules/smartHome/agent';
+import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { emit } from './jsonl';
 import { createUserCommandReader, readUserCommand } from './readUserCommand';
 import { runHarnessReplSession, runHarnessServeSession } from './sessionLoop';
@@ -19,35 +20,43 @@ function parseArgv(argv: string[]): { mode: 'batch' | 'repl' | 'serve'; command:
 }
 
 async function main() {
-  const { mode } = parseArgv(process.argv.slice(2));
-  const harness = new Harness(createSmartHomeAgent());
+  initLangfuseTracing();
 
-  if (mode === 'serve') {
-    await runHarnessServeSession(harness);
-    return;
-  }
+  try {
+    const { mode } = parseArgv(process.argv.slice(2));
+    const harness = new Harness(createSmartHomeAgent());
 
-  if (mode === 'repl') {
-    const reader = createUserCommandReader();
-    try {
-      await runHarnessReplSession(harness, reader);
-    } finally {
-      reader.close();
+    if (mode === 'serve') {
+      await runHarnessServeSession(harness);
+      return;
     }
-    return;
-  }
 
-  const userCommand = await readUserCommand(process.argv.slice(2));
-  if (!userCommand) {
-    emit({ type: 'error', message: 'Command is required.' });
-    process.exit(1);
-  }
+    if (mode === 'repl') {
+      const reader = createUserCommandReader();
+      try {
+        await runHarnessReplSession(harness, reader);
+      } finally {
+        reader.close();
+      }
+      return;
+    }
 
-  await harness.run(userCommand);
+    const userCommand = await readUserCommand(process.argv.slice(2));
+    if (!userCommand) {
+      emit({ type: 'error', message: 'Command is required.' });
+      process.exitCode = 1;
+      return;
+    }
+
+    await harness.run(userCommand);
+  } finally {
+    await flushLangfuse();
+  }
 }
 
-main().catch((error: unknown) => {
+main().catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : 'Unknown error';
   emit({ type: 'error', message });
+  await flushLangfuse();
   process.exit(1);
 });

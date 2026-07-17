@@ -19,6 +19,32 @@ export function isAcState(value: unknown): value is AcState {
   return acStateSchema.safeParse(value).success;
 }
 
+export function resolveControlGroupKey(context: ToolContext, controlGroup: string): string | undefined {
+  if (controlGroup in context) {
+    return controlGroup;
+  }
+
+  const lowered = controlGroup.toLowerCase();
+  return Object.keys(context).find((key) => key.toLowerCase() === lowered);
+}
+
+export function isAcControlGroup(controlGroup: string, context?: ToolContext): boolean {
+  if (context) {
+    return resolveControlGroupKey(context, controlGroup) === AC_CONTROL_GROUP;
+  }
+
+  return controlGroup.toLowerCase() === AC_CONTROL_GROUP;
+}
+
+export function normalizeDeviceRef(context: ToolContext, ref: DeviceRef): DeviceRef | null {
+  const controlGroup = resolveControlGroupKey(context, ref.controlGroup);
+  if (!controlGroup) {
+    return null;
+  }
+
+  return { ...ref, controlGroup };
+}
+
 export function formatDeviceLabel({ controlGroup, room, deviceId }: DeviceRef): string {
   return `${controlGroup} / ${room} / ${deviceId}`;
 }
@@ -40,13 +66,23 @@ export function getDevicePower(value: string | AcState): 'ON' | 'OFF' {
 }
 
 export function getDeviceState(context: ToolContext, ref: DeviceRef): string | undefined {
-  const value = context[ref.controlGroup]?.[ref.room]?.[ref.deviceId];
+  const controlGroup = resolveControlGroupKey(context, ref.controlGroup);
+  if (!controlGroup) {
+    return undefined;
+  }
+
+  const value = context[controlGroup]?.[ref.room]?.[ref.deviceId];
   if (typeof value === 'string') return value;
   return undefined;
 }
 
 export function setDeviceState(context: ToolContext, ref: DeviceRef, state: string): boolean {
-  const roomDevices = context[ref.controlGroup]?.[ref.room];
+  const controlGroup = resolveControlGroupKey(context, ref.controlGroup);
+  if (!controlGroup) {
+    return false;
+  }
+
+  const roomDevices = context[controlGroup]?.[ref.room];
   if (!roomDevices || !(ref.deviceId in roomDevices)) return false;
   const current = roomDevices[ref.deviceId];
   if (typeof current !== 'string') return false;
@@ -85,8 +121,16 @@ export function listDeviceEntries(
   filters: ListDeviceFilters = {},
 ): Array<DeviceRef & { value: DeviceValue }> {
   const entries: Array<DeviceRef & { value: DeviceValue }> = [];
+  const filterControlGroup = filters.controlGroup
+    ? resolveControlGroupKey(context, filters.controlGroup)
+    : undefined;
+
+  if (filters.controlGroup && !filterControlGroup) {
+    return [];
+  }
+
   for (const [controlGroup, rooms] of Object.entries(context)) {
-    if (filters.controlGroup && controlGroup !== filters.controlGroup) continue;
+    if (filterControlGroup && controlGroup !== filterControlGroup) continue;
     for (const [room, devices] of Object.entries(rooms)) {
       if (filters.room && room !== filters.room) continue;
       for (const [deviceId, value] of Object.entries(devices)) {

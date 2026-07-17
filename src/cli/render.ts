@@ -1,4 +1,5 @@
 import { SmartHomeRenderer } from '../modules/smartHome/renderer/smartHomeRenderer';
+import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { DiffTerminal } from './tui/diffTerminal';
 
 function getTerminalSize(): { rows: number; cols: number } {
@@ -9,6 +10,8 @@ function getTerminalSize(): { rows: number; cols: number } {
 }
 
 async function main(): Promise<void> {
+  initLangfuseTracing();
+
   if (!process.stdout.isTTY) {
     process.stderr.write('TUI renderer requires an interactive terminal (TTY).\n');
     process.exit(1);
@@ -34,8 +37,10 @@ async function main(): Promise<void> {
   };
 
   process.on('SIGINT', () => {
-    cleanup();
-    process.exit(130);
+    void flushLangfuse().finally(() => {
+      cleanup();
+      process.exit(130);
+    });
   });
   process.on('SIGTERM', cleanup);
 
@@ -50,11 +55,13 @@ async function main(): Promise<void> {
   try {
     const exitCode = await renderer.run();
     cleanup();
+    await flushLangfuse();
     process.exit(exitCode);
   } catch (error: unknown) {
     cleanup();
     const message = error instanceof Error ? error.message : 'Unknown error';
     process.stderr.write(`${message}\n`);
+    await flushLangfuse();
     process.exit(1);
   }
 }

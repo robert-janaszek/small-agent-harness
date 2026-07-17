@@ -1,6 +1,6 @@
 import { defineTool } from '../../tools/defineTool';
 import { listDevices } from './listDevices.tool';
-import { AC_CONTROL_GROUP, formatDeviceLabel, getDeviceState } from './devices';
+import { formatDeviceLabel, getDeviceState, isAcControlGroup } from './devices';
 import { getDeviceStatusArgsSchema } from './schemas';
 
 export const getDeviceStatus = defineTool({
@@ -8,7 +8,7 @@ export const getDeviceStatus = defineTool({
   description: 'Gets the current state of a selected smart home device.',
   argsSchema: getDeviceStatusArgsSchema,
   async call(context, args) {
-    if (args.controlGroup === AC_CONTROL_GROUP) {
+    if (isAcControlGroup(args.controlGroup, context)) {
       return `Error: Use getAcStatus for AC units instead of getDeviceStatus`;
     }
 

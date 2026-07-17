@@ -88,6 +88,33 @@ describe('listDevices', () => {
     });
   });
 
+  it('accepts case-insensitive controlGroup aliases', async () => {
+    const acResult = await tool.call({ controlGroup: 'AC' });
+    expect(JSON.parse(acResult)).toEqual({
+      devices: [
+        { controlGroup: 'ac', room: 'livingRoom', deviceId: '1', value: { power: 'OFF', targetTemperature: 22 } },
+      ],
+    });
+
+    const tvResult = await tool.call({ controlGroup: 'tv' });
+    expect(JSON.parse(tvResult)).toEqual({
+      devices: [{ controlGroup: 'TV', room: 'livingRoom', deviceId: '1', value: 'OFF' }],
+    });
+
+    const valveResult = await tool.call({ controlGroup: 'WATERVALVE' });
+    expect(JSON.parse(valveResult).devices).toEqual(
+      expect.arrayContaining([
+        { controlGroup: 'waterValve', room: 'bathroom', deviceId: '1', value: 'ON' },
+        { controlGroup: 'waterValve', room: 'apartment', deviceId: '1', value: 'ON' },
+      ]),
+    );
+  });
+
+  it('returns no devices for unknown controlGroup', async () => {
+    const result = await tool.call({ controlGroup: 'kitchen' });
+    expect(JSON.parse(result)).toEqual({ devices: [] });
+  });
+
   it('filters by controlGroup, room and state', async () => {
     context.light.livingRoom['1'] = 'OFF';
     const result = await tool.call({ controlGroup: 'light', room: 'livingRoom', stateFilter: 'ON' });
@@ -234,7 +261,7 @@ describe('AC guardrails on binary tools', () => {
 
   it('rejects getDeviceStatus for AC', async () => {
     const result = await getDeviceStatus(context).call({
-      controlGroup: 'ac',
+      controlGroup: 'AC',
       room: 'livingRoom',
       deviceId: '1',
     });
