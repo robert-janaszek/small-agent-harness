@@ -2,40 +2,27 @@ import { Harness } from '../harness/harness';
 import { createYamlRepairAgent } from '../modules/yamlRepair/agent';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { emit } from './jsonl';
-import { createUserCommandReader, readUserCommand } from './readUserCommand';
-import { runHarnessReplSession } from './sessionLoop';
 
-const DEFAULT_COMMAND =
-  'Repair the YAML work file: fix syntax errors, fill __FILL_FROM_CONTEXT__ from surrounding context, and make sure yamlParse succeeds.';
+const DEFAULT_COMMAND = `Repair the YAML work file end-to-end:
+- Fix all syntax errors reported by yamlParse.
+- Replace every __FILL_FROM_CONTEXT__ placeholder using nearby context and site defaults.
+- Re-run yamlParse after each batch of edits until the file parses cleanly.
+- When done, reply briefly that the file is valid YAML.`;
 
-function parseArgv(argv: string[]): { mode: 'batch' | 'repl'; command: string } {
-  const batchCommand = argv.join(' ').trim();
-  if (batchCommand.length > 0) {
-    return { mode: 'batch', command: batchCommand };
-  }
-  return { mode: 'repl', command: '' };
+function resolveUserCommand(argv: string[]): string {
+  const override = argv.join(' ').trim();
+  return override.length > 0 ? override : DEFAULT_COMMAND;
 }
 
 async function main() {
   initLangfuseTracing();
 
   try {
-    const { mode } = parseArgv(process.argv.slice(2));
     const agent = createYamlRepairAgent();
     const harness = new Harness(agent);
+    const userCommand = resolveUserCommand(process.argv.slice(2));
+
     console.error(`[yamlRepair] work file: ${agent.context.filePath}`);
-
-    if (mode === 'repl') {
-      const reader = createUserCommandReader();
-      try {
-        await runHarnessReplSession(harness, reader);
-      } finally {
-        reader.close();
-      }
-      return;
-    }
-
-    const userCommand = (await readUserCommand(process.argv.slice(2))) || DEFAULT_COMMAND;
     await harness.run(userCommand);
   } finally {
     await flushLangfuse();
