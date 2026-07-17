@@ -114,8 +114,21 @@ The command is read by `readUserCommand()` in batch mode, or via REPL / `--serve
 | `OPENAI_API_KEY` | API key — many local servers accept any non-empty string |
 | `MODEL_NAME` | Model identifier as exposed by your server |
 | `HARNESS_MAX_ITERATIONS` | Safety cap on agent loop iterations (positive integer) |
+| `LANGFUSE_PUBLIC_KEY` | Optional. Langfuse public key — enables tracing when set with the secret key |
+| `LANGFUSE_SECRET_KEY` | Optional. Langfuse secret key |
+| `LANGFUSE_BASE_URL` | Optional. Langfuse host (default `https://cloud.langfuse.com`) |
 
 Config is loaded lazily: `.env` is read on the first call to `getHarnessConfig()` (via `loadEnv()`). Importing modules does not require a valid `.env` until the harness actually runs.
+
+### Langfuse observability
+
+Set both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to send traces to [Langfuse](https://langfuse.com). Without those keys, tracing is a no-op.
+
+Each `harness.run` turn becomes an agent trace that includes:
+
+- LLM generations (`observeOpenAI`) — prompts, completions, tool_calls, and token usage
+- Tool spans — tool name, args, and result for every tool execution
+- A shared `sessionId` across turns in the same CLI / `--serve` session
 
 ---
 

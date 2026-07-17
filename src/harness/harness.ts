@@ -10,6 +10,7 @@ import { hasToolCalls, runTools, toAssistantHistoryMessage, formatMessageContent
 import { Agent } from './agent.type';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { emit } from '../cli/jsonl';
+import { createLangfuseSessionId, withAgentObservation } from '../observability/langfuse';
 
 export type HarnessOptions = {
   llmClient?: ChatCompletionClient;
@@ -49,6 +50,7 @@ export class Harness {
   private config: HarnessConfig;
   private messageHistory: ChatCompletionMessageParam[];
   private turnCount: number;
+  private sessionId: string;
 
   constructor(agent: Agent, options: HarnessOptions = {}) {
     this.agent = agent;
@@ -56,6 +58,7 @@ export class Harness {
     this.llmClient = options.llmClient ?? createOpenAiClient(this.config);
     this.messageHistory = [];
     this.turnCount = 0;
+    this.sessionId = createLangfuseSessionId();
   }
 
   public getMessageHistory(): readonly ChatCompletionMessageParam[] {
@@ -66,6 +69,10 @@ export class Harness {
     return this.turnCount;
   }
 
+  public getSessionId(): string {
+    return this.sessionId;
+  }
+
   public async run(userCommand: string, options?: HarnessRunOptions): Promise<HarnessRunResult> {
     options?.signal?.throwIfAborted();
 
@@ -73,87 +80,103 @@ export class Harness {
     const turnCheckpoint = this.turnCount;
 
     try {
-      emit({ type: 'user_command', command: userCommand });
-      this.messageHistory.push({ role: 'user', content: userCommand });
-      this.turnCount += 1;
+      return await withAgentObservation(
+        {
+          name: 'harness-turn',
+          sessionId: this.sessionId,
+          input: { command: userCommand },
+        },
+        async (observation) => {
+          emit({ type: 'user_command', command: userCommand });
+          this.messageHistory.push({ role: 'user', content: userCommand });
+          this.turnCount += 1;
 
-      const tokenUsage = {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0,
-      };
-      let iteration = 0;
+          const tokenUsage = {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
+          };
+          let iteration = 0;
 
-      while (iteration < this.config.maxIterations) {
-        options?.signal?.throwIfAborted();
-        iteration++;
+          while (iteration < this.config.maxIterations) {
+            options?.signal?.throwIfAborted();
+            iteration++;
 
-        const messages: ChatCompletionMessageParam[] = [
-          {
-            role: 'system',
-            content: this.agent.prompt,
-          },
-          ...this.messageHistory,
-        ];
+            const messages: ChatCompletionMessageParam[] = [
+              {
+                role: 'system',
+                content: this.agent.prompt,
+              },
+              ...this.messageHistory,
+            ];
 
-        const response = await this.llmClient.createChatCompletion(
-          {
-            model: this.config.modelName,
-            messages: messages,
-            tools: this.agent.tools,
-            tool_choice: 'auto',
-          },
-          { signal: options?.signal },
-        );
+            const response = await this.llmClient.createChatCompletion(
+              {
+                model: this.config.modelName,
+                messages: messages,
+                tools: this.agent.tools,
+                tool_choice: 'auto',
+              },
+              { signal: options?.signal },
+            );
 
-        const responseMessage = getResponseMessage(response);
+            const responseMessage = getResponseMessage(response);
 
-        if (response.usage) {
-          tokenUsage.prompt_tokens += response.usage.prompt_tokens;
-          tokenUsage.completion_tokens += response.usage.completion_tokens;
-          tokenUsage.total_tokens += response.usage.total_tokens;
-          emit({ type: 'tokens', iteration, usage: tokenUsage });
-        }
+            if (response.usage) {
+              tokenUsage.prompt_tokens += response.usage.prompt_tokens;
+              tokenUsage.completion_tokens += response.usage.completion_tokens;
+              tokenUsage.total_tokens += response.usage.total_tokens;
+              emit({ type: 'tokens', iteration, usage: tokenUsage });
+            }
 
-        this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
+            this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
 
-        if (hasToolCalls(responseMessage)) {
-          options?.signal?.throwIfAborted();
+            if (hasToolCalls(responseMessage)) {
+              options?.signal?.throwIfAborted();
 
-          const toolResponse = await runTools(responseMessage, this.agent.tools, {
-            onAssistantMessage: (content) => emit({ type: 'assistant_message', content }),
-            onToolCall: (name, args, toolCallId) =>
-              emit({ type: 'tool_call', name, args, toolCallId }),
-            onToolResult: (name, content, toolCallId) =>
-              emit({ type: 'tool_result', name, content, toolCallId }),
-          });
-          this.messageHistory.push(...toolResponse);
+              const toolResponse = await runTools(responseMessage, this.agent.tools, {
+                onAssistantMessage: (content) => emit({ type: 'assistant_message', content }),
+                onToolCall: (name, args, toolCallId) =>
+                  emit({ type: 'tool_call', name, args, toolCallId }),
+                onToolResult: (name, content, toolCallId) =>
+                  emit({ type: 'tool_result', name, content, toolCallId }),
+              });
+              this.messageHistory.push(...toolResponse);
 
-          this.agent.onToolRound?.();
+              this.agent.onToolRound?.();
 
-          continue;
-        }
+              continue;
+            }
 
-        const content = formatMessageContent(responseMessage.content);
-        if (!content) {
-          this.messageHistory.pop();
-        }
+            const content = formatMessageContent(responseMessage.content);
+            if (!content) {
+              this.messageHistory.pop();
+            }
 
-        const result = {
-          content,
-          tokenUsage,
-          iterations: iteration,
-        };
-        emit({
-          type: 'agent_response',
-          content: result.content,
-          iterations: result.iterations,
-          tokenUsage: result.tokenUsage,
-        });
-        return result;
-      }
+            const result = {
+              content,
+              tokenUsage,
+              iterations: iteration,
+            };
+            observation.update({
+              output: {
+                content: result.content,
+                iterations: result.iterations,
+                tokenUsage: result.tokenUsage,
+              },
+            });
+            emit({
+              type: 'agent_response',
+              content: result.content,
+              iterations: result.iterations,
+              tokenUsage: result.tokenUsage,
+            });
+            return result;
+          }
 
-      throw new Error('Max iterations reached');
+          throw new Error('Max iterations reached');
+        },
+      );
     } catch (error) {
       if (isAbortError(error)) {
         this.messageHistory.length = historyCheckpoint;

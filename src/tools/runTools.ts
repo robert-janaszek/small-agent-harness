@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
+import { withToolObservation } from "../observability/langfuse";
 import { Tool } from "./types";
 import { formatZodError } from "./validation";
 
@@ -54,6 +55,14 @@ function unsupportedToolCallMessage(toolCall: ChatCompletionMessageToolCall): st
   return `Unsupported tool call type "${toolCall.type}". Use the provided function tools.`;
 }
 
+async function recordedToolResult(
+  name: string,
+  input: unknown,
+  produce: () => Promise<string>,
+): Promise<string> {
+  return withToolObservation({ name, input }, produce);
+}
+
 export const runTools = async (
   responseMessage: ChatCompletionMessage,
   toolsDefinition: Tool<any>[],
@@ -72,10 +81,15 @@ export const runTools = async (
 
   for (const toolCall of responseMessage.tool_calls) {
     if (toolCall.type !== 'function') {
+      const content = await recordedToolResult(
+        'unsupported_tool_call',
+        { type: toolCall.type, toolCallId: toolCall.id },
+        async () => unsupportedToolCallMessage(toolCall),
+      );
       toolMessages.push({
         role: 'tool',
         tool_call_id: toolCall.id,
-        content: unsupportedToolCallMessage(toolCall),
+        content,
       });
       continue;
     }
@@ -84,10 +98,16 @@ export const runTools = async (
 
     const tool = toolsDefinition.find(t => t.function.name === toolName);
     if (!tool) {
+      const content = await recordedToolResult(
+        toolName,
+        { arguments: toolCall.function.arguments },
+        async () =>
+          `Unknown tool: ${toolName}, called with arguments ${toolCall.function.arguments}. Use correct tool name`,
+      );
       toolMessages.push({
         role: 'tool' as const,
         tool_call_id: toolCall.id,
-        content: `Unknown tool: ${toolName}, called with arguments ${toolCall.function.arguments}. Use correct tool name`
+        content,
       });
       continue;
     }
@@ -96,32 +116,43 @@ export const runTools = async (
     try {
       rawArgs = JSON.parse(toolCall.function.arguments);
     } catch {
+      const content = await recordedToolResult(
+        toolName,
+        { arguments: toolCall.function.arguments },
+        async () => 'Invalid tool arguments: malformed JSON',
+      );
       toolMessages.push({
         role: 'tool' as const,
         tool_call_id: toolCall.id,
-        content: 'Invalid tool arguments: malformed JSON',
+        content,
       });
       continue;
     }
 
     const parsedArgs = tool.argsSchema.safeParse(rawArgs);
     if (!parsedArgs.success) {
+      const content = await recordedToolResult(
+        toolName,
+        rawArgs,
+        async () => formatZodError(parsedArgs.error, 'Invalid tool arguments'),
+      );
       toolMessages.push({
         role: 'tool' as const,
         tool_call_id: toolCall.id,
-        content: formatZodError(parsedArgs.error, 'Invalid tool arguments'),
+        content,
       });
       continue;
     }
 
-    let toolResult: string;
-    try {
-      hooks.onToolCall?.(toolName, parsedArgs.data, toolCall.id);
-      toolResult = await tool.call(parsedArgs.data);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      toolResult = JSON.stringify({ error: message });
-    }
+    const toolResult = await recordedToolResult(toolName, parsedArgs.data, async () => {
+      try {
+        hooks.onToolCall?.(toolName, parsedArgs.data, toolCall.id);
+        return await tool.call(parsedArgs.data);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return JSON.stringify({ error: message });
+      }
+    });
     hooks.onToolResult?.(toolName, toolResult, toolCall.id);
 
     toolMessages.push({
