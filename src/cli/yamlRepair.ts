@@ -2,6 +2,7 @@ import { Harness } from '../harness/harness';
 import { createYamlRepairAgent } from '../modules/yamlRepair/agent';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { emit } from './jsonl';
+import { installYamlRepairLogWriter } from './yamlRepairLog';
 
 const DEFAULT_COMMAND = `Repair the YAML work file end-to-end:
 - Fix all syntax errors reported by yamlParse.
@@ -16,13 +17,14 @@ function resolveUserCommand(argv: string[]): string {
 
 async function main() {
   initLangfuseTracing();
+  installYamlRepairLogWriter();
 
   try {
     const agent = createYamlRepairAgent();
     const harness = new Harness(agent);
     const userCommand = resolveUserCommand(process.argv.slice(2));
 
-    console.error(`[yamlRepair] work file: ${agent.context.filePath}`);
+    console.log(`[yamlRepair] work file: ${agent.context.filePath}`);
     await harness.run(userCommand);
   } finally {
     await flushLangfuse();
