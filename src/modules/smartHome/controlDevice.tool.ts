@@ -1,5 +1,5 @@
 import { defineTool } from '../../tools/defineTool';
-import { AC_CONTROL_GROUP, formatDeviceLabel, setDeviceState } from './devices';
+import { formatDeviceLabel, isAcControlGroup, setDeviceState } from './devices';
 import { controlDeviceArgsSchema } from './schemas';
 
 export const controlDevice = defineTool({
@@ -8,7 +8,7 @@ export const controlDevice = defineTool({
     'Controls a single binary device (lights, TV, water valves). To change multiple devices in a room, call this tool once per deviceId.',
   argsSchema: controlDeviceArgsSchema,
   call(context, args) {
-    if (args.controlGroup === AC_CONTROL_GROUP) {
+    if (isAcControlGroup(args.controlGroup, context)) {
       return `Error: Use controlAc for AC units instead of controlDevice`;
     }
 
