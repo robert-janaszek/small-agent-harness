@@ -29,6 +29,7 @@ export const grepTool = defineTool<
       return `Could not compile pattern: ${message}`;
     }
 
+    // Collect one extra match so we know whether the result was truncated.
     const matches: { line: number; text: string; before: string[]; after: string[] }[] = [];
     for (let i = 0; i < lines.length; i++) {
       if (!regex.test(lines[i])) {
@@ -40,7 +41,7 @@ export const grepTool = defineTool<
         before: i > 0 ? [lines[i - 1]] : [],
         after: i + 1 < lines.length ? [lines[i + 1]] : [],
       });
-      if (matches.length >= maxMatches) {
+      if (matches.length > maxMatches) {
         break;
       }
     }
@@ -49,10 +50,10 @@ export const grepTool = defineTool<
       return `No lines matched pattern "${args.pattern}".`;
     }
 
-    const truncated = matches.length >= maxMatches
-      ? ` Showing the first ${maxMatches} matches.`
-      : '';
-    const body = matches
+    const truncated = matches.length > maxMatches;
+    const shown = truncated ? matches.slice(0, maxMatches) : matches;
+    const truncatedNote = truncated ? ` Showing the first ${maxMatches} matches.` : '';
+    const body = shown
       .map((match) => {
         const parts = [
           `Line ${match.line}: ${match.text}`,
@@ -67,6 +68,6 @@ export const grepTool = defineTool<
       })
       .join('\n\n');
 
-    return `Found ${matches.length} match(es) for "${args.pattern}".${truncated}\n\n${body}`;
+    return `Found ${shown.length} match(es) for "${args.pattern}".${truncatedNote}\n\n${body}`;
   },
 });

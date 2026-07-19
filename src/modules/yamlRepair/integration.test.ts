@@ -1,11 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import OpenAI from 'openai';
 
 import type { ChatCompletionClient } from '../../client/llmClient.type';
+import { resetEmitWriter, setEmitWriter } from '../../cli/jsonl';
 import { Harness } from '../../harness/harness';
 import type { HarnessConfig } from '../../harness/harness.config.validate';
 import { createYamlRepairAgent } from './agent';
-import { createWorkFile, getFixturePath } from './context';
+import { createWorkFile, getFixturePath, type WorkFile } from './context';
 import { readFileText } from './fileOps';
 
 const testConfig: HarnessConfig = {
@@ -46,9 +47,18 @@ function completion(message: OpenAI.Chat.Completions.ChatCompletionMessage) {
 }
 
 describe('yamlRepair integration', () => {
+  let work: WorkFile | undefined;
+
+  afterEach(() => {
+    work?.dispose();
+    work = undefined;
+    resetEmitWriter();
+  });
+
   it('repairs the work file through mocked tool calls until parse succeeds', async () => {
-    const work = createWorkFile(getFixturePath());
-    const agent = createYamlRepairAgent(work);
+    setEmitWriter(() => {});
+    work = createWorkFile(getFixturePath());
+    const agent = createYamlRepairAgent(work.filePath);
 
     const createChatCompletion = vi
       .fn()
@@ -175,8 +185,8 @@ describe('yamlRepair integration', () => {
     const result = await harness.run('Repair the YAML file');
 
     expect(result.content).toContain('parses successfully');
-    expect(readFileText(work)).not.toMatch(/: __FILL_FROM_CONTEXT__/);
-    expect(readFileText(work)).not.toContain('group lights');
+    expect(readFileText(work.filePath)).not.toMatch(/: __FILL_FROM_CONTEXT__/);
+    expect(readFileText(work.filePath)).not.toContain('group lights');
     expect(readFileText(getFixturePath())).toContain('group lights');
   });
 });

@@ -1,19 +1,39 @@
-import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { dirname, join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { createYamlRepairAgent } from './agent';
 import { createWorkFile, getFixturePath } from './context';
 import { countOccurrences, replaceExact } from './fileOps';
 import { READ_MAX_LIMIT } from './schemas';
 
-function tempYaml(contents: string): string {
+type TempYaml = { path: string; dispose: () => void };
+
+const disposables: Array<{ dispose: () => void }> = [];
+
+function track<T extends { dispose: () => void }>(value: T): T {
+  disposables.push(value);
+  return value;
+}
+
+function tempYaml(contents: string): TempYaml {
   const dir = mkdtempSync(join(tmpdir(), 'yaml-repair-test-'));
   const path = join(dir, 'sample.yaml');
   writeFileSync(path, contents, 'utf8');
-  return path;
+  return track({
+    path,
+    dispose: () => {
+      rmSync(dir, { recursive: true, force: true });
+    },
+  });
 }
+
+afterEach(() => {
+  while (disposables.length > 0) {
+    disposables.pop()?.dispose();
+  }
+});
 
 describe('yamlRepair fileOps', () => {
   it('counts non-overlapping occurrences', () => {
@@ -32,8 +52,8 @@ describe('yamlRepair fileOps', () => {
 
 describe('yamlRepair tools', () => {
   it('read returns numbered lines and rejects oversized windows via schema max', async () => {
-    const path = tempYaml(['a', 'b', 'c', 'd', 'e'].join('\n') + '\n');
-    const agent = createYamlRepairAgent(path);
+    const file = tempYaml(['a', 'b', 'c', 'd', 'e'].join('\n') + '\n');
+    const agent = createYamlRepairAgent(file.path);
     const read = agent.tools.find((tool) => tool.function.name === 'read')!;
 
     const result = await read.call({ offset: 2, limit: 2 });
@@ -45,16 +65,16 @@ describe('yamlRepair tools', () => {
   });
 
   it('read reports when offset is past EOF', async () => {
-    const path = tempYaml('only\n');
-    const agent = createYamlRepairAgent(path);
+    const file = tempYaml('only\n');
+    const agent = createYamlRepairAgent(file.path);
     const read = agent.tools.find((tool) => tool.function.name === 'read')!;
     const result = await read.call({ offset: 5, limit: 10 });
     expect(result).toContain('past the end of the file');
   });
 
   it('grep returns matches with surrounding context in prose', async () => {
-    const path = tempYaml(['alpha', 'beta target', 'gamma'].join('\n') + '\n');
-    const agent = createYamlRepairAgent(path);
+    const file = tempYaml(['alpha', 'beta target', 'gamma'].join('\n') + '\n');
+    const agent = createYamlRepairAgent(file.path);
     const grep = agent.tools.find((tool) => tool.function.name === 'grep')!;
 
     const result = await grep.call({ pattern: 'target' });
@@ -64,9 +84,23 @@ describe('yamlRepair tools', () => {
     expect(result).toContain('context after: gamma');
   });
 
+  it('grep only mentions truncation when more matches exist', async () => {
+    const file = tempYaml(['a', 'a', 'a'].join('\n') + '\n');
+    const agent = createYamlRepairAgent(file.path);
+    const grep = agent.tools.find((tool) => tool.function.name === 'grep')!;
+
+    const exactCap = await grep.call({ pattern: 'a', maxMatches: 3 });
+    expect(exactCap).toContain('Found 3 match');
+    expect(exactCap).not.toContain('Showing the first');
+
+    const truncated = await grep.call({ pattern: 'a', maxMatches: 2 });
+    expect(truncated).toContain('Found 2 match');
+    expect(truncated).toContain('Showing the first 2 matches');
+  });
+
   it('replace applies a unique edit and refuses ambiguous matches', async () => {
-    const path = tempYaml('one\ntwo\none\n');
-    const agent = createYamlRepairAgent(path);
+    const file = tempYaml('one\ntwo\none\n');
+    const agent = createYamlRepairAgent(file.path);
     const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
 
     const ambiguous = await replace.call({ old_string: 'one', new_string: '1' });
@@ -80,8 +114,8 @@ describe('yamlRepair tools', () => {
   });
 
   it('yamlParse reports fixture errors in prose and succeeds after fixes', async () => {
-    const work = createWorkFile(getFixturePath());
-    const agent = createYamlRepairAgent(work);
+    const work = track(createWorkFile(getFixturePath()));
+    const agent = createYamlRepairAgent(work.filePath);
     const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
     const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
     const grep = agent.tools.find((tool) => tool.function.name === 'grep')!;
@@ -140,10 +174,15 @@ describe('yamlRepair tools', () => {
     expect(remaining).toContain('No lines matched');
   });
 
-  it('createWorkFile copies fixture so the source stays intact', () => {
+  it('createWorkFile copies fixture so the source stays intact and dispose removes temp dir', () => {
     const source = getFixturePath();
     const work = createWorkFile(source);
-    expect(work).not.toBe(source);
-    copyFileSync(source, work); // still readable
+    expect(work.filePath).not.toBe(source);
+    expect(existsSync(work.filePath)).toBe(true);
+
+    const dir = dirname(work.filePath);
+    work.dispose();
+    expect(existsSync(work.filePath)).toBe(false);
+    expect(existsSync(dir)).toBe(false);
   });
 });

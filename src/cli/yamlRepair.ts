@@ -7,7 +7,7 @@ import { installYamlRepairLogWriter } from './yamlRepairLog';
 const DEFAULT_COMMAND = `Repair the YAML work file end-to-end:
 - Fix all syntax errors reported by yamlParse.
 - Replace every __FILL_FROM_CONTEXT__ placeholder using nearby context and site defaults.
-- Re-run yamlParse after each batch of edits until the file parses cleanly.
+- After every replace, call yamlParse before any other tool until the file parses cleanly.
 - When done, reply briefly that the file is valid YAML.`;
 
 function resolveUserCommand(argv: string[]): string {
@@ -19,14 +19,15 @@ async function main() {
   initLangfuseTracing();
   installYamlRepairLogWriter();
 
+  const agent = createYamlRepairAgent();
   try {
-    const agent = createYamlRepairAgent();
     const harness = new Harness(agent);
     const userCommand = resolveUserCommand(process.argv.slice(2));
 
     console.log(`[yamlRepair] work file: ${agent.context.filePath}`);
     await harness.run(userCommand);
   } finally {
+    agent.context.dispose();
     await flushLangfuse();
   }
 }

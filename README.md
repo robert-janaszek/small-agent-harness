@@ -377,7 +377,7 @@ src/
     │   ├── devices.ts      # In-memory state + helpers
     │   ├── schemas.ts      # Zod argument schemas
     │   ├── context.ts      # Context factory + context_delta emitter
-    │   └── renderer/       # TUI: spawn harness, floor-plan, event log
+    │   ├── renderer/       # TUI: spawn harness, floor-plan, event log
     │   └── *.tool.ts       # One file per tool
     └── yamlRepair/         # YAML repair benchmark (see src/modules/yamlRepair/README.md)
         ├── agent.ts

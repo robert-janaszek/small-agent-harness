@@ -21,7 +21,7 @@ YAML heuristics:
 - Run yamlParse after every replace — one edit, then parse, then decide the next move.
 - Indentation is syntax, not formatting. Leading spaces on a line must stay the same unless you intentionally restructure a block.
 - In replace, copy old_string exactly and change only the broken part. new_string must keep the same leading whitespace as the matched text.
-- When yamlParse shows a snippet with ^, fix the line the caret points at — not the context lines above or below it.
+- When yamlParse reports an "Offending line", fix that exact line — not the context lines above or below it.
 - grep searches file contents only. Do not grep parser error messages.
 - If yamlParse error count jumps up after an edit, undo mentally and retry with a smaller, indentation-preserving replace.`;
 
