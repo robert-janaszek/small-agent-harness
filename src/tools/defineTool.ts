@@ -9,11 +9,11 @@ type ToolDefinition<T> = {
   call: (args: T) => Promise<string> | string;
 };
 
-type ContextToolDefinition<T> = {
+type ContextToolDefinition<TArgs, TContext> = {
   name: string;
   description: string;
-  argsSchema: z.ZodType<T>;
-  call: (context: ToolContext, args: T) => Promise<string> | string;
+  argsSchema: z.ZodType<TArgs>;
+  call: (context: TContext, args: TArgs) => Promise<string> | string;
 };
 
 export function zodToFunctionParameters(schema: z.ZodTypeAny): Record<string, unknown> {
@@ -34,7 +34,9 @@ export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
   };
 }
 
-export function defineTool<T>(definition: ContextToolDefinition<T>): ToolFactory<T> {
+export function defineTool<TArgs, TContext = ToolContext>(
+  definition: ContextToolDefinition<TArgs, TContext>,
+): ToolFactory<TArgs, TContext> {
   return (context) =>
     createTool({
       name: definition.name,

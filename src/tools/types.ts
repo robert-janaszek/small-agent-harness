@@ -18,4 +18,6 @@ export interface Tool<T = unknown> extends ChatCompletionFunctionTool {
   call: (args: T) => Promise<string>;
 }
 
-export type ToolFactory<T> = (context: ToolContext) => Tool<T>;
+export type ToolFactory<TArgs = unknown, TContext = ToolContext> = (
+  context: TContext,
+) => Tool<TArgs>;

@@ -15,6 +15,7 @@ This repo provides a repeatable testbed: a generic agent loop, a fake integratio
 - A **tool-calling agent harness** — send a command, let the model call tools in a loop until it responds with text.
 - A **benchmark / experiment setup** for edge models — swap `MODEL_NAME`, run the same scenarios, compare behaviour.
 - An **example domain module** (`smartHome`) that simulates device control in memory — no real hardware, no external APIs.
+- A **second benchmark module** ([`yamlRepair`](src/modules/yamlRepair/README.md)) — repair a large broken YAML file via file tools (`grep`, `read`, `replace`, `yamlParse`).
 
 ## What this repo is not
 
@@ -23,6 +24,8 @@ This repo provides a repeatable testbed: a generic agent loop, a fake integratio
 - Not a general-purpose agent framework — it is intentionally small and focused.
 
 The `smartHome` module is an **imaginary integration**: lights, AC units, TVs, and water valves live in an in-memory `ToolContext`. Tools read and mutate that state as if they talked to real services, but nothing leaves the process.
+
+See also **[YAML repair](src/modules/yamlRepair/README.md)** — a format-fidelity stress test on a ~6 700-line config file (syntax errors, placeholders, exact whitespace in `replace`).
 
 ---
 
@@ -369,13 +372,17 @@ src/
 │   ├── types.ts            # Tool, ToolContext, acStateSchema
 │   └── validation.ts       # Shared Zod error formatting
 └── modules/
-    └── smartHome/          # Imaginary smart home integration (demo domain)
-        ├── agent.ts        # createSmartHomeAgent() + system prompt
-        ├── devices.ts      # In-memory state + helpers
-        ├── schemas.ts      # Zod argument schemas
-        ├── context.ts      # Context factory + context_delta emitter
-        └── renderer/       # TUI: spawn harness, floor-plan, event log
-        └── *.tool.ts       # One file per tool
+    ├── smartHome/          # Imaginary smart home integration (demo domain)
+    │   ├── agent.ts        # createSmartHomeAgent() + system prompt
+    │   ├── devices.ts      # In-memory state + helpers
+    │   ├── schemas.ts      # Zod argument schemas
+    │   ├── context.ts      # Context factory + context_delta emitter
+    │   ├── renderer/       # TUI: spawn harness, floor-plan, event log
+    │   └── *.tool.ts       # One file per tool
+    └── yamlRepair/         # YAML repair benchmark (see src/modules/yamlRepair/README.md)
+        ├── agent.ts
+        ├── fixtures/broken.yaml
+        └── *.tool.ts
 ```
 
 ---
@@ -400,6 +407,7 @@ Results will vary widely between models and quantizations. This repo is meant to
 |---------|-------------|
 | `npm start [-- <command>]` | TUI split-view renderer (requires TTY, default) |
 | `npm run harness [-- args]` | Headless harness CLI (batch, REPL, or `--serve`) |
+| `npm run yaml-repair` | YAML repair benchmark — see [module README](src/modules/yamlRepair/README.md) |
 | `npm run dev` | Same as `harness` |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:coverage` | Unit tests with V8 coverage report |
