@@ -38,7 +38,7 @@ cp .env.sample .env
 npm run yaml-repair
 ```
 
-On startup the CLI prints the **work file path** — a temp copy of the fixture so the source in the repo stays untouched:
+On startup the CLI prints the **work file path** — a temp copy of the fixture so the source in the repo stays untouched. The file is **left on disk after exit** so you can inspect the repaired result (`cat`, diff, re-run `yamlParse` tools, etc.):
 
 ```
 [yamlRepair] work file: /tmp/yaml-repair-XXXX/broken.work.yaml
