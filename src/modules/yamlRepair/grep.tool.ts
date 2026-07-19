@@ -13,7 +13,8 @@ export const grepTool = defineTool<
 >({
   name: 'grep',
   description:
-    'Searches the YAML work file for a regular expression or literal pattern. ' +
+    'Searches the YAML work file for a regular expression or literal pattern, one line at a time. ' +
+    'Patterns cannot span multiple lines — match a substring within a single line only. ' +
     'Returns matching lines with line numbers and a short surrounding context. ' +
     'Use this to locate errors and placeholders without reading the whole file.',
   argsSchema: grepArgsSchema,
