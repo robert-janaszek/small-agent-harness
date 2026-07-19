@@ -89,6 +89,8 @@ describe('yamlRepair tools', () => {
     const before = await yamlParse.call({});
     expect(before).toContain('failed to parse');
     expect(before).toMatch(/line \d+/i);
+    expect(before).toContain('… and 1 more error not shown.');
+    expect(before).not.toContain('line 5727');
 
     const markers = await grep.call({ pattern: 'group lights|speedLevels 3|unit celsius|protocol zwave|group patio_fans_WRONG|group covers$' });
     expect(markers).toMatch(/Found \d+ match/);
