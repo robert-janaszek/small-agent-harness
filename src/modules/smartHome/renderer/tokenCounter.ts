@@ -1,12 +1,13 @@
 import type { TokenUsage } from '../../../cli/jsonl';
-import type { AnsiColor, DiffTerminal } from '../../../cli/tui/diffTerminal';
+import type { DiffTerminal } from '../../../cli/tui/diffTerminal';
+import { colors } from '../../../cli/tui/colors';
 
 export type TokenCounterState = {
   usage: TokenUsage;
   iteration: number;
 };
 
-type TokenSegment = { text: string; fg?: AnsiColor };
+type TokenSegment = { text: string; fg?: number };
 
 export const TOKEN_COUNT_FIELD_WIDTH = 5;
 export const TOKEN_ITERATION_FIELD_WIDTH = 2;
@@ -43,17 +44,17 @@ export function tokenCounterSegments(state: TokenCounterState): TokenSegment[] {
   const { usage, iteration } = state;
 
   return [
-    { text: '↑', fg: 36 },
-    { text: padCountField(formatCompactCount(usage.prompt_tokens)), fg: 36 },
+    { text: '↑', fg: colors.tokenPrompt },
+    { text: padCountField(formatCompactCount(usage.prompt_tokens)), fg: colors.tokenPrompt },
     { text: ' ' },
-    { text: '↓', fg: 33 },
-    { text: padCountField(formatCompactCount(usage.completion_tokens)), fg: 33 },
+    { text: '↓', fg: colors.tokenCompletion },
+    { text: padCountField(formatCompactCount(usage.completion_tokens)), fg: colors.tokenCompletion },
     { text: ' ' },
-    { text: 'Σ', fg: 32 },
-    { text: padCountField(formatCompactCount(usage.total_tokens)), fg: 32 },
+    { text: 'Σ', fg: colors.tokenTotal },
+    { text: padCountField(formatCompactCount(usage.total_tokens)), fg: colors.tokenTotal },
     { text: ' ' },
-    { text: '↻', fg: 37 },
-    { text: padIterationField(iteration), fg: 37 },
+    { text: '↻', fg: colors.tokenIteration },
+    { text: padIterationField(iteration), fg: colors.tokenIteration },
   ];
 }
 

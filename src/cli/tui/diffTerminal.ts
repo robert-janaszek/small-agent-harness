@@ -1,8 +1,6 @@
-export type AnsiColor = 31 | 32 | 33 | 35 | 36 | 37 | 90;
-export type AnsiBgColor = 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 100 | 104;
 export type TrueColor = { r: number; g: number; b: number };
 
-export type CharCell = { ch: string; fg?: AnsiColor; bg?: AnsiBgColor; trueColorBg?: TrueColor };
+export type CharCell = { ch: string; fg?: number; bg?: number; trueColorBg?: TrueColor };
 
 function emptyCell(): CharCell {
   return { ch: ' ' };
@@ -78,8 +76,8 @@ export class DiffTerminal {
     row: number,
     col: number,
     ch: string,
-    fg?: AnsiColor,
-    bg?: AnsiBgColor,
+    fg?: number,
+    bg?: number,
     trueColorBg?: TrueColor,
   ): void {
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return;
