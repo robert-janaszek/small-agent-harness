@@ -176,6 +176,9 @@ export class HarnessSessionClient {
 
   shutdown(): void {
     if (!this.sessionEnded && this.child.stdin) {
+      // Cancel first so an in-flight turn aborts before stdin is closed.
+      // Otherwise Ctrl+C after /exit cannot write a cancel to an ended stream.
+      writeHarnessCommand(this.child.stdin, { type: 'cancel' });
       writeHarnessCommand(this.child.stdin, { type: 'shutdown' });
       this.child.stdin.end();
     }

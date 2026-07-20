@@ -56,4 +56,24 @@ describe('DiffTerminal', () => {
 
     expect(output.join('')).toContain('\x1b[32m●\x1b[0m');
   });
+
+  it('writes styled cells with foreground and background codes', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(1, 3, (chunk) => output.push(chunk));
+
+    terminal.setChar(0, 0, 'x', 37, 100);
+    terminal.flush();
+
+    expect(output.join('')).toContain('\x1b[37;100mx\x1b[0m');
+  });
+
+  it('writes styled cells with true-color background', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(1, 3, (chunk) => output.push(chunk));
+
+    terminal.setChar(0, 0, 'x', 37, undefined, { r: 135, g: 206, b: 250 });
+    terminal.flush();
+
+    expect(output.join('')).toContain('\x1b[37;48;2;135;206;250mx\x1b[0m');
+  });
 });

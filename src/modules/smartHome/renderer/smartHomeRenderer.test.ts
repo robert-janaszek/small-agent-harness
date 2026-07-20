@@ -6,6 +6,54 @@ import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
 import { applyContextDelta, createHomeState } from './homeState';
+import { getBottomLayout } from './smartHomeRenderer';
+
+describe('getBottomLayout', () => {
+  it('reserves only the input row when chrome is inactive', () => {
+    expect(getBottomLayout(10, 0, false)).toEqual({
+      contentRows: 9,
+      inputRow: 9,
+      paletteRow: null,
+      queueBannerRow: null,
+    });
+  });
+
+  it('stacks palette above input and queue above palette', () => {
+    expect(getBottomLayout(10, 2, true)).toEqual({
+      contentRows: 7,
+      inputRow: 9,
+      paletteRow: 8,
+      queueBannerRow: 7,
+    });
+  });
+
+  it('drops chrome that would land on a negative row', () => {
+    expect(getBottomLayout(1, 2, true)).toEqual({
+      contentRows: 0,
+      inputRow: 0,
+      paletteRow: null,
+      queueBannerRow: null,
+    });
+  });
+
+  it('prefers palette over queue when only one chrome row fits', () => {
+    expect(getBottomLayout(2, 3, true)).toEqual({
+      contentRows: 0,
+      inputRow: 1,
+      paletteRow: 0,
+      queueBannerRow: null,
+    });
+  });
+
+  it('keeps content from overlapping reserved chrome rows', () => {
+    expect(getBottomLayout(3, 1, true)).toEqual({
+      contentRows: 0,
+      inputRow: 2,
+      paletteRow: 1,
+      queueBannerRow: 0,
+    });
+  });
+});
 
 function countCursorMoves(output: string): number {
   return (output.match(/\x1b\[\d+;\d+H/g) ?? []).length;

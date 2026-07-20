@@ -67,6 +67,10 @@ export class EventLog {
   }
 
   render(maxLines: number, width: number): string[] {
+    if (maxLines <= 0) {
+      return [];
+    }
+
     const visible = this.lines.slice(-maxLines);
     return visible.map((line) => truncate(line, width));
   }

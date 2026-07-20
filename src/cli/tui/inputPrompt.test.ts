@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { formatQueueBanner, getInputLineView, INPUT_PREFIX, TerminalInputLine } from './inputPrompt';
+import {
+  COMMAND_PALETTE_BG,
+  COMMAND_PALETTE_FG,
+  formatQueueBanner,
+  getCommandPaletteMatches,
+  getCommandPaletteState,
+  getInputLineView,
+  INPUT_PREFIX,
+  paintCommandPalette,
+  TerminalInputLine,
+} from './inputPrompt';
+import { DiffTerminal } from './diffTerminal';
 
 describe('getInputLineView', () => {
   it('renders prefix and value with cursor after text', () => {
@@ -35,6 +46,42 @@ describe('formatQueueBanner', () => {
   });
 });
 
+describe('getCommandPaletteMatches', () => {
+  it('matches slash commands by prefix', () => {
+    expect(getCommandPaletteMatches('/')).toEqual(['/exit']);
+    expect(getCommandPaletteMatches('/ex')).toEqual(['/exit']);
+    expect(getCommandPaletteMatches('/exit')).toEqual(['/exit']);
+  });
+
+  it('returns no matches for non-command input', () => {
+    expect(getCommandPaletteMatches('/foo')).toEqual([]);
+    expect(getCommandPaletteMatches('hello')).toEqual([]);
+  });
+});
+
+describe('getCommandPaletteState', () => {
+  it('returns matches when palette is not dismissed', () => {
+    expect(getCommandPaletteState('/ex', false)).toEqual({ matches: ['/exit'] });
+  });
+
+  it('returns null when palette is dismissed', () => {
+    expect(getCommandPaletteState('/ex', true)).toBeNull();
+  });
+});
+
+describe('paintCommandPalette', () => {
+  it('highlights the selected command with foreground and full-width light-blue background', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(1, 10, (chunk) => output.push(chunk));
+    paintCommandPalette(terminal, 0, 10, { matches: ['/exit'] });
+    terminal.flush();
+
+    const rendered = output.join('');
+    expect(rendered).toContain(`\x1b[${COMMAND_PALETTE_FG};48;2;${COMMAND_PALETTE_BG.r};${COMMAND_PALETTE_BG.g};${COMMAND_PALETTE_BG.b}m/\x1b[0m`);
+    expect(rendered).toContain(`\x1b[48;2;${COMMAND_PALETTE_BG.r};${COMMAND_PALETTE_BG.g};${COMMAND_PALETTE_BG.b}m \x1b[0m`);
+  });
+});
+
 describe('TerminalInputLine.start', () => {
   const originalIsTTY = process.stdin.isTTY;
   const originalSetRawMode = process.stdin.setRawMode;
@@ -45,13 +92,18 @@ describe('TerminalInputLine.start', () => {
     process.stdin.removeAllListeners('data');
   });
 
-  it('accumulates keystrokes and submits on Enter', () => {
+  function createInput(onSubmit = vi.fn()): { input: TerminalInputLine; onSubmit: ReturnType<typeof vi.fn> } {
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
     process.stdin.setRawMode = vi.fn() as typeof process.stdin.setRawMode;
 
-    const onSubmit = vi.fn();
+    const onSubmitMock = onSubmit;
     const input = new TerminalInputLine(() => undefined);
-    input.start(onSubmit);
+    input.start(onSubmitMock);
+    return { input, onSubmit: onSubmitMock };
+  }
+
+  it('accumulates keystrokes and submits on Enter', () => {
+    const { input, onSubmit } = createInput();
 
     expect(process.stdin.setRawMode).toHaveBeenCalledWith(true);
     expect(input.isActive()).toBe(true);
@@ -79,5 +131,77 @@ describe('TerminalInputLine.start', () => {
 
     expect(onInterrupt).toHaveBeenCalledTimes(1);
     expect(input.getState().value).toBe('draft');
+  });
+
+  it('shows command palette for slash input', () => {
+    const { input } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/ex'));
+
+    expect(input.getState().commandPalette).toEqual({ matches: ['/exit'] });
+  });
+
+  it('completes the first match on Tab without submitting', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/'));
+    process.stdin.emit('data', Buffer.from('\t'));
+
+    expect(input.getState().value).toBe('/exit');
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('submits the first palette match on Enter', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/ex'));
+    process.stdin.emit('data', Buffer.from('\r'));
+
+    expect(onSubmit).toHaveBeenCalledWith('/exit');
+  });
+
+  it('submits the completed command after Tab then Enter', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/'));
+    process.stdin.emit('data', Buffer.from('\t'));
+    process.stdin.emit('data', Buffer.from('\r'));
+
+    expect(onSubmit).toHaveBeenCalledWith('/exit');
+  });
+
+  it('hides palette on ESC while keeping the typed value', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/ex'));
+    process.stdin.emit('data', Buffer.from('\u001b'));
+
+    expect(input.getState().value).toBe('/ex');
+    expect(input.getState().commandPalette).toBeNull();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('allows finishing a dismissed command manually and submitting it', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/ex'));
+    process.stdin.emit('data', Buffer.from('\u001b'));
+    process.stdin.emit('data', Buffer.from('it'));
+    process.stdin.emit('data', Buffer.from('\r'));
+
+    expect(onSubmit).toHaveBeenCalledWith('/exit');
+    expect(input.getState().commandPalette).toBeNull();
+  });
+
+  it('shows palette again after backing up to a lone slash', () => {
+    const { input } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/ex'));
+    process.stdin.emit('data', Buffer.from('\u001b'));
+    process.stdin.emit('data', Buffer.from('\u007f'));
+    process.stdin.emit('data', Buffer.from('\u007f'));
+
+    expect(input.getState().value).toBe('/');
+    expect(input.getState().commandPalette).toEqual({ matches: ['/exit'] });
   });
 });
