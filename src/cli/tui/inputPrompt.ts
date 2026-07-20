@@ -7,6 +7,35 @@ export const QUEUE_BANNER_COLOR: AnsiColor = 33;
 export const COMMAND_PALETTE_FG: AnsiColor = 37;
 export const COMMAND_PALETTE_BG: TrueColor = { r: 35, g: 90, b: 175 };
 
+const CURSOR_ON_EMPTY = '\u2581';
+const KEY_ENTER = '\r';
+const KEY_NEWLINE = '\n';
+const KEY_TAB = '\t';
+const KEY_ESCAPE = '\u001b';
+const KEY_BACKSPACE = '\u007f';
+const KEY_BACKSPACE_CTRL_H = '\b';
+const KEY_ARROW_LEFT = `${KEY_ESCAPE}[D`;
+const KEY_ARROW_RIGHT = `${KEY_ESCAPE}[C`;
+const CTRL_C_BYTE = 0x03;
+const PRINTABLE_ASCII_MIN = 0x20;
+const PRINTABLE_ASCII_MAX = 0x7f;
+
+function isEnterKey(key: string): boolean {
+  return key === KEY_ENTER || key === KEY_NEWLINE;
+}
+
+function isBackspaceKey(key: string): boolean {
+  return key === KEY_BACKSPACE || key === KEY_BACKSPACE_CTRL_H;
+}
+
+function isEscapeSequence(key: string): boolean {
+  return key.startsWith(KEY_ESCAPE);
+}
+
+function isPrintableAscii(byte: number): boolean {
+  return byte >= PRINTABLE_ASCII_MIN && byte < PRINTABLE_ASCII_MAX;
+}
+
 export const SLASH_COMMANDS = ['/exit'] as const;
 
 export type CommandPaletteState = {
@@ -119,7 +148,7 @@ export function paintInputLine(
   }
 
   const cursorChar = line[cursorCol] ?? ' ';
-  terminal.setChar(row, cursorCol, cursorChar === ' ' ? '▁' : cursorChar, cursorColor);
+  terminal.setChar(row, cursorCol, cursorChar === ' ' ? CURSOR_ON_EMPTY : cursorChar, cursorColor);
 }
 
 export class TerminalInputLine {
@@ -202,14 +231,14 @@ export class TerminalInputLine {
   }
 
   private handleKey(chunk: Buffer): void {
-    if (chunk.length === 1 && chunk[0] === 3) {
+    if (chunk.length === 1 && chunk[0] === CTRL_C_BYTE) {
       this.onInterrupt?.();
       return;
     }
 
     const key = chunk.toString();
 
-    if (key === '\r' || key === '\n') {
+    if (isEnterKey(key)) {
       const palette = this.getVisiblePalette();
       const submitValue = palette ? palette.matches[0]! : this.value.trim();
       this.value = '';
@@ -220,7 +249,7 @@ export class TerminalInputLine {
       return;
     }
 
-    if (key === '\t') {
+    if (key === KEY_TAB) {
       const palette = this.getVisiblePalette();
       if (palette) {
         this.value = palette.matches[0]!;
@@ -230,7 +259,7 @@ export class TerminalInputLine {
       return;
     }
 
-    if (key === '\u001b') {
+    if (key === KEY_ESCAPE) {
       const palette = this.getVisiblePalette();
       if (palette) {
         this.paletteDismissed = true;
@@ -239,7 +268,7 @@ export class TerminalInputLine {
       return;
     }
 
-    if (key === '\u007f' || key === '\b') {
+    if (isBackspaceKey(key)) {
       if (this.cursor > 0) {
         this.value = `${this.value.slice(0, this.cursor - 1)}${this.value.slice(this.cursor)}`;
         this.cursor -= 1;
@@ -249,7 +278,7 @@ export class TerminalInputLine {
       return;
     }
 
-    if (key === '\u001b[D') {
+    if (key === KEY_ARROW_LEFT) {
       if (this.cursor > 0) {
         this.cursor -= 1;
         this.onUpdate();
@@ -257,7 +286,7 @@ export class TerminalInputLine {
       return;
     }
 
-    if (key === '\u001b[C') {
+    if (key === KEY_ARROW_RIGHT) {
       if (this.cursor < this.value.length) {
         this.cursor += 1;
         this.onUpdate();
@@ -265,11 +294,11 @@ export class TerminalInputLine {
       return;
     }
 
-    if (key.startsWith('\u001b')) {
+    if (isEscapeSequence(key)) {
       return;
     }
 
-    if (chunk.every((byte) => byte >= 32 && byte < 127)) {
+    if (chunk.every((byte) => isPrintableAscii(byte))) {
       this.value = `${this.value.slice(0, this.cursor)}${key}${this.value.slice(this.cursor)}`;
       this.cursor += key.length;
       this.syncPaletteDismissed();
