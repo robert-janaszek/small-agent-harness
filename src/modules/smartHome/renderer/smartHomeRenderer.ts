@@ -17,36 +17,37 @@ import type { TokenCounterState } from './tokenCounter';
 
 const ACTIVITY_INTERVAL_MS = 120;
 
-type BottomLayout = {
+export type BottomLayout = {
   contentRows: number;
   inputRow: number;
   paletteRow: number | null;
   queueBannerRow: number | null;
 };
 
-function getBottomLayout(
+export function getBottomLayout(
   terminalHeight: number,
   queueLength: number,
   paletteActive: boolean,
 ): BottomLayout {
-  let row = terminalHeight - 1;
+  const height = Math.max(1, terminalHeight);
+  let row = height - 1;
   const inputRow = row;
   row -= 1;
 
   let paletteRow: number | null = null;
-  if (paletteActive) {
+  if (paletteActive && row >= 0) {
     paletteRow = row;
     row -= 1;
   }
 
   let queueBannerRow: number | null = null;
-  if (queueLength > 0) {
+  if (queueLength > 0 && row >= 0) {
     queueBannerRow = row;
     row -= 1;
   }
 
   return {
-    contentRows: Math.max(1, row + 1),
+    contentRows: Math.max(0, row + 1),
     inputRow,
     paletteRow,
     queueBannerRow,
@@ -79,6 +80,25 @@ export class SmartHomeRenderer {
 
   private interrupted = false;
 
+  private clearCommandQueue(): void {
+    if (this.commandQueue.length === 0) {
+      return;
+    }
+
+    this.commandQueue = [];
+    this.redraw();
+  }
+
+  private requestExit(client: HarnessSessionClient): void {
+    if (this.interrupted || client.hasSessionEnded()) {
+      return;
+    }
+
+    this.interrupted = true;
+    this.clearCommandQueue();
+    client.shutdown();
+  }
+
   async run(): Promise<number> {
     const client = new HarnessSessionClient();
     client.onEvent((event) => this.onEvent(event));
@@ -89,12 +109,14 @@ export class SmartHomeRenderer {
 
     this.inputLine.setOnInterrupt(() => {
       if (this.harnessReady && this.harnessActive) {
+        // Cancel the in-flight turn and drop pending work so Ctrl+C cannot get
+        // stuck repeatedly cancelling a non-empty queue.
+        this.clearCommandQueue();
         client.cancelTurn();
         return;
       }
 
-      this.interrupted = true;
-      client.shutdown();
+      this.requestExit(client);
     });
 
     this.inputLine.start((command) => {
@@ -103,8 +125,7 @@ export class SmartHomeRenderer {
       }
 
       if (command === '/exit') {
-        this.interrupted = true;
-        client.shutdown();
+        this.requestExit(client);
         return;
       }
 
@@ -156,7 +177,7 @@ export class SmartHomeRenderer {
   }
 
   private async drainQueue(client: HarnessSessionClient): Promise<void> {
-    if (this.dispatching || !this.harnessReady) {
+    if (this.dispatching || !this.harnessReady || this.interrupted || client.hasSessionEnded()) {
       return;
     }
 
@@ -165,12 +186,18 @@ export class SmartHomeRenderer {
     while (this.commandQueue.length > 0 && !this.interrupted && !client.hasSessionEnded()) {
       const command = this.commandQueue.shift()!;
       this.redraw();
+
+      if (command === '/exit') {
+        this.requestExit(client);
+        break;
+      }
+
       await this.runTurn(client, command);
     }
 
     this.dispatching = false;
 
-    if (this.commandQueue.length > 0) {
+    if (this.commandQueue.length > 0 && !this.interrupted && !client.hasSessionEnded()) {
       void this.drainQueue(client);
     }
   }

@@ -151,10 +151,20 @@ describe('TerminalInputLine.start', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('submits the first match on Enter when palette is visible', () => {
+  it('submits the first palette match on Enter', () => {
     const { input, onSubmit } = createInput();
 
     process.stdin.emit('data', Buffer.from('/ex'));
+    process.stdin.emit('data', Buffer.from('\r'));
+
+    expect(onSubmit).toHaveBeenCalledWith('/exit');
+  });
+
+  it('submits the completed command after Tab then Enter', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/'));
+    process.stdin.emit('data', Buffer.from('\t'));
     process.stdin.emit('data', Buffer.from('\r'));
 
     expect(onSubmit).toHaveBeenCalledWith('/exit');

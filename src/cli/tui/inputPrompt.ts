@@ -230,6 +230,23 @@ export class TerminalInputLine {
     return getCommandPaletteState(this.value, this.paletteDismissed);
   }
 
+  private completeFirstPaletteMatch(): boolean {
+    const palette = this.getVisiblePalette();
+    if (!palette) {
+      return false;
+    }
+
+    const completed = palette.matches[0]!;
+    if (this.value === completed) {
+      return false;
+    }
+
+    this.value = completed;
+    this.cursor = this.value.length;
+    this.onUpdate();
+    return true;
+  }
+
   private handleKey(chunk: Buffer): void {
     if (chunk.length === 1 && chunk[0] === CTRL_C_BYTE) {
       this.onInterrupt?.();
@@ -250,12 +267,7 @@ export class TerminalInputLine {
     }
 
     if (key === KEY_TAB) {
-      const palette = this.getVisiblePalette();
-      if (palette) {
-        this.value = palette.matches[0]!;
-        this.cursor = this.value.length;
-        this.onUpdate();
-      }
+      this.completeFirstPaletteMatch();
       return;
     }
 
