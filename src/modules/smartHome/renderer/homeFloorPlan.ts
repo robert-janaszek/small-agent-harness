@@ -1,5 +1,5 @@
-import type { AnsiColor } from '../../../cli/tui/diffTerminal';
 import type { DiffTerminal } from '../../../cli/tui/diffTerminal';
+import { colors } from '../../../cli/tui/colors';
 import { AcState, ToolContext } from '../../../tools/types';
 import { getDevicePower, isAcState } from '../devices';
 import { FLOOR_PLAN_HEIGHT, FLOOR_PLAN_TEMPLATE } from './homeFloorPlan.template';
@@ -33,18 +33,18 @@ export const DEVICE_SLOTS: DeviceSlot[] = [
   { controlGroup: 'waterValve', room: 'apartment', deviceId: '1', row: 11, col: 3, label: 'WV', kind: 'valve' },
 ];
 
-export type PowerIndicator = { ch: string; fg: AnsiColor };
+export type PowerIndicator = { ch: string; fg: number };
 
 export function powerIndicator(kind: DeviceSlot['kind'], power: 'ON' | 'OFF'): PowerIndicator {
   if (kind === 'valve') {
     return power === 'ON'
-      ? { ch: '◉', fg: 32 }
-      : { ch: '⊗', fg: 31 };
+      ? { ch: '◉', fg: colors.success }
+      : { ch: '⊗', fg: colors.error };
   }
 
   return power === 'ON'
-    ? { ch: '●', fg: 32 }
-    : { ch: '○', fg: 31 };
+    ? { ch: '●', fg: colors.success }
+    : { ch: '○', fg: colors.error };
 }
 
 function patchBinaryLine(line: string, col: number, indicator: PowerIndicator, label: string): string {

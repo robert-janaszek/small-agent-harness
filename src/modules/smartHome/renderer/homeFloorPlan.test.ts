@@ -1,17 +1,18 @@
 import { describe, it, expect } from 'vitest';
 
+import { colors } from '../../../cli/tui/colors';
 import { applyContextDelta, createHomeState } from './homeState';
 import { powerIndicator, renderHomePanel } from './homeFloorPlan';
 
 describe('powerIndicator', () => {
   it('uses green filled dot for ON and red hollow dot for OFF', () => {
-    expect(powerIndicator('binary', 'ON')).toEqual({ ch: '●', fg: 32 });
-    expect(powerIndicator('binary', 'OFF')).toEqual({ ch: '○', fg: 31 });
+    expect(powerIndicator('binary', 'ON')).toEqual({ ch: '●', fg: colors.success });
+    expect(powerIndicator('binary', 'OFF')).toEqual({ ch: '○', fg: colors.error });
   });
 
   it('uses valve symbols with WV label', () => {
-    expect(powerIndicator('valve', 'ON')).toEqual({ ch: '◉', fg: 32 });
-    expect(powerIndicator('valve', 'OFF')).toEqual({ ch: '⊗', fg: 31 });
+    expect(powerIndicator('valve', 'ON')).toEqual({ ch: '◉', fg: colors.success });
+    expect(powerIndicator('valve', 'OFF')).toEqual({ ch: '⊗', fg: colors.error });
   });
 });
 

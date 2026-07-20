@@ -1,11 +1,7 @@
 import { stdin } from 'node:process';
 
-import type { AnsiColor, DiffTerminal, TrueColor } from './diffTerminal';
-
-export const INPUT_PREFIX = '> ';
-export const QUEUE_BANNER_COLOR: AnsiColor = 33;
-export const COMMAND_PALETTE_FG: AnsiColor = 37;
-export const COMMAND_PALETTE_BG: TrueColor = { r: 35, g: 90, b: 175 };
+import type { DiffTerminal } from './diffTerminal';
+import { colors } from './colors';
 
 const CURSOR_ON_EMPTY = '\u2581';
 const KEY_ENTER = '\r';
@@ -35,6 +31,7 @@ function isEscapeSequence(key: string): boolean {
 function isPrintableAscii(byte: number): boolean {
   return byte >= PRINTABLE_ASCII_MIN && byte < PRINTABLE_ASCII_MAX;
 }
+export const INPUT_PREFIX = '> ';
 
 export const SLASH_COMMANDS = ['/exit'] as const;
 
@@ -97,7 +94,7 @@ export function paintQueueBanner(
 
   for (let col = 0; col < line.length; col++) {
     const ch = line[col] ?? ' ';
-    terminal.setChar(row, col, ch, ch === ' ' ? undefined : QUEUE_BANNER_COLOR);
+    terminal.setChar(row, col, ch, ch === ' ' ? undefined : colors.banner);
   }
 }
 
@@ -111,7 +108,7 @@ export function paintCommandPalette(
 
   for (let col = 0; col < width; col++) {
     const ch = text[col] ?? ' ';
-    terminal.setChar(row, col, ch, ch === ' ' ? undefined : COMMAND_PALETTE_FG, undefined, COMMAND_PALETTE_BG);
+    terminal.setChar(row, col, ch, ch === ' ' ? undefined : colors.paletteFg, undefined, colors.paletteBg);
   }
 }
 
@@ -138,7 +135,7 @@ export function paintInputLine(
   row: number,
   width: number,
   state: InputLineState,
-  cursorColor: AnsiColor = 36,
+  cursorColor = colors.cursor,
 ): void {
   const { line, cursorCol } = getInputLineView(state.value, state.cursor, width);
   terminal.fill(row, 0, line);

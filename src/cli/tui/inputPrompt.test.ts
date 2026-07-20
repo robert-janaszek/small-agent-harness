@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
 import {
-  COMMAND_PALETTE_BG,
-  COMMAND_PALETTE_FG,
   formatQueueBanner,
   getCommandPaletteMatches,
   getCommandPaletteState,
@@ -11,6 +9,7 @@ import {
   paintCommandPalette,
   TerminalInputLine,
 } from './inputPrompt';
+import { colors } from './colors';
 import { DiffTerminal } from './diffTerminal';
 
 describe('getInputLineView', () => {
@@ -77,8 +76,8 @@ describe('paintCommandPalette', () => {
     terminal.flush();
 
     const rendered = output.join('');
-    expect(rendered).toContain(`\x1b[${COMMAND_PALETTE_FG};48;2;${COMMAND_PALETTE_BG.r};${COMMAND_PALETTE_BG.g};${COMMAND_PALETTE_BG.b}m/\x1b[0m`);
-    expect(rendered).toContain(`\x1b[48;2;${COMMAND_PALETTE_BG.r};${COMMAND_PALETTE_BG.g};${COMMAND_PALETTE_BG.b}m \x1b[0m`);
+    expect(rendered).toContain(`\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
+    expect(rendered).toContain(`\x1b[48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m \x1b[0m`);
   });
 });
 

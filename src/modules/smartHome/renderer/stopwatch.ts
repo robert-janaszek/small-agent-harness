@@ -1,10 +1,9 @@
-import type { AnsiColor } from '../../../cli/tui/diffTerminal';
+import { colors } from '../../../cli/tui/colors';
 
 export const STOPWATCH_TIME_WIDTH = 5;
 export const STOPWATCH_WIDTH = 1 + STOPWATCH_TIME_WIDTH;
-const STOPWATCH_FG: AnsiColor = 35;
 
-type StopwatchSegment = { text: string; fg?: AnsiColor };
+type StopwatchSegment = { text: string; fg?: number };
 
 function padTimeField(value: string): string {
   return value.padStart(STOPWATCH_TIME_WIDTH, ' ');
@@ -33,8 +32,8 @@ export function formatElapsedMs(ms: number): string {
 
 export function stopwatchSegments(elapsedMs: number): StopwatchSegment[] {
   return [
-    { text: '⏱', fg: STOPWATCH_FG },
-    { text: formatElapsedMs(elapsedMs), fg: STOPWATCH_FG },
+    { text: '⏱', fg: colors.stopwatch },
+    { text: formatElapsedMs(elapsedMs), fg: colors.stopwatch },
   ];
 }
 
