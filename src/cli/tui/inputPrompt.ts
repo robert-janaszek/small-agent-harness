@@ -1,9 +1,17 @@
 import { stdin } from 'node:process';
 
-import type { AnsiColor, DiffTerminal } from './diffTerminal';
+import type { AnsiColor, DiffTerminal, TrueColor } from './diffTerminal';
 
 export const INPUT_PREFIX = '> ';
 export const QUEUE_BANNER_COLOR: AnsiColor = 33;
+export const COMMAND_PALETTE_FG: AnsiColor = 37;
+export const COMMAND_PALETTE_BG: TrueColor = { r: 35, g: 90, b: 175 };
+
+export const SLASH_COMMANDS = ['/exit'] as const;
+
+export type CommandPaletteState = {
+  matches: readonly string[];
+};
 
 export type InputLineView = {
   line: string;
@@ -14,7 +22,28 @@ export type InputLineState = {
   value: string;
   cursor: number;
   active: boolean;
+  commandPalette: CommandPaletteState | null;
 };
+
+export function getCommandPaletteMatches(value: string): string[] {
+  if (!value.startsWith('/')) {
+    return [];
+  }
+
+  return SLASH_COMMANDS.filter((command) => command.startsWith(value));
+}
+
+export function getCommandPaletteState(
+  value: string,
+  paletteDismissed: boolean,
+): CommandPaletteState | null {
+  if (paletteDismissed) {
+    return null;
+  }
+
+  const matches = getCommandPaletteMatches(value);
+  return matches.length > 0 ? { matches } : null;
+}
 
 export function formatQueueBanner(count: number): string {
   if (count <= 0) {
@@ -40,6 +69,20 @@ export function paintQueueBanner(
   for (let col = 0; col < line.length; col++) {
     const ch = line[col] ?? ' ';
     terminal.setChar(row, col, ch, ch === ' ' ? undefined : QUEUE_BANNER_COLOR);
+  }
+}
+
+export function paintCommandPalette(
+  terminal: DiffTerminal,
+  row: number,
+  width: number,
+  palette: CommandPaletteState,
+): void {
+  const text = ` ${palette.matches.join(' ')}`.padEnd(width).slice(0, width);
+
+  for (let col = 0; col < width; col++) {
+    const ch = text[col] ?? ' ';
+    terminal.setChar(row, col, ch, ch === ' ' ? undefined : COMMAND_PALETTE_FG, undefined, COMMAND_PALETTE_BG);
   }
 }
 
@@ -83,6 +126,7 @@ export class TerminalInputLine {
   private value = '';
   private cursor = 0;
   private active = false;
+  private paletteDismissed = false;
   private onSubmit: ((value: string) => void) | null = null;
   private onInterrupt: (() => void) | null = null;
   private readonly onUpdate: () => void;
@@ -104,6 +148,7 @@ export class TerminalInputLine {
       value: this.value,
       cursor: this.cursor,
       active: this.active,
+      commandPalette: getCommandPaletteState(this.value, this.paletteDismissed),
     };
   }
 
@@ -120,6 +165,7 @@ export class TerminalInputLine {
     this.onSubmit = onSubmit;
     this.value = '';
     this.cursor = 0;
+    this.paletteDismissed = false;
     this.onUpdate();
 
     stdin.setRawMode(true);
@@ -141,7 +187,18 @@ export class TerminalInputLine {
     this.onSubmit = null;
     this.value = '';
     this.cursor = 0;
+    this.paletteDismissed = false;
     this.onUpdate();
+  }
+
+  private syncPaletteDismissed(): void {
+    if (!this.value.startsWith('/') || this.value === '/') {
+      this.paletteDismissed = false;
+    }
+  }
+
+  private getVisiblePalette(): CommandPaletteState | null {
+    return getCommandPaletteState(this.value, this.paletteDismissed);
   }
 
   private handleKey(chunk: Buffer): void {
@@ -153,11 +210,32 @@ export class TerminalInputLine {
     const key = chunk.toString();
 
     if (key === '\r' || key === '\n') {
-      const trimmed = this.value.trim();
+      const palette = this.getVisiblePalette();
+      const submitValue = palette ? palette.matches[0]! : this.value.trim();
       this.value = '';
       this.cursor = 0;
+      this.paletteDismissed = false;
       this.onUpdate();
-      this.onSubmit?.(trimmed);
+      this.onSubmit?.(submitValue);
+      return;
+    }
+
+    if (key === '\t') {
+      const palette = this.getVisiblePalette();
+      if (palette) {
+        this.value = palette.matches[0]!;
+        this.cursor = this.value.length;
+        this.onUpdate();
+      }
+      return;
+    }
+
+    if (key === '\u001b') {
+      const palette = this.getVisiblePalette();
+      if (palette) {
+        this.paletteDismissed = true;
+        this.onUpdate();
+      }
       return;
     }
 
@@ -165,6 +243,7 @@ export class TerminalInputLine {
       if (this.cursor > 0) {
         this.value = `${this.value.slice(0, this.cursor - 1)}${this.value.slice(this.cursor)}`;
         this.cursor -= 1;
+        this.syncPaletteDismissed();
         this.onUpdate();
       }
       return;
@@ -193,6 +272,7 @@ export class TerminalInputLine {
     if (chunk.every((byte) => byte >= 32 && byte < 127)) {
       this.value = `${this.value.slice(0, this.cursor)}${key}${this.value.slice(this.cursor)}`;
       this.cursor += key.length;
+      this.syncPaletteDismissed();
       this.onUpdate();
     }
   }

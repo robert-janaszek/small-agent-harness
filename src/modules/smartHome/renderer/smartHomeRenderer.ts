@@ -1,7 +1,12 @@
 import type { HarnessEvent } from '../../../cli/jsonl';
 import { HarnessSessionClient } from '../../../cli/harnessClient';
 import { DiffTerminal } from '../../../cli/tui/diffTerminal';
-import { paintInputLine, paintQueueBanner, TerminalInputLine } from '../../../cli/tui/inputPrompt';
+import {
+  paintCommandPalette,
+  paintInputLine,
+  paintQueueBanner,
+  TerminalInputLine,
+} from '../../../cli/tui/inputPrompt';
 import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayout';
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
@@ -12,17 +17,40 @@ import type { TokenCounterState } from './tokenCounter';
 
 const ACTIVITY_INTERVAL_MS = 120;
 
-function contentHeight(terminalHeight: number, queueLength: number): number {
-  const reservedRows = queueLength > 0 ? 2 : 1;
-  return Math.max(1, terminalHeight - reservedRows);
-}
+type BottomLayout = {
+  contentRows: number;
+  inputRow: number;
+  paletteRow: number | null;
+  queueBannerRow: number | null;
+};
 
-function inputRow(terminalHeight: number): number {
-  return terminalHeight - 1;
-}
+function getBottomLayout(
+  terminalHeight: number,
+  queueLength: number,
+  paletteActive: boolean,
+): BottomLayout {
+  let row = terminalHeight - 1;
+  const inputRow = row;
+  row -= 1;
 
-function queueBannerRow(terminalHeight: number, queueLength: number): number | null {
-  return queueLength > 0 ? terminalHeight - 2 : null;
+  let paletteRow: number | null = null;
+  if (paletteActive) {
+    paletteRow = row;
+    row -= 1;
+  }
+
+  let queueBannerRow: number | null = null;
+  if (queueLength > 0) {
+    queueBannerRow = row;
+    row -= 1;
+  }
+
+  return {
+    contentRows: Math.max(1, row + 1),
+    inputRow,
+    paletteRow,
+    queueBannerRow,
+  };
 }
 
 export class SmartHomeRenderer {
@@ -190,7 +218,7 @@ export class SmartHomeRenderer {
     const split = getSplitColumns(this.terminal.width);
     const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
 
-    paintStatusBar(this.terminal, split.dividerCol + 1, rightWidth, inputRow(this.terminal.height), {
+    paintStatusBar(this.terminal, split.dividerCol + 1, rightWidth, this.terminal.height - 1, {
       tokenCounter: this.tokenCounter,
       activityTick: this.activityTick,
       activityActive: this.harnessActive,
@@ -210,26 +238,33 @@ export class SmartHomeRenderer {
   private redraw(): void {
     const split = getSplitColumns(this.terminal.width);
     const queueLength = this.commandQueue.length;
-    const rows = contentHeight(this.terminal.height, queueLength);
-    const leftLines = this.eventLog.render(rows, split.leftWidth);
+    const inputState = this.inputLine.getState();
+    const layout = getBottomLayout(
+      this.terminal.height,
+      queueLength,
+      inputState.commandPalette !== null,
+    );
+    const leftLines = this.eventLog.render(layout.contentRows, split.leftWidth);
     const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
-    const row = inputRow(this.terminal.height);
-    const bannerRow = queueBannerRow(this.terminal.height, queueLength);
 
     this.terminal.clear();
 
-    for (let lineRow = 0; lineRow < rows; lineRow++) {
+    for (let lineRow = 0; lineRow < layout.contentRows; lineRow++) {
       this.terminal.fill(lineRow, 0, (leftLines[lineRow] ?? '').padEnd(split.leftWidth).slice(0, split.leftWidth));
     }
 
     drawVerticalDivider(this.terminal, split.dividerCol);
-    paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, rows, this.homeState);
+    paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, layout.contentRows, this.homeState);
 
-    if (bannerRow !== null) {
-      paintQueueBanner(this.terminal, bannerRow, split.leftWidth, queueLength);
+    if (layout.queueBannerRow !== null) {
+      paintQueueBanner(this.terminal, layout.queueBannerRow, split.leftWidth, queueLength);
     }
 
-    paintInputLine(this.terminal, row, split.leftWidth, this.inputLine.getState());
+    if (layout.paletteRow !== null && inputState.commandPalette !== null) {
+      paintCommandPalette(this.terminal, layout.paletteRow, split.leftWidth, inputState.commandPalette);
+    }
+
+    paintInputLine(this.terminal, layout.inputRow, split.leftWidth, inputState);
     this.paintStatusBarOnTerminal();
     this.terminal.flush();
   }

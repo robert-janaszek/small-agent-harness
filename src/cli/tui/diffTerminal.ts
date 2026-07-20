@@ -1,13 +1,22 @@
 export type AnsiColor = 31 | 32 | 33 | 35 | 36 | 37 | 90;
+export type AnsiBgColor = 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 100 | 104;
+export type TrueColor = { r: number; g: number; b: number };
 
-export type CharCell = { ch: string; fg?: AnsiColor };
+export type CharCell = { ch: string; fg?: AnsiColor; bg?: AnsiBgColor; trueColorBg?: TrueColor };
 
 function emptyCell(): CharCell {
   return { ch: ' ' };
 }
 
 function cellsEqual(a: CharCell, b: CharCell): boolean {
-  return a.ch === b.ch && a.fg === b.fg;
+  return (
+    a.ch === b.ch
+    && a.fg === b.fg
+    && a.bg === b.bg
+    && a.trueColorBg?.r === b.trueColorBg?.r
+    && a.trueColorBg?.g === b.trueColorBg?.g
+    && a.trueColorBg?.b === b.trueColorBg?.b
+  );
 }
 
 function createBuffer(rows: number, cols: number): CharCell[][] {
@@ -17,9 +26,21 @@ function createBuffer(rows: number, cols: number): CharCell[][] {
 }
 
 function formatCell(cell: CharCell): string {
+  const codes: string[] = [];
   if (cell.fg !== undefined) {
-    return `\x1b[${cell.fg}m${cell.ch}\x1b[0m`;
+    codes.push(String(cell.fg));
   }
+  if (cell.bg !== undefined) {
+    codes.push(String(cell.bg));
+  }
+  if (cell.trueColorBg !== undefined) {
+    codes.push(`48;2;${cell.trueColorBg.r};${cell.trueColorBg.g};${cell.trueColorBg.b}`);
+  }
+
+  if (codes.length > 0) {
+    return `\x1b[${codes.join(';')}m${cell.ch}\x1b[0m`;
+  }
+
   return cell.ch;
 }
 
@@ -53,9 +74,16 @@ export class DiffTerminal {
     this.prev = null;
   }
 
-  setChar(row: number, col: number, ch: string, fg?: AnsiColor): void {
+  setChar(
+    row: number,
+    col: number,
+    ch: string,
+    fg?: AnsiColor,
+    bg?: AnsiBgColor,
+    trueColorBg?: TrueColor,
+  ): void {
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return;
-    this.buffer[row][col] = { ch: ch.slice(0, 1) || ' ', fg };
+    this.buffer[row][col] = { ch: ch.slice(0, 1) || ' ', fg, bg, trueColorBg };
   }
 
   fill(row: number, col: number, text: string): void {
