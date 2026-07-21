@@ -49,3 +49,5 @@ export const replaceArgsSchema = z.object({
 });
 
 export const yamlParseArgsSchema = z.object({});
+
+export const undoArgsSchema = z.object({});

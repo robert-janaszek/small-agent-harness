@@ -3,6 +3,7 @@ import { createContext, type YamlRepairContext } from './context';
 import { grepTool } from './grep.tool';
 import { readTool } from './read.tool';
 import { replaceTool } from './replace.tool';
+import { undoTool } from './undo.tool';
 import { yamlParseTool } from './yamlParse.tool';
 
 const YAML_REPAIR_PROMPT = `You are a YAML repair agent.
@@ -23,7 +24,7 @@ YAML heuristics:
 - In replace, copy old_string exactly and change only the broken part. new_string must keep the same leading whitespace as the matched text.
 - When yamlParse reports an "Offending line", fix that exact line — not the context lines above or below it.
 - grep searches file contents only. Do not grep parser error messages.
-- If yamlParse error count jumps up after an edit, undo mentally and retry with a smaller, indentation-preserving replace.`;
+- If yamlParse error count jumps up after an edit, call undo, then yamlParse, then retry with a smaller, indentation-preserving replace.`;
 
 export type YamlRepairAgent = Agent & { context: YamlRepairContext };
 
@@ -37,6 +38,7 @@ export function createYamlRepairAgent(filePath?: string): YamlRepairAgent {
       readTool(context),
       grepTool(context),
       replaceTool(context),
+      undoTool(context),
       yamlParseTool(context),
     ],
   };

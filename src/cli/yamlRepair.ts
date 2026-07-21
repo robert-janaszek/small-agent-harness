@@ -19,14 +19,15 @@ async function main() {
   initLangfuseTracing();
   installYamlRepairLogWriter();
 
+  const agent = createYamlRepairAgent();
   try {
-    const agent = createYamlRepairAgent();
     const harness = new Harness(agent);
     const userCommand = resolveUserCommand(process.argv.slice(2));
 
     console.log(`[yamlRepair] work file: ${agent.context.filePath}`);
     await harness.run(userCommand);
   } finally {
+    agent.context.clearHistory();
     await flushLangfuse();
   }
 }

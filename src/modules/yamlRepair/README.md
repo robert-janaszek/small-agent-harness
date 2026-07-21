@@ -73,6 +73,7 @@ Integration test mocks the LLM and walks through the full repair sequence determ
 | `grep` | Find patterns with line numbers and one line of context before/after |
 | `read` | Read a line window (max 80 lines) |
 | `replace` | Exact substring replace; must be unique unless `replace_all` |
+| `undo` | Revert the work file to the state before the last successful `replace` |
 
 The system prompt includes YAML-specific heuristics (preserve indentation, run `yamlParse` after every `replace`, do not grep parser error messages, etc.).
 
@@ -84,7 +85,7 @@ The system prompt includes YAML-specific heuristics (preserve indentation, run `
 
 - **They break format while “fixing” it** — e.g. replacing `        group lights` with ` group: lights` (one leading space instead of eight) turns ~6 parser errors into hundreds of cascading failures.
 - **They miss the actual fault line** — `yamlParse` snippets show context above the caret; models often focus on the wrong line (e.g. `name: …` instead of `group lights`).
-- **They misuse `replace`** — wrong `old_string` / `new_string`, truncated indentation, accidental newlines inside values, or `replace_all` on ambiguous patterns.
+- **They misuse `replace`** — wrong `old_string` / `new_string`, truncated indentation, accidental newlines inside values, or `replace_all` on ambiguous patterns. When an edit makes things worse, the agent can call **`undo`** to revert and retry instead of compounding the damage.
 - **Tool choice is skewed toward `grep`** — `read` is rarely used because grep already returns a one-line context window; that is enough to guess, not enough to copy exact whitespace reliably.
 
 Prompt tuning helps at the margin (indentation rules, parse-after-every-edit), but **exact whitespace in JSON tool arguments** remains a weak point for 7B-class models. This module is useful as a **negative capability signal**: if a model cannot reliably repair this fixture, similar “edit a large structured file via tools” workflows on the edge will likely fail too.
@@ -104,6 +105,7 @@ yamlRepair/
 ├── grep.tool.ts
 ├── read.tool.ts
 ├── replace.tool.ts
+├── undo.tool.ts
 ├── yamlParse.tool.ts
 ├── fixtures/
 │   └── broken.yaml     # ~6.7k lines, intentional defects

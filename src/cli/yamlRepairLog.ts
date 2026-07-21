@@ -57,6 +57,8 @@ function formatToolCall(name: string, args: unknown): string | null {
     }
     case 'yamlParse':
       return '→ yamlParse';
+    case 'undo':
+      return '→ undo';
     default:
       return null;
   }

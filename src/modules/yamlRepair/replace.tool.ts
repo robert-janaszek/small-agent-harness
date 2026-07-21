@@ -30,6 +30,7 @@ export const replaceTool = defineTool<
       return result.reason;
     }
 
+    context.pushSnapshot(content);
     writeFileText(context.filePath, result.content);
     const noun = result.replacements === 1 ? 'replacement' : 'replacements';
     return `Applied ${result.replacements} ${noun} successfully.`;
