@@ -22,6 +22,12 @@ describe('formatCompactCount', () => {
   it('formats large thousands without decimals', () => {
     expect(formatCompactCount(125_000)).toBe('125k');
   });
+
+  it('formats millions with one decimal or rounded whole values', () => {
+    expect(formatCompactCount(1_500_000)).toBe('1.5M');
+    expect(formatCompactCount(2_000_000)).toBe('2M');
+    expect(formatCompactCount(150_000_000)).toBe('150M');
+  });
 });
 
 describe('formatTokenCounter', () => {

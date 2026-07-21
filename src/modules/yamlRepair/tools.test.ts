@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { createYamlRepairAgent } from './agent';
 import { createWorkFile, getFixturePath, HISTORY_MAX_SIZE } from './context';
-import { countOccurrences, readFileText, replaceExact } from './fileOps';
+import { countOccurrences, formatNumberedLines, getLines, readFileText, replaceExact } from './fileOps';
 import { READ_MAX_LIMIT } from './schemas';
 
 type TempYaml = { path: string; dispose: () => void };
@@ -47,6 +47,24 @@ describe('yamlRepair fileOps', () => {
 
     const all = replaceExact('foo bar foo', 'foo', 'baz', true);
     expect(all).toEqual({ ok: true, content: 'baz bar baz', replacements: 2 });
+  });
+
+  it('getLines returns an empty array for an empty file', () => {
+    const file = tempYaml('');
+    expect(getLines(file.path)).toEqual([]);
+  });
+
+  it('getLines drops a trailing empty line after a final newline', () => {
+    const file = tempYaml('alpha\nbeta\n');
+    expect(getLines(file.path)).toEqual(['alpha', 'beta']);
+  });
+
+  it('formatNumberedLines pads line numbers to the widest index', () => {
+    const narrow = formatNumberedLines(['a', 'b'], 9);
+    const wide = formatNumberedLines(['a', 'b', 'c'], 99);
+
+    expect(narrow).toBe(' 9|a\n10|b');
+    expect(wide).toBe(' 99|a\n100|b\n101|c');
   });
 });
 
