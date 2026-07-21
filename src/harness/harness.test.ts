@@ -7,7 +7,7 @@ import { Harness } from './harness';
 import { Agent } from './agent.type';
 import type { HarnessConfig } from './harness.config.validate';
 import type { ChatCompletionClient } from '../client/llmClient.type';
-import { resetEmitWriter, setEmitWriter, type HarnessEvent } from '../cli/jsonl';
+import { setEmitWriter, type HarnessEvent } from '../cli/jsonl';
 import { createTool } from '../tools/defineTool';
 import { Tool } from '../tools/types';
 
@@ -230,8 +230,6 @@ describe('Harness', () => {
     expect(harness.getMessageHistory()).toEqual([]);
     expect(harness.getTurnCount()).toBe(0);
     expect(events.some((event) => event.type === 'agent_response')).toBe(false);
-
-    resetEmitWriter();
   });
 
   it('rolls back history and turnCount when a run is aborted mid-turn', async () => {
