@@ -8,9 +8,10 @@ export const HISTORY_MAX_SIZE = 50;
 
 export type YamlRepairContext = {
   filePath: string;
-  /** Pre-edit snapshots, oldest → newest. */
-  history: string[];
+  /** Number of undoable pre-edit snapshots. */
+  historyLength: () => number;
   pushSnapshot: (content: string) => void;
+  peekSnapshot: () => string | undefined;
   popSnapshot: () => string | undefined;
   clearHistory: () => void;
   /** Remove the temp work directory when this context owns one; otherwise a no-op. */
@@ -34,17 +35,22 @@ export function getFixturePath(): string {
 
 function createHistoryStack(): Pick<
   YamlRepairContext,
-  'history' | 'pushSnapshot' | 'popSnapshot' | 'clearHistory'
+  'historyLength' | 'pushSnapshot' | 'peekSnapshot' | 'popSnapshot' | 'clearHistory'
 > {
   const history: string[] = [];
 
   return {
-    history,
+    historyLength() {
+      return history.length;
+    },
     pushSnapshot(content: string) {
       history.push(content);
       if (history.length > HISTORY_MAX_SIZE) {
         history.shift();
       }
+    },
+    peekSnapshot() {
+      return history.at(-1);
     },
     popSnapshot() {
       return history.pop();
