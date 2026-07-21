@@ -15,7 +15,8 @@ export const replaceTool = defineTool<
   description:
     'Replaces exact text in the YAML work file. old_string must match the file contents exactly. ' +
     'By default the match must be unique; set replace_all to true to replace every occurrence. ' +
-    'Prefer small, targeted edits. After editing, call yamlParse to verify.',
+    'Prefer the smallest unique broken substring — omit line-leading whitespace when that substring alone is unique. ' +
+    'Do not replace whole lines when only a few characters need changing. After editing, call yamlParse to verify.',
   argsSchema: replaceArgsSchema,
   call(context, args) {
     const content = readFileText(context.filePath);
