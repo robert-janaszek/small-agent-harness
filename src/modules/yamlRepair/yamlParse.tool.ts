@@ -39,6 +39,28 @@ function formatYamlError(
 
 const MAX_ERRORS_SHOWN = 5;
 
+export function formatUndoRecommendation(previous: number, current: number): string {
+  return (
+    `\n\nErrors increased from ${previous} to ${current}. ` +
+    'Do not reverse the edit with replace — call undo first, then yamlParse, then retry with a smaller edit.'
+  );
+}
+
+function maybeUndoRecommendation(
+  context: YamlRepairContext,
+  errorCount: number,
+): string {
+  const previous = context.lastParseErrorCount;
+  if (
+    previous !== null &&
+    errorCount > previous &&
+    context.history.length() > 0
+  ) {
+    return formatUndoRecommendation(previous, errorCount);
+  }
+  return '';
+}
+
 function formatErrorDetails(
   errors: NonNullable<ReturnType<typeof parseDocument>['errors']>,
   lines: string[],
@@ -70,6 +92,9 @@ export const yamlParseTool = defineTool<Record<string, never>, YamlRepairContext
     const doc = parseDocument(text, { prettyErrors: true });
     const errors = doc.errors ?? [];
 
+    const undoHint = maybeUndoRecommendation(context, errors.length);
+    context.lastParseErrorCount = errors.length;
+
     if (errors.length === 0) {
       // Still surface warnings lightly so the agent can decide, but success means parseable.
       const warningCount = doc.warnings?.length ?? 0;
@@ -81,7 +106,7 @@ export const yamlParseTool = defineTool<Record<string, never>, YamlRepairContext
 
     const details = formatErrorDetails(errors, lines);
     return (
-      `The YAML file failed to parse (${errors.length} error(s)). Fix these issues:\n\n${details}`
+      `The YAML file failed to parse (${errors.length} error(s)). Fix these issues:\n\n${details}${undoHint}`
     );
   },
 });

@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createYamlRepairAgent } from './agent';
-import { createWorkFile, getFixturePath } from './context';
-import { countOccurrences, replaceExact } from './fileOps';
+import { createWorkFile, getFixturePath, HISTORY_MAX_SIZE } from './context';
+import { countOccurrences, readFileText, replaceExact } from './fileOps';
 import { READ_MAX_LIMIT } from './schemas';
 
 type TempYaml = { path: string; dispose: () => void };
@@ -111,6 +111,128 @@ describe('yamlRepair tools', () => {
       new_string: 'TWO\nONE',
     });
     expect(ok).toContain('Applied 1 replacement');
+  });
+
+  it('undo restores the file to the state before the last successful replace', async () => {
+    const original = 'alpha\nbeta\ngamma\n';
+    const file = tempYaml(original);
+    const agent = createYamlRepairAgent(file.path);
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+
+    await replace.call({ old_string: 'beta', new_string: 'BETA' });
+    expect(readFileText(file.path)).toBe('alpha\nBETA\ngamma\n');
+    expect(agent.context.history.length()).toBe(1);
+
+    const restored = await undo.call({});
+    expect(restored).toContain('Restored previous version (0 edits remaining in history)');
+    expect(readFileText(file.path)).toBe(original);
+    expect(agent.context.history.length()).toBe(0);
+  });
+
+  it('undo on an empty history leaves the file unchanged', async () => {
+    const original = 'unchanged\n';
+    const file = tempYaml(original);
+    const agent = createYamlRepairAgent(file.path);
+    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+
+    const result = await undo.call({});
+    expect(result).toBe('Nothing to undo.');
+    expect(readFileText(file.path)).toBe(original);
+    expect(agent.context.history.length()).toBe(0);
+  });
+
+  it('undo steps back through multiple successful replaces', async () => {
+    const original = 'one\ntwo\nthree\n';
+    const file = tempYaml(original);
+    const agent = createYamlRepairAgent(file.path);
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+
+    await replace.call({ old_string: 'one', new_string: 'ONE' });
+    await replace.call({ old_string: 'two', new_string: 'TWO' });
+    expect(readFileText(file.path)).toBe('ONE\nTWO\nthree\n');
+    expect(agent.context.history.length()).toBe(2);
+
+    await undo.call({});
+    expect(readFileText(file.path)).toBe('ONE\ntwo\nthree\n');
+    expect(agent.context.history.length()).toBe(1);
+
+    await undo.call({});
+    expect(readFileText(file.path)).toBe(original);
+    expect(agent.context.history.length()).toBe(0);
+  });
+
+  it('failed replace does not push a snapshot', async () => {
+    const original = 'one\ntwo\none\n';
+    const file = tempYaml(original);
+    const agent = createYamlRepairAgent(file.path);
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+
+    await replace.call({ old_string: 'one', new_string: '1' });
+    expect(agent.context.history.length()).toBe(0);
+    expect(readFileText(file.path)).toBe(original);
+  });
+
+  it('history drops the oldest snapshot when max size is exceeded', async () => {
+    const file = tempYaml('v0\n');
+    const agent = createYamlRepairAgent(file.path);
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+
+    for (let i = 0; i < HISTORY_MAX_SIZE + 1; i += 1) {
+      await replace.call({
+        old_string: `v${i}`,
+        new_string: `v${i + 1}`,
+      });
+    }
+
+    expect(agent.context.history.length()).toBe(HISTORY_MAX_SIZE);
+    expect(readFileText(file.path)).toBe(`v${HISTORY_MAX_SIZE + 1}\n`);
+
+    for (let i = 0; i < HISTORY_MAX_SIZE; i += 1) {
+      await undo.call({});
+    }
+    expect(readFileText(file.path)).toBe('v1\n');
+    expect(agent.context.history.length()).toBe(0);
+    expect(await undo.call({})).toBe('Nothing to undo.');
+  });
+
+  it('yamlParse recommends undo when errors increase after a replace', async () => {
+    const file = tempYaml('valid:\n  key: value\n');
+    const agent = createYamlRepairAgent(file.path);
+    const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+
+    const before = await yamlParse.call({});
+    expect(before).toContain('parsed successfully');
+    expect(before).not.toContain('call undo');
+
+    await replace.call({ old_string: 'valid:', new_string: 'valid' });
+    const after = await yamlParse.call({});
+    expect(after).toContain('failed to parse');
+    expect(after).toContain('Errors increased from 0 to');
+    expect(after).toContain('Do not reverse the edit with replace');
+    expect(after).toContain('call undo first');
+  });
+
+  it('yamlParse does not recommend undo when errors decrease or stay the same', async () => {
+    const file = tempYaml('        group lights\n        name: x\n');
+    const agent = createYamlRepairAgent(file.path);
+    const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+
+    const before = await yamlParse.call({});
+    expect(before).toContain('failed to parse');
+    expect(before).not.toContain('call undo');
+
+    await replace.call({
+      old_string: '        group lights',
+      new_string: '        group: lights',
+    });
+    const after = await yamlParse.call({});
+    expect(after).toContain('parsed successfully');
+    expect(after).not.toContain('call undo');
   });
 
   it('yamlParse reports fixture errors in prose and succeeds after fixes', async () => {

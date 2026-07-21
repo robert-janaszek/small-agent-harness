@@ -64,6 +64,15 @@ describe('formatYamlRepairEvent', () => {
         toolCallId: '3',
       }),
     ).toBe('→ read lines 120-159');
+
+    expect(
+      formatYamlRepairEvent({
+        type: 'tool_call',
+        name: 'undo',
+        args: {},
+        toolCallId: '9',
+      }),
+    ).toBe('→ undo');
   });
 
   it('formats tool results and agent output', () => {

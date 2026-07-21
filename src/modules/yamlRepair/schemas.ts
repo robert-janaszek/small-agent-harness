@@ -38,7 +38,10 @@ export const replaceArgsSchema = z.object({
   old_string: z
     .string()
     .min(1)
-    .describe('Exact text to find in the file (must be unique unless replace_all)'),
+    .describe(
+      'Exact text to find in the file (must be unique unless replace_all). ' +
+        'Use the smallest unique broken substring; omit line-leading whitespace when that alone is unique.',
+    ),
   new_string: z
     .string()
     .describe('Replacement text'),
@@ -49,3 +52,5 @@ export const replaceArgsSchema = z.object({
 });
 
 export const yamlParseArgsSchema = z.object({});
+
+export const undoArgsSchema = z.object({});
