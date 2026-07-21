@@ -49,11 +49,11 @@ describe('langfuse observability', () => {
     );
   });
 
-  it('initLangfuseTracing is a no-op without credentials', () => {
+  it('initLangfuseTracing is a no-op without credentials', async () => {
     vi.stubEnv('LANGFUSE_PUBLIC_KEY', '');
     vi.stubEnv('LANGFUSE_SECRET_KEY', '');
     expect(() => initLangfuseTracing()).not.toThrow();
-    expect(flushLangfuse()).resolves.toBeUndefined();
+    await expect(flushLangfuse()).resolves.toBeUndefined();
   });
 
   it('withAgentObservation runs the callback when disabled', async () => {
