@@ -10,12 +10,14 @@ export const undoTool = defineTool<Record<string, never>, YamlRepairContext>({
     'Call yamlParse after undo to verify the restored content.',
   argsSchema: undoArgsSchema,
   call(context) {
-    const previous = context.popSnapshot();
+    const previous = context.history.at(-1);
     if (previous === undefined) {
       return 'Nothing to undo.';
     }
 
+    // Write first, then pop — if the write fails, the snapshot stays undoable.
     writeFileText(context.filePath, previous);
+    context.popSnapshot();
     const remaining = context.history.length;
     const noun = remaining === 1 ? 'edit' : 'edits';
     return `Restored previous version (${remaining} ${noun} remaining in history).`;

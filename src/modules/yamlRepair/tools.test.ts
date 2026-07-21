@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createYamlRepairAgent } from './agent';
-import { createWorkFile, getFixturePath } from './context';
+import { createWorkFile, getFixturePath, HISTORY_MAX_SIZE } from './context';
 import { countOccurrences, readFileText, replaceExact } from './fileOps';
 import { READ_MAX_LIMIT } from './schemas';
 
@@ -172,6 +172,24 @@ describe('yamlRepair tools', () => {
     await replace.call({ old_string: 'one', new_string: '1' });
     expect(agent.context.history.length).toBe(0);
     expect(readFileText(file.path)).toBe(original);
+  });
+
+  it('history drops the oldest snapshot when max size is exceeded', async () => {
+    const file = tempYaml('v0\n');
+    const agent = createYamlRepairAgent(file.path);
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+
+    for (let i = 0; i < HISTORY_MAX_SIZE + 1; i += 1) {
+      await replace.call({
+        old_string: `v${i}`,
+        new_string: `v${i + 1}`,
+      });
+    }
+
+    expect(agent.context.history.length).toBe(HISTORY_MAX_SIZE);
+    expect(agent.context.history[0]).toBe('v1\n');
+    expect(agent.context.history.at(-1)).toBe(`v${HISTORY_MAX_SIZE}\n`);
+    expect(readFileText(file.path)).toBe(`v${HISTORY_MAX_SIZE + 1}\n`);
   });
 
   it('yamlParse reports fixture errors in prose and succeeds after fixes', async () => {

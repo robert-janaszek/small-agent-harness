@@ -3,6 +3,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/** Max pre-edit snapshots retained; oldest entries are dropped first. */
+export const HISTORY_MAX_SIZE = 50;
+
 export type YamlRepairContext = {
   filePath: string;
   /** Pre-edit snapshots, oldest → newest. */
@@ -39,6 +42,9 @@ function createHistoryStack(): Pick<
     history,
     pushSnapshot(content: string) {
       history.push(content);
+      if (history.length > HISTORY_MAX_SIZE) {
+        history.shift();
+      }
     },
     popSnapshot() {
       return history.pop();

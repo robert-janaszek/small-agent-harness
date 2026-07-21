@@ -14,7 +14,7 @@ Rules:
 - Never try to read the entire file. It is too large. Use grep to locate problems, then read small windows with read (max 80 lines).
 - Start by calling yamlParse to learn the first parser errors, then grep for markers like __FILL_FROM_CONTEXT__ and suspicious nearby structure.
 - Use replace for exact, targeted edits. Prefer unique old_string snippets with enough surrounding context.
-- After every replace, call yamlParse before any other tool. Do not chain grep, read, or another replace until yamlParse confirms the last edit.
+- After every replace, call yamlParse before any other tool. Do not chain grep, read, undo, or another replace until yamlParse confirms the last edit.
 - When filling gaps: prefer site-wide defaults.* and sibling devices in the same group. Binary defaultState is usually OFF. Light wattage defaults to 9. Protocol is zigbee except covers which use zwave. Scene action state is ON or OFF like neighboring actions.
 - Finish only when yamlParse reports success. Then reply briefly in prose that the file parses.
 
