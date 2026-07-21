@@ -198,6 +198,43 @@ describe('yamlRepair tools', () => {
     expect(await undo.call({})).toBe('Nothing to undo.');
   });
 
+  it('yamlParse recommends undo when errors increase after a replace', async () => {
+    const file = tempYaml('valid:\n  key: value\n');
+    const agent = createYamlRepairAgent(file.path);
+    const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+
+    const before = await yamlParse.call({});
+    expect(before).toContain('parsed successfully');
+    expect(before).not.toContain('call undo');
+
+    await replace.call({ old_string: 'valid:', new_string: 'valid' });
+    const after = await yamlParse.call({});
+    expect(after).toContain('failed to parse');
+    expect(after).toContain('Errors increased from 0 to');
+    expect(after).toContain('Do not reverse the edit with replace');
+    expect(after).toContain('call undo first');
+  });
+
+  it('yamlParse does not recommend undo when errors decrease or stay the same', async () => {
+    const file = tempYaml('        group lights\n        name: x\n');
+    const agent = createYamlRepairAgent(file.path);
+    const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
+    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+
+    const before = await yamlParse.call({});
+    expect(before).toContain('failed to parse');
+    expect(before).not.toContain('call undo');
+
+    await replace.call({
+      old_string: '        group lights',
+      new_string: '        group: lights',
+    });
+    const after = await yamlParse.call({});
+    expect(after).toContain('parsed successfully');
+    expect(after).not.toContain('call undo');
+  });
+
   it('yamlParse reports fixture errors in prose and succeeds after fixes', async () => {
     const work = track(createWorkFile(getFixturePath()));
     const agent = createYamlRepairAgent(work.filePath);

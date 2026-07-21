@@ -17,6 +17,8 @@ export type EditHistory = {
 export type YamlRepairContext = {
   filePath: string;
   history: EditHistory;
+  /** Error count from the previous yamlParse call, or null before the first parse. */
+  lastParseErrorCount: number | null;
   /** Remove the temp work directory when this context owns one; otherwise a no-op. */
   dispose: () => void;
 };
@@ -81,6 +83,7 @@ export function createContext(filePath?: string): YamlRepairContext {
     return {
       filePath,
       history,
+      lastParseErrorCount: null,
       dispose: () => {
         history.clear();
       },
@@ -91,6 +94,7 @@ export function createContext(filePath?: string): YamlRepairContext {
   return {
     filePath: work.filePath,
     history,
+    lastParseErrorCount: null,
     dispose: () => {
       history.clear();
       work.dispose();
