@@ -6,14 +6,17 @@ import { fileURLToPath } from 'node:url';
 /** Max pre-edit snapshots retained; oldest entries are dropped first. */
 export const HISTORY_MAX_SIZE = 50;
 
+export type EditHistory = {
+  length: () => number;
+  push: (content: string) => void;
+  peek: () => string | undefined;
+  pop: () => string | undefined;
+  clear: () => void;
+};
+
 export type YamlRepairContext = {
   filePath: string;
-  /** Number of undoable pre-edit snapshots. */
-  historyLength: () => number;
-  pushSnapshot: (content: string) => void;
-  peekSnapshot: () => string | undefined;
-  popSnapshot: () => string | undefined;
-  clearHistory: () => void;
+  history: EditHistory;
   /** Remove the temp work directory when this context owns one; otherwise a no-op. */
   dispose: () => void;
 };
@@ -33,30 +36,27 @@ export function getFixturePath(): string {
   return FIXTURE_PATH;
 }
 
-function createHistoryStack(): Pick<
-  YamlRepairContext,
-  'historyLength' | 'pushSnapshot' | 'peekSnapshot' | 'popSnapshot' | 'clearHistory'
-> {
-  const history: string[] = [];
+function createHistoryStack(): EditHistory {
+  const snapshots: string[] = [];
 
   return {
-    historyLength() {
-      return history.length;
+    length() {
+      return snapshots.length;
     },
-    pushSnapshot(content: string) {
-      history.push(content);
-      if (history.length > HISTORY_MAX_SIZE) {
-        history.shift();
+    push(content: string) {
+      snapshots.push(content);
+      if (snapshots.length > HISTORY_MAX_SIZE) {
+        snapshots.shift();
       }
     },
-    peekSnapshot() {
-      return history.at(-1);
+    peek() {
+      return snapshots.at(-1);
     },
-    popSnapshot() {
-      return history.pop();
+    pop() {
+      return snapshots.pop();
     },
-    clearHistory() {
-      history.length = 0;
+    clear() {
+      snapshots.length = 0;
     },
   };
 }
@@ -75,14 +75,14 @@ export function createWorkFile(sourcePath: string = FIXTURE_PATH): WorkFile {
 }
 
 export function createContext(filePath?: string): YamlRepairContext {
-  const stack = createHistoryStack();
+  const history = createHistoryStack();
 
   if (filePath !== undefined) {
     return {
       filePath,
-      ...stack,
+      history,
       dispose: () => {
-        stack.clearHistory();
+        history.clear();
       },
     };
   }
@@ -90,9 +90,9 @@ export function createContext(filePath?: string): YamlRepairContext {
   const work = createWorkFile();
   return {
     filePath: work.filePath,
-    ...stack,
+    history,
     dispose: () => {
-      stack.clearHistory();
+      history.clear();
       work.dispose();
     },
   };

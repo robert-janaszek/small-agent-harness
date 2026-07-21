@@ -27,7 +27,7 @@ async function main() {
     console.log(`[yamlRepair] work file: ${agent.context.filePath}`);
     await harness.run(userCommand);
   } finally {
-    agent.context.clearHistory();
+    agent.context.history.clear();
     await flushLangfuse();
   }
 }
