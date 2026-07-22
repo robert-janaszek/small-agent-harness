@@ -12,6 +12,8 @@ const KEY_BACKSPACE = '\u007f';
 const KEY_BACKSPACE_CTRL_H = '\b';
 const KEY_ARROW_LEFT = `${KEY_ESCAPE}[D`;
 const KEY_ARROW_RIGHT = `${KEY_ESCAPE}[C`;
+const KEY_ARROW_UP = `${KEY_ESCAPE}[A`;
+const KEY_ARROW_DOWN = `${KEY_ESCAPE}[B`;
 const CTRL_C_BYTE = 0x03;
 const PRINTABLE_ASCII_MIN = 0x20;
 const PRINTABLE_ASCII_MAX = 0x7f;
@@ -33,10 +35,11 @@ function isPrintableAscii(byte: number): boolean {
 }
 export const INPUT_PREFIX = '> ';
 
-export const SLASH_COMMANDS = ['/exit'] as const;
+export const SLASH_COMMANDS = ['/clear', '/exit'] as const;
 
 export type CommandPaletteState = {
   matches: readonly string[];
+  selectedIndex: number;
 };
 
 export type InputLineView = {
@@ -62,13 +65,19 @@ export function getCommandPaletteMatches(value: string): string[] {
 export function getCommandPaletteState(
   value: string,
   paletteDismissed: boolean,
+  selectedIndex = 0,
 ): CommandPaletteState | null {
   if (paletteDismissed) {
     return null;
   }
 
   const matches = getCommandPaletteMatches(value);
-  return matches.length > 0 ? { matches } : null;
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const clampedIndex = Math.min(Math.max(0, selectedIndex), matches.length - 1);
+  return { matches, selectedIndex: clampedIndex };
 }
 
 export function formatQueueBanner(count: number): string {
@@ -104,11 +113,31 @@ export function paintCommandPalette(
   width: number,
   palette: CommandPaletteState,
 ): void {
-  const text = ` ${palette.matches.join(' ')}`.padEnd(width).slice(0, width);
+  let col = 0;
 
-  for (let col = 0; col < width; col++) {
-    const ch = text[col] ?? ' ';
-    terminal.setChar(row, col, ch, ch === ' ' ? undefined : colors.paletteFg, undefined, colors.paletteBg);
+  if (col < width) {
+    terminal.setChar(row, col++, ' ');
+  }
+
+  for (let i = 0; i < palette.matches.length && col < width; i++) {
+    const command = palette.matches[i]!;
+    const selected = i === palette.selectedIndex;
+
+    for (const ch of command) {
+      if (col >= width) {
+        break;
+      }
+
+      terminal.setChar(row, col++, ch, colors.paletteFg, undefined, selected ? colors.paletteBg : undefined);
+    }
+
+    if (col < width && i < palette.matches.length - 1) {
+      terminal.setChar(row, col++, ' ');
+    }
+  }
+
+  while (col < width) {
+    terminal.setChar(row, col++, ' ');
   }
 }
 
@@ -153,6 +182,8 @@ export class TerminalInputLine {
   private cursor = 0;
   private active = false;
   private paletteDismissed = false;
+  private paletteSelectedIndex = 0;
+  private lastPaletteMatchKey = '';
   private onSubmit: ((value: string) => void) | null = null;
   private onInterrupt: (() => void) | null = null;
   private readonly onUpdate: () => void;
@@ -174,7 +205,7 @@ export class TerminalInputLine {
       value: this.value,
       cursor: this.cursor,
       active: this.active,
-      commandPalette: getCommandPaletteState(this.value, this.paletteDismissed),
+      commandPalette: getCommandPaletteState(this.value, this.paletteDismissed, this.paletteSelectedIndex),
     };
   }
 
@@ -192,6 +223,8 @@ export class TerminalInputLine {
     this.value = '';
     this.cursor = 0;
     this.paletteDismissed = false;
+    this.paletteSelectedIndex = 0;
+    this.lastPaletteMatchKey = '';
     this.onUpdate();
 
     stdin.setRawMode(true);
@@ -214,6 +247,8 @@ export class TerminalInputLine {
     this.value = '';
     this.cursor = 0;
     this.paletteDismissed = false;
+    this.paletteSelectedIndex = 0;
+    this.lastPaletteMatchKey = '';
     this.onUpdate();
   }
 
@@ -224,16 +259,24 @@ export class TerminalInputLine {
   }
 
   private getVisiblePalette(): CommandPaletteState | null {
-    return getCommandPaletteState(this.value, this.paletteDismissed);
+    return getCommandPaletteState(this.value, this.paletteDismissed, this.paletteSelectedIndex);
   }
 
-  private completeFirstPaletteMatch(): boolean {
+  private syncPaletteSelection(): void {
+    const matchKey = getCommandPaletteMatches(this.value).join('\0');
+    if (matchKey !== this.lastPaletteMatchKey) {
+      this.paletteSelectedIndex = 0;
+      this.lastPaletteMatchKey = matchKey;
+    }
+  }
+
+  private completeSelectedPaletteMatch(): boolean {
     const palette = this.getVisiblePalette();
     if (!palette) {
       return false;
     }
 
-    const completed = palette.matches[0]!;
+    const completed = palette.matches[palette.selectedIndex]!;
     if (this.value === completed) {
       return false;
     }
@@ -254,17 +297,19 @@ export class TerminalInputLine {
 
     if (isEnterKey(key)) {
       const palette = this.getVisiblePalette();
-      const submitValue = palette ? palette.matches[0]! : this.value.trim();
+      const submitValue = palette ? palette.matches[palette.selectedIndex]! : this.value.trim();
       this.value = '';
       this.cursor = 0;
       this.paletteDismissed = false;
+      this.paletteSelectedIndex = 0;
+      this.lastPaletteMatchKey = '';
       this.onUpdate();
       this.onSubmit?.(submitValue);
       return;
     }
 
     if (key === KEY_TAB) {
-      this.completeFirstPaletteMatch();
+      this.completeSelectedPaletteMatch();
       return;
     }
 
@@ -282,6 +327,18 @@ export class TerminalInputLine {
         this.value = `${this.value.slice(0, this.cursor - 1)}${this.value.slice(this.cursor)}`;
         this.cursor -= 1;
         this.syncPaletteDismissed();
+        this.syncPaletteSelection();
+        this.onUpdate();
+      }
+      return;
+    }
+
+    if (key === KEY_ARROW_UP || key === KEY_ARROW_DOWN) {
+      const palette = this.getVisiblePalette();
+      if (palette && palette.matches.length > 1) {
+        const delta = key === KEY_ARROW_DOWN ? 1 : -1;
+        const len = palette.matches.length;
+        this.paletteSelectedIndex = (palette.selectedIndex + delta + len) % len;
         this.onUpdate();
       }
       return;
@@ -311,6 +368,7 @@ export class TerminalInputLine {
       this.value = `${this.value.slice(0, this.cursor)}${key}${this.value.slice(this.cursor)}`;
       this.cursor += key.length;
       this.syncPaletteDismissed();
+      this.syncPaletteSelection();
       this.onUpdate();
     }
   }

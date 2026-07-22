@@ -128,6 +128,12 @@ export class SmartHomeRenderer {
         return;
       }
 
+      if (command === '/clear') {
+        this.eventLog.clear();
+        this.redraw();
+        return;
+      }
+
       if (command.length === 0) {
         return;
       }

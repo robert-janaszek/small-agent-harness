@@ -65,4 +65,14 @@ describe('EventLog', () => {
 
     expect(log.render(0, 40)).toEqual([]);
   });
+
+  it('clears all lines', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hello' });
+    log.append({ type: 'user_command', command: 'world' });
+
+    log.clear();
+
+    expect(log.render(10, 40)).toEqual([]);
+  });
 });

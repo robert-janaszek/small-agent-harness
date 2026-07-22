@@ -68,6 +68,10 @@ export class EventLog {
     this.lines.push(formatEvent(event));
   }
 
+  clear(): void {
+    this.lines = [];
+  }
+
   render(maxLines: number, width: number): string[] {
     if (maxLines <= 0) {
       return [];
