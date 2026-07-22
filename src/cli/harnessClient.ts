@@ -3,7 +3,6 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { HarnessCommand, HarnessEvent } from './jsonl';
-import { isHarnessCommand } from './jsonl';
 
 function resolveHarnessEntry(): string {
   return join(process.cwd(), 'src/cli/main.ts');
@@ -24,16 +23,6 @@ export function spawnHarnessSession(): ReturnType<typeof spawn> {
   const { cmd, args } = resolveHarnessSpawnArgs(['--serve']);
   return spawn(cmd, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: { ...process.env },
-  });
-}
-
-/** @deprecated Use spawnHarnessSession for multi-turn sessions. */
-export function spawnHarness(command: string): ReturnType<typeof spawn> {
-  const argv = command.trim().split(/\s+/).filter(Boolean);
-  const { cmd, args } = resolveHarnessSpawnArgs(argv);
-  return spawn(cmd, args, {
-    stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env },
   });
 }
