@@ -65,6 +65,20 @@ describe('wrapAgentLine', () => {
       '       second line',
     ]);
   });
+
+  it('caps wrapped output to 10 lines', () => {
+    const words = Array.from({ length: 40 }, (_, index) => `w${index}`).join(' ');
+    const wrapped = wrapAgentLine(`agent: ${words}`, 20);
+
+    expect(wrapped).toHaveLength(10);
+    expect(wrapped.every((line) => line.length <= 20)).toBe(true);
+  });
+
+  it('never emits lines wider than width when width is below the prefix', () => {
+    expect(wrapAgentLine('agent: hello world', 5)).toEqual(['agen…']);
+    expect(wrapAgentLine('agent: hello world', 7)).toEqual(['agent:…']);
+    expect(wrapAgentLine('agent: hello', 0)).toEqual([]);
+  });
 });
 
 describe('EventLog', () => {
@@ -118,6 +132,21 @@ describe('EventLog', () => {
       '       seven eight',
       '       nine ten',
     ]);
+  });
+
+  it('soft-caps a single wrapped agent response to 10 lines', () => {
+    const log = new EventLog();
+    const words = Array.from({ length: 40 }, (_, index) => `w${index}`).join(' ');
+    log.append({
+      type: 'agent_response',
+      content: words,
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    });
+
+    const rendered = log.render(50, 20);
+    expect(rendered).toHaveLength(10);
+    expect(rendered.every((line) => line.length <= 20)).toBe(true);
   });
 
   it('still truncates non-agent log lines to panel width', () => {

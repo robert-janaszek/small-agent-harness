@@ -1,17 +1,20 @@
 import type { HarnessEvent } from '../../../cli/jsonl';
 
 const MAX_CONTENT_PREVIEW = 56;
+const MAX_WRAPPED_AGENT_LINES = 10;
 const AGENT_PREFIX = 'agent: ';
 const ASSISTANT_PREFIX = 'assistant: ';
 
 function truncate(text: string, max = MAX_CONTENT_PREVIEW): string {
+  if (max <= 0) return '';
   if (text.length <= max) return text;
+  if (max === 1) return '…';
   return `${text.slice(0, max - 1)}…`;
 }
 
 function wrapParagraph(text: string, maxWidth: number): string[] {
   if (maxWidth <= 0) {
-    return text.length > 0 ? [text] : [''];
+    return [''];
   }
 
   if (text.length === 0) {
@@ -74,22 +77,30 @@ export function wrapAgentLine(line: string, width: number): string[] {
     return [];
   }
 
+  if (width <= prefix.length) {
+    return [truncate(line, width)];
+  }
+
   const indent = ' '.repeat(prefix.length);
   const paragraphs = content.split('\n');
   const result: string[] = [];
 
   for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
     const linePrefix = paragraphIndex === 0 && result.length === 0 ? prefix : indent;
-    const availableWidth = Math.max(0, width - linePrefix.length);
+    const availableWidth = width - linePrefix.length;
     const wrappedParagraph = wrapParagraph(paragraph, availableWidth);
 
     for (const [lineIndex, segment] of wrappedParagraph.entries()) {
       const segmentPrefix = lineIndex === 0 && paragraphIndex === 0 && result.length === 0 ? prefix : indent;
-      result.push(`${segmentPrefix}${segment}`);
+      result.push(truncate(`${segmentPrefix}${segment}`, width));
     }
   }
 
-  return result.length > 0 ? result : [prefix.trimEnd()];
+  if (result.length === 0) {
+    return [truncate(prefix.trimEnd(), width)];
+  }
+
+  return result.length > MAX_WRAPPED_AGENT_LINES ? result.slice(0, MAX_WRAPPED_AGENT_LINES) : result;
 }
 
 function isAgentLine(line: string): boolean {
