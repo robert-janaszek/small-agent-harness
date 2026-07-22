@@ -73,6 +73,10 @@ export class Harness {
     return this.sessionId;
   }
 
+  public emitSessionStart(): void {
+    this.agent.onSessionStart?.();
+  }
+
   public async run(userCommand: string, options?: HarnessRunOptions): Promise<HarnessRunResult> {
     options?.signal?.throwIfAborted();
 

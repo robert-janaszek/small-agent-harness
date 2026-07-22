@@ -11,7 +11,7 @@ import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayo
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
-import { applyContextDelta, createHomeState } from './homeState';
+import { applyHomeStateEvent, createHomeState } from './homeState';
 import { paintStatusBar } from './statusBar';
 import type { TokenCounterState } from './tokenCounter';
 
@@ -142,6 +142,7 @@ export class SmartHomeRenderer {
     this.redraw();
 
     await client.waitReady();
+    await client.waitForContextInit();
     this.harnessReady = true;
     this.harnessActive = false;
 
@@ -310,9 +311,7 @@ export class SmartHomeRenderer {
       }
     }
 
-    if (raw.type === 'context_delta') {
-      applyContextDelta(this.homeState, raw.changes);
-    }
+    applyHomeStateEvent(this.homeState, raw);
 
     this.redraw();
   }

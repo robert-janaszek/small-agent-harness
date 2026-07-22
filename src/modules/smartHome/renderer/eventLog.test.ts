@@ -26,6 +26,18 @@ describe('formatEvent', () => {
       }),
     ).toBe('state Δ 1 change(s)');
   });
+
+  it('formats context init', () => {
+    expect(
+      formatEvent({
+        type: 'context_init',
+        changes: [
+          { controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'ON' },
+          { controlGroup: 'light', room: 'livingRoom', deviceId: '2', value: 'ON' },
+        ],
+      }),
+    ).toBe('state init 2 device(s)');
+  });
 });
 
 describe('EventLog', () => {
@@ -35,6 +47,16 @@ describe('EventLog', () => {
     log.append({ type: 'agent_response', content: 'done', iterations: 1, tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } });
 
     expect(log.render(10, 40)).toEqual(['agent: done']);
+  });
+
+  it('appends context_init events', () => {
+    const log = new EventLog();
+    log.append({
+      type: 'context_init',
+      changes: [{ controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'ON' }],
+    });
+
+    expect(log.render(10, 40)).toEqual(['state init 1 device(s)']);
   });
 
   it('returns no lines when maxLines is zero', () => {

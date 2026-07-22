@@ -3,7 +3,7 @@ import { createSmartHomeAgent } from '../modules/smartHome/agent';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { emit } from './jsonl';
 import { createUserCommandReader, readUserCommand } from './readUserCommand';
-import { runHarnessReplSession, runHarnessServeSession } from './sessionLoop';
+import { runHarnessReplSession, runHarnessServeSession, emitHarnessStartup } from './sessionLoop';
 
 function parseArgv(argv: string[]): { mode: 'batch' | 'repl' | 'serve'; command: string } {
   const serveIndex = argv.indexOf('--serve');
@@ -48,6 +48,7 @@ async function main() {
       return;
     }
 
+    emitHarnessStartup(harness);
     await harness.run(userCommand);
   } finally {
     await flushLangfuse();

@@ -100,11 +100,13 @@ export function isTurnBoundaryEvent(event: HarnessEvent): boolean {
 export class HarnessSessionClient {
   readonly child: ChildProcess;
   private ready = false;
+  private contextInitReceived = false;
   private sessionEnded = false;
   private exitCode = 1;
   private readonly eventListeners = new Set<(event: HarnessEvent) => void>();
   private turnWaiter: ((event: HarnessEvent) => void) | null = null;
   private readyWaiter: (() => void) | null = null;
+  private contextInitWaiter: ((received: boolean) => void) | null = null;
   private readonly sessionEndedListeners = new Set<() => void>();
   private readonly eventsDone: Promise<void>;
 
@@ -117,6 +119,7 @@ export class HarnessSessionClient {
       this.resolveTurnWaiter({ type: 'error', message: 'Harness process exited.' });
       this.readyWaiter?.();
       this.readyWaiter = null;
+      this.resolveContextInitWaiter(false);
       this.notifySessionEnded();
     });
 
@@ -155,6 +158,21 @@ export class HarnessSessionClient {
 
     await new Promise<void>((resolve) => {
       this.readyWaiter = resolve;
+    });
+  }
+
+  /** Resolves true when context_init arrives, false if the session ends first. */
+  async waitForContextInit(): Promise<boolean> {
+    if (this.contextInitReceived) {
+      return true;
+    }
+
+    if (this.sessionEnded) {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      this.contextInitWaiter = resolve;
     });
   }
 
@@ -211,8 +229,14 @@ export class HarnessSessionClient {
       this.readyWaiter = null;
     }
 
+    if (event.type === 'context_init') {
+      this.contextInitReceived = true;
+      this.resolveContextInitWaiter(true);
+    }
+
     if (event.type === 'session_end') {
       this.sessionEnded = true;
+      this.resolveContextInitWaiter(false);
       this.notifySessionEnded();
     }
 
@@ -226,6 +250,14 @@ export class HarnessSessionClient {
       const waiter = this.turnWaiter;
       this.turnWaiter = null;
       waiter(event);
+    }
+  }
+
+  private resolveContextInitWaiter(received: boolean): void {
+    if (this.contextInitWaiter) {
+      const waiter = this.contextInitWaiter;
+      this.contextInitWaiter = null;
+      waiter(received);
     }
   }
 

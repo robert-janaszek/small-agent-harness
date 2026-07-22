@@ -61,6 +61,18 @@ export function createContext(initialState?: ToolContext): ToolContext {
   return structuredClone(initialState ?? initialContext);
 }
 
+export function snapshotContextChanges(context: ToolContext): ContextDeltaChange[] {
+  const snapshot = snapshotContext(context);
+  return Array.from(snapshot.entries()).map(([key, value]) => ({
+    ...parseDeviceKey(key),
+    value: isAcState(value) ? structuredClone(value) : value,
+  }));
+}
+
+export function emitContextInit(context: ToolContext): void {
+  emit({ type: 'context_init', changes: snapshotContextChanges(context) });
+}
+
 export function createContextDeltaEmitter(context: ToolContext): () => void {
   let previous = snapshotContext(context);
 

@@ -27,6 +27,7 @@ export type HarnessEvent =
   | { type: 'tool_call'; name: string; args: unknown; toolCallId: string }
   | { type: 'tool_result'; name: string; content: string; toolCallId: string }
   | { type: 'tokens'; iteration: number; usage: TokenUsage }
+  | { type: 'context_init'; changes: ContextDeltaChange[] }
   | { type: 'context_delta'; changes: ContextDeltaChange[] }
   | { type: 'agent_response'; content: string; iterations: number; tokenUsage: TokenUsage }
   | { type: 'session_end'; turnCount: number }
