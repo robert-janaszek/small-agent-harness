@@ -72,6 +72,31 @@ describe('emitHarnessStartup', () => {
 
     expect(events).toEqual([{ type: 'ready', protocolVersion: 1 }]);
   });
+
+  it('batch-style startup emits ready, context_init, then user_command', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: { role: 'assistant', content: 'done', refusal: null } }],
+    });
+    const harness = new Harness(createSmartHomeAgent(), {
+      llmClient: { createChatCompletion },
+      config: testConfig,
+    });
+
+    emitHarnessStartup(harness);
+    await harness.run('turn off lights');
+
+    expect(events.map((event) => event.type)).toEqual([
+      'ready',
+      'context_init',
+      'user_command',
+      'agent_response',
+    ]);
+  });
 });
 
 describe('runHarnessSession', () => {

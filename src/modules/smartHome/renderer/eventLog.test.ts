@@ -58,4 +58,11 @@ describe('EventLog', () => {
 
     expect(log.render(10, 40)).toEqual(['state init 1 device(s)']);
   });
+
+  it('returns no lines when maxLines is zero', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hello' });
+
+    expect(log.render(0, 40)).toEqual([]);
+  });
 });

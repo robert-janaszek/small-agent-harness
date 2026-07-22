@@ -166,6 +166,37 @@ describe('HarnessSessionClient', () => {
     await expect(ready).resolves.toBeUndefined();
   });
 
+  it('resolves waitForContextInit when context_init arrives after waiting', async () => {
+    const client = new HarnessSessionClient();
+
+    const contextInit = client.waitForContextInit();
+    emitStdoutEvent({
+      type: 'context_init',
+      changes: [{ controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'ON' }],
+    });
+
+    await expect(contextInit).resolves.toBe(true);
+  });
+
+  it('resolves waitForContextInit immediately when context_init was already seen', async () => {
+    const client = new HarnessSessionClient();
+    emitStdoutEvent({
+      type: 'context_init',
+      changes: [{ controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'OFF' }],
+    });
+
+    await expect(client.waitForContextInit()).resolves.toBe(true);
+  });
+
+  it('resolves waitForContextInit with false when the session ends first', async () => {
+    const client = new HarnessSessionClient();
+
+    const contextInit = client.waitForContextInit();
+    emitStdoutEvent({ type: 'session_end', turnCount: 0 });
+
+    await expect(contextInit).resolves.toBe(false);
+  });
+
   it('resolves waitForTurn on agent_response', async () => {
     const client = new HarnessSessionClient();
     emitStdoutEvent({ type: 'ready', protocolVersion: 1 });

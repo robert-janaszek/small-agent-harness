@@ -5,7 +5,7 @@ import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayo
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
-import { applyContextDelta, createHomeState } from './homeState';
+import { applyContextDelta, applyHomeStateEvent, createHomeState } from './homeState';
 import { getBottomLayout } from './smartHomeRenderer';
 
 describe('getBottomLayout', () => {
@@ -119,5 +119,32 @@ describe('renderer frame composition', () => {
     expect(diff).not.toContain('\x1b[2J');
     expect(countCursorMoves(diff)).toBeLessThan(fullCells / 10);
     expect(countCursorMoves(diff)).toBeGreaterThan(0);
+  });
+});
+
+describe('applyHomeStateEvent in renderer flow', () => {
+  it('fills home state from context_init before deltas apply', () => {
+    const homeState = createHomeState();
+
+    applyHomeStateEvent(homeState, {
+      type: 'context_init',
+      changes: [
+        { controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'ON' },
+        { controlGroup: 'light', room: 'livingRoom', deviceId: '2', value: 'ON' },
+      ],
+    });
+    applyHomeStateEvent(homeState, {
+      type: 'context_delta',
+      changes: [{ controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'OFF' }],
+    });
+
+    expect(homeState).toEqual({
+      light: {
+        livingRoom: {
+          '1': 'OFF',
+          '2': 'ON',
+        },
+      },
+    });
   });
 });
