@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { EventLog, formatEvent } from './eventLog';
+import { EventLog, formatEvent, wrapAgentLine } from './eventLog';
 
 describe('formatEvent', () => {
   it('formats user command', () => {
@@ -38,6 +38,33 @@ describe('formatEvent', () => {
       }),
     ).toBe('state init 2 device(s)');
   });
+
+  it('preserves full agent response content', () => {
+    const content = 'All living room lights are now off and the AC is set to 22 degrees.';
+    expect(
+      formatEvent({
+        type: 'agent_response',
+        content,
+        iterations: 1,
+        tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      }),
+    ).toBe(`agent: ${content}`);
+  });
+});
+
+describe('wrapAgentLine', () => {
+  it('wraps long agent responses across multiple lines', () => {
+    expect(
+      wrapAgentLine('agent: one two three four five six seven eight nine ten', 20),
+    ).toEqual(['agent: one two three', '       four five six', '       seven eight', '       nine ten']);
+  });
+
+  it('preserves explicit newlines in agent responses', () => {
+    expect(wrapAgentLine('agent: first line\nsecond line', 30)).toEqual([
+      'agent: first line',
+      '       second line',
+    ]);
+  });
 });
 
 describe('EventLog', () => {
@@ -74,5 +101,29 @@ describe('EventLog', () => {
     log.clear();
 
     expect(log.render(10, 40)).toEqual([]);
+  });
+
+  it('wraps long agent responses instead of truncating them', () => {
+    const log = new EventLog();
+    log.append({
+      type: 'agent_response',
+      content: 'one two three four five six seven eight nine ten',
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    });
+
+    expect(log.render(10, 20)).toEqual([
+      'agent: one two three',
+      '       four five six',
+      '       seven eight',
+      '       nine ten',
+    ]);
+  });
+
+  it('still truncates non-agent log lines to panel width', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'this is a very long user command that should be truncated' });
+
+    expect(log.render(10, 20)).toEqual(['> this is a very lo…']);
   });
 });
