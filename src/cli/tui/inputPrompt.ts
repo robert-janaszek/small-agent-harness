@@ -109,35 +109,27 @@ export function paintQueueBanner(
 
 export function paintCommandPalette(
   terminal: DiffTerminal,
-  row: number,
+  rows: readonly number[],
   width: number,
   palette: CommandPaletteState,
 ): void {
-  let col = 0;
+  for (let index = 0; index < palette.matches.length && index < rows.length; index++) {
+    const row = rows[index]!;
+    const command = palette.matches[index]!;
+    const selected = index === palette.selectedIndex;
+    const text = ` ${command}`.padEnd(width).slice(0, width);
 
-  if (col < width) {
-    terminal.setChar(row, col++, ' ');
-  }
-
-  for (let i = 0; i < palette.matches.length && col < width; i++) {
-    const command = palette.matches[i]!;
-    const selected = i === palette.selectedIndex;
-
-    for (const ch of command) {
-      if (col >= width) {
-        break;
-      }
-
-      terminal.setChar(row, col++, ch, colors.paletteFg, undefined, selected ? colors.paletteBg : undefined);
+    for (let col = 0; col < width; col++) {
+      const ch = text[col] ?? ' ';
+      terminal.setChar(
+        row,
+        col,
+        ch,
+        ch === ' ' ? undefined : colors.paletteFg,
+        undefined,
+        selected && ch !== ' ' ? colors.paletteBg : undefined,
+      );
     }
-
-    if (col < width && i < palette.matches.length - 1) {
-      terminal.setChar(row, col++, ' ');
-    }
-  }
-
-  while (col < width) {
-    terminal.setChar(row, col++, ' ');
   }
 }
 

@@ -75,26 +75,26 @@ describe('getCommandPaletteState', () => {
 });
 
 describe('paintCommandPalette', () => {
-  it('highlights the first command when selectedIndex is 0', () => {
+  it('renders each command on its own row and highlights the selected one', () => {
     const output: string[] = [];
-    const terminal = new DiffTerminal(1, 20, (chunk) => output.push(chunk));
-    paintCommandPalette(terminal, 0, 20, { matches: ['/clear', '/exit'], selectedIndex: 0 });
+    const terminal = new DiffTerminal(2, 20, (chunk) => output.push(chunk));
+    paintCommandPalette(terminal, [0, 1], 20, { matches: ['/clear', '/exit'], selectedIndex: 0 });
     terminal.flush();
 
     const rendered = output.join('');
-    expect(rendered).toContain(`\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
-    expect(rendered).toContain(`\x1b[1;9H\x1b[${colors.paletteFg}m/\x1b[0m`);
+    expect(rendered).toContain(`\x1b[1;2H\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
+    expect(rendered).toContain(`\x1b[2;2H\x1b[${colors.paletteFg}m/\x1b[0m`);
   });
 
   it('highlights the second command when selectedIndex is 1', () => {
     const output: string[] = [];
-    const terminal = new DiffTerminal(1, 20, (chunk) => output.push(chunk));
-    paintCommandPalette(terminal, 0, 20, { matches: ['/clear', '/exit'], selectedIndex: 1 });
+    const terminal = new DiffTerminal(2, 20, (chunk) => output.push(chunk));
+    paintCommandPalette(terminal, [0, 1], 20, { matches: ['/clear', '/exit'], selectedIndex: 1 });
     terminal.flush();
 
     const rendered = output.join('');
     expect(rendered).toContain(`\x1b[1;2H\x1b[${colors.paletteFg}m/\x1b[0m`);
-    expect(rendered).toContain(`\x1b[1;9H\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
+    expect(rendered).toContain(`\x1b[2;2H\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
   });
 });
 

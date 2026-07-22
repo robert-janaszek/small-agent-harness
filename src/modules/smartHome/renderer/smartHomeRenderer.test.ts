@@ -10,47 +10,47 @@ import { getBottomLayout } from './smartHomeRenderer';
 
 describe('getBottomLayout', () => {
   it('reserves only the input row when chrome is inactive', () => {
-    expect(getBottomLayout(10, 0, false)).toEqual({
+    expect(getBottomLayout(10, 0, 0)).toEqual({
       contentRows: 9,
       inputRow: 9,
-      paletteRow: null,
+      paletteRows: [],
       queueBannerRow: null,
     });
   });
 
-  it('stacks palette above input and queue above palette', () => {
-    expect(getBottomLayout(10, 2, true)).toEqual({
-      contentRows: 7,
+  it('stacks palette rows above input and queue above palette', () => {
+    expect(getBottomLayout(10, 2, 2)).toEqual({
+      contentRows: 6,
       inputRow: 9,
-      paletteRow: 8,
-      queueBannerRow: 7,
+      paletteRows: [7, 8],
+      queueBannerRow: 6,
     });
   });
 
   it('drops chrome that would land on a negative row', () => {
-    expect(getBottomLayout(1, 2, true)).toEqual({
+    expect(getBottomLayout(1, 2, 2)).toEqual({
       contentRows: 0,
       inputRow: 0,
-      paletteRow: null,
+      paletteRows: [],
       queueBannerRow: null,
     });
   });
 
   it('prefers palette over queue when only one chrome row fits', () => {
-    expect(getBottomLayout(2, 3, true)).toEqual({
+    expect(getBottomLayout(2, 3, 2)).toEqual({
       contentRows: 0,
       inputRow: 1,
-      paletteRow: 0,
+      paletteRows: [0],
       queueBannerRow: null,
     });
   });
 
   it('keeps content from overlapping reserved chrome rows', () => {
-    expect(getBottomLayout(3, 1, true)).toEqual({
+    expect(getBottomLayout(3, 1, 2)).toEqual({
       contentRows: 0,
       inputRow: 2,
-      paletteRow: 1,
-      queueBannerRow: 0,
+      paletteRows: [0, 1],
+      queueBannerRow: null,
     });
   });
 });
