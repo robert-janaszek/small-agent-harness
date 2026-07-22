@@ -40,6 +40,16 @@ describe('langfuse observability', () => {
         }),
       ).toBe(true);
     });
+
+    it('returns false when LANGFUSE_ENABLED is false', () => {
+      expect(
+        isLangfuseEnabled({
+          LANGFUSE_ENABLED: 'false',
+          LANGFUSE_PUBLIC_KEY: 'pk-lf-test',
+          LANGFUSE_SECRET_KEY: 'sk-lf-test',
+        }),
+      ).toBe(false);
+    });
   });
 
   it('createLangfuseSessionId returns a uuid', () => {
