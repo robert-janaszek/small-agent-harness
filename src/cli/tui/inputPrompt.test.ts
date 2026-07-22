@@ -47,9 +47,11 @@ describe('formatQueueBanner', () => {
 
 describe('getCommandPaletteMatches', () => {
   it('matches slash commands by prefix', () => {
-    expect(getCommandPaletteMatches('/')).toEqual(['/exit']);
+    expect(getCommandPaletteMatches('/')).toEqual(['/clear', '/exit']);
     expect(getCommandPaletteMatches('/ex')).toEqual(['/exit']);
     expect(getCommandPaletteMatches('/exit')).toEqual(['/exit']);
+    expect(getCommandPaletteMatches('/cl')).toEqual(['/clear']);
+    expect(getCommandPaletteMatches('/clear')).toEqual(['/clear']);
   });
 
   it('returns no matches for non-command input', () => {
@@ -60,7 +62,11 @@ describe('getCommandPaletteMatches', () => {
 
 describe('getCommandPaletteState', () => {
   it('returns matches when palette is not dismissed', () => {
-    expect(getCommandPaletteState('/ex', false)).toEqual({ matches: ['/exit'] });
+    expect(getCommandPaletteState('/ex', false)).toEqual({ matches: ['/exit'], selectedIndex: 0 });
+  });
+
+  it('clamps selected index to available matches', () => {
+    expect(getCommandPaletteState('/', false, 5)).toEqual({ matches: ['/clear', '/exit'], selectedIndex: 1 });
   });
 
   it('returns null when palette is dismissed', () => {
@@ -69,15 +75,26 @@ describe('getCommandPaletteState', () => {
 });
 
 describe('paintCommandPalette', () => {
-  it('highlights the selected command with foreground and full-width light-blue background', () => {
+  it('renders each command on its own row and highlights the selected one', () => {
     const output: string[] = [];
-    const terminal = new DiffTerminal(1, 10, (chunk) => output.push(chunk));
-    paintCommandPalette(terminal, 0, 10, { matches: ['/exit'] });
+    const terminal = new DiffTerminal(2, 20, (chunk) => output.push(chunk));
+    paintCommandPalette(terminal, [0, 1], 20, { matches: ['/clear', '/exit'], selectedIndex: 0 });
     terminal.flush();
 
     const rendered = output.join('');
-    expect(rendered).toContain(`\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
-    expect(rendered).toContain(`\x1b[48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m \x1b[0m`);
+    expect(rendered).toContain(`\x1b[1;2H\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
+    expect(rendered).toContain(`\x1b[2;2H\x1b[${colors.paletteFg}m/\x1b[0m`);
+  });
+
+  it('highlights the second command when selectedIndex is 1', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(2, 20, (chunk) => output.push(chunk));
+    paintCommandPalette(terminal, [0, 1], 20, { matches: ['/clear', '/exit'], selectedIndex: 1 });
+    terminal.flush();
+
+    const rendered = output.join('');
+    expect(rendered).toContain(`\x1b[1;2H\x1b[${colors.paletteFg}m/\x1b[0m`);
+    expect(rendered).toContain(`\x1b[2;2H\x1b[${colors.paletteFg};48;2;${colors.paletteBg.r};${colors.paletteBg.g};${colors.paletteBg.b}m/\x1b[0m`);
   });
 });
 
@@ -137,16 +154,16 @@ describe('TerminalInputLine.start', () => {
 
     process.stdin.emit('data', Buffer.from('/ex'));
 
-    expect(input.getState().commandPalette).toEqual({ matches: ['/exit'] });
+    expect(input.getState().commandPalette).toEqual({ matches: ['/exit'], selectedIndex: 0 });
   });
 
-  it('completes the first match on Tab without submitting', () => {
+  it('completes the selected match on Tab without submitting', () => {
     const { input, onSubmit } = createInput();
 
     process.stdin.emit('data', Buffer.from('/'));
     process.stdin.emit('data', Buffer.from('\t'));
 
-    expect(input.getState().value).toBe('/exit');
+    expect(input.getState().value).toBe('/clear');
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -159,6 +176,30 @@ describe('TerminalInputLine.start', () => {
     expect(onSubmit).toHaveBeenCalledWith('/exit');
   });
 
+  it('submits the selected palette match after arrow navigation', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/'));
+    process.stdin.emit('data', Buffer.from('\u001b[B'));
+
+    expect(input.getState().commandPalette).toEqual({ matches: ['/clear', '/exit'], selectedIndex: 1 });
+
+    process.stdin.emit('data', Buffer.from('\r'));
+
+    expect(onSubmit).toHaveBeenCalledWith('/exit');
+  });
+
+  it('completes the selected command after arrow navigation and Tab', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('/'));
+    process.stdin.emit('data', Buffer.from('\u001b[B'));
+    process.stdin.emit('data', Buffer.from('\t'));
+
+    expect(input.getState().value).toBe('/exit');
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('submits the completed command after Tab then Enter', () => {
     const { input, onSubmit } = createInput();
 
@@ -166,7 +207,7 @@ describe('TerminalInputLine.start', () => {
     process.stdin.emit('data', Buffer.from('\t'));
     process.stdin.emit('data', Buffer.from('\r'));
 
-    expect(onSubmit).toHaveBeenCalledWith('/exit');
+    expect(onSubmit).toHaveBeenCalledWith('/clear');
   });
 
   it('hides palette on ESC while keeping the typed value', () => {
@@ -201,6 +242,6 @@ describe('TerminalInputLine.start', () => {
     process.stdin.emit('data', Buffer.from('\u007f'));
 
     expect(input.getState().value).toBe('/');
-    expect(input.getState().commandPalette).toEqual({ matches: ['/exit'] });
+    expect(input.getState().commandPalette).toEqual({ matches: ['/clear', '/exit'], selectedIndex: 0 });
   });
 });

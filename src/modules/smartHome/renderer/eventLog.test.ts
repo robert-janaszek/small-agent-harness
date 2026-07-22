@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { EventLog, formatEvent } from './eventLog';
+import { EventLog, formatEvent, wrapAgentLine } from './eventLog';
 
 describe('formatEvent', () => {
   it('formats user command', () => {
@@ -38,6 +38,47 @@ describe('formatEvent', () => {
       }),
     ).toBe('state init 2 device(s)');
   });
+
+  it('preserves full agent response content', () => {
+    const content = 'All living room lights are now off and the AC is set to 22 degrees.';
+    expect(
+      formatEvent({
+        type: 'agent_response',
+        content,
+        iterations: 1,
+        tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      }),
+    ).toBe(`agent: ${content}`);
+  });
+});
+
+describe('wrapAgentLine', () => {
+  it('wraps long agent responses across multiple lines', () => {
+    expect(
+      wrapAgentLine('agent: one two three four five six seven eight nine ten', 20),
+    ).toEqual(['agent: one two three', '       four five six', '       seven eight', '       nine ten']);
+  });
+
+  it('preserves explicit newlines in agent responses', () => {
+    expect(wrapAgentLine('agent: first line\nsecond line', 30)).toEqual([
+      'agent: first line',
+      '       second line',
+    ]);
+  });
+
+  it('caps wrapped output to 10 lines', () => {
+    const words = Array.from({ length: 40 }, (_, index) => `w${index}`).join(' ');
+    const wrapped = wrapAgentLine(`agent: ${words}`, 20);
+
+    expect(wrapped).toHaveLength(10);
+    expect(wrapped.every((line) => line.length <= 20)).toBe(true);
+  });
+
+  it('never emits lines wider than width when width is below the prefix', () => {
+    expect(wrapAgentLine('agent: hello world', 5)).toEqual(['agen…']);
+    expect(wrapAgentLine('agent: hello world', 7)).toEqual(['agent:…']);
+    expect(wrapAgentLine('agent: hello', 0)).toEqual([]);
+  });
 });
 
 describe('EventLog', () => {
@@ -64,5 +105,54 @@ describe('EventLog', () => {
     log.append({ type: 'user_command', command: 'hello' });
 
     expect(log.render(0, 40)).toEqual([]);
+  });
+
+  it('clears all lines', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hello' });
+    log.append({ type: 'user_command', command: 'world' });
+
+    log.clear();
+
+    expect(log.render(10, 40)).toEqual([]);
+  });
+
+  it('wraps long agent responses instead of truncating them', () => {
+    const log = new EventLog();
+    log.append({
+      type: 'agent_response',
+      content: 'one two three four five six seven eight nine ten',
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    });
+
+    expect(log.render(10, 20)).toEqual([
+      'agent: one two three',
+      '       four five six',
+      '       seven eight',
+      '       nine ten',
+    ]);
+  });
+
+  it('soft-caps a single wrapped agent response to 10 lines', () => {
+    const log = new EventLog();
+    const words = Array.from({ length: 40 }, (_, index) => `w${index}`).join(' ');
+    log.append({
+      type: 'agent_response',
+      content: words,
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    });
+
+    const rendered = log.render(50, 20);
+    expect(rendered).toHaveLength(10);
+    expect(rendered.every((line) => line.length <= 20)).toBe(true);
+  });
+
+  it('still truncates non-agent log lines to panel width', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'this is a very long user command that should be truncated' });
+
+    expect(log.render(10, 20)).toEqual(['> this is a very lo…']);
   });
 });
