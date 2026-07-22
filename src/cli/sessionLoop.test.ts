@@ -8,7 +8,7 @@ import type { HarnessConfig } from '../harness/harness.config.validate';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { parseHarnessCommandLine, readHarnessCommands } from './readHarnessCommands';
 import { resetEmitWriter, setEmitWriter, type HarnessEvent } from './jsonl';
-import { runHarnessServeSession, runHarnessSession } from './sessionLoop';
+import { runHarnessServeSession, runHarnessSession, emitHarnessStartup } from './sessionLoop';
 
 const testConfig: HarnessConfig = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',
@@ -34,6 +34,45 @@ function makeHarnessWithRun(
   vi.spyOn(harness, 'getTurnCount').mockReturnValue(turnCount);
   return harness;
 }
+
+describe('emitHarnessStartup', () => {
+  afterEach(() => {
+    resetEmitWriter();
+  });
+
+  it('emits ready and context_init for smart home agents', () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    const harness = new Harness(createSmartHomeAgent(), {
+      llmClient: { createChatCompletion: vi.fn() },
+      config: testConfig,
+    });
+
+    emitHarnessStartup(harness);
+
+    expect(events).toEqual([
+      { type: 'ready', protocolVersion: 1 },
+      expect.objectContaining({ type: 'context_init' }),
+    ]);
+    if (events[1]?.type === 'context_init') {
+      expect(events[1].changes.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('emits only ready when the agent has no session start hook', () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    emitHarnessStartup(new Harness(makeAgent(), { llmClient: { createChatCompletion: vi.fn() }, config: testConfig }));
+
+    expect(events).toEqual([{ type: 'ready', protocolVersion: 1 }]);
+  });
+});
 
 describe('runHarnessSession', () => {
   afterEach(() => {

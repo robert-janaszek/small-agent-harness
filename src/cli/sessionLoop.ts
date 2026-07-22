@@ -7,12 +7,16 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
 }
 
+export function emitHarnessStartup(harness: Harness): void {
+  emit({ type: 'ready', protocolVersion: HARNESS_PROTOCOL_VERSION });
+  harness.emitSessionStart();
+}
+
 export async function runHarnessSession(
   harness: Harness,
   readCommand: () => Promise<string | null>,
 ): Promise<void> {
-  emit({ type: 'ready', protocolVersion: HARNESS_PROTOCOL_VERSION });
-  harness.emitSessionStart();
+  emitHarnessStartup(harness);
 
   while (true) {
     const command = await readCommand();
@@ -44,8 +48,7 @@ export async function runHarnessServeSession(
   harness: Harness,
   stdin: NodeJS.ReadableStream = process.stdin,
 ): Promise<void> {
-  emit({ type: 'ready', protocolVersion: HARNESS_PROTOCOL_VERSION });
-  harness.emitSessionStart();
+  emitHarnessStartup(harness);
 
   let shuttingDown = false;
   let currentAbort: AbortController | null = null;

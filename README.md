@@ -231,7 +231,7 @@ The harness writes **one JSON object per line** to stdout. Each object has a `ty
 
 | `type` | When | Fields |
 |--------|------|--------|
-| `ready` | Start of `--serve` session | `protocolVersion` |
+| `ready` | Start of session (batch, REPL, or `--serve`) | `protocolVersion` |
 | `context_init` | Right after `ready` (smart home) | `changes[]` — full device snapshot |
 | `user_command` | Start of each turn | `command` |
 | `assistant_message` | Model returns text before tool calls | `content` |
