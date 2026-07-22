@@ -15,6 +15,11 @@ let spanProcessor: LangfuseSpanProcessor | undefined;
 let sdk: NodeSDK | undefined;
 
 export function isLangfuseEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const enabledFlag = env.LANGFUSE_ENABLED?.trim().toLowerCase() ?? '';
+  if (enabledFlag === '0' || enabledFlag === 'false' || enabledFlag === 'no' || enabledFlag === 'off') {
+    return false;
+  }
+
   const publicKey = env.LANGFUSE_PUBLIC_KEY?.trim() ?? '';
   const secretKey = env.LANGFUSE_SECRET_KEY?.trim() ?? '';
   return publicKey.length > 0 && secretKey.length > 0;
@@ -43,7 +48,15 @@ export function initLangfuseTracing(): void {
 }
 
 export async function flushLangfuse(): Promise<void> {
-  await spanProcessor?.forceFlush();
+  if (!spanProcessor) {
+    return;
+  }
+
+  try {
+    await spanProcessor.forceFlush();
+  } catch {
+    // Observability must not fail a successful harness run (e.g. revoked Langfuse keys).
+  }
 }
 
 export async function shutdownLangfuse(): Promise<void> {
