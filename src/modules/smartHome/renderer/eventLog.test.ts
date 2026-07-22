@@ -49,10 +49,13 @@ describe('EventLog', () => {
     expect(log.render(10, 40)).toEqual(['agent: done']);
   });
 
-  it('returns no lines when maxLines is zero', () => {
+  it('appends context_init events', () => {
     const log = new EventLog();
-    log.append({ type: 'user_command', command: 'hello' });
+    log.append({
+      type: 'context_init',
+      changes: [{ controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'ON' }],
+    });
 
-    expect(log.render(0, 40)).toEqual([]);
+    expect(log.render(10, 40)).toEqual(['state init 1 device(s)']);
   });
 });

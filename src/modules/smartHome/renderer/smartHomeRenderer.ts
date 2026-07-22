@@ -305,7 +305,7 @@ export class SmartHomeRenderer {
         this.eventLog.append(raw);
       }
     } else if (raw.type !== 'context_delta' || raw.changes.length > 0) {
-      if (raw.type !== 'ready' && raw.type !== 'session_end' && raw.type !== 'context_init') {
+      if (raw.type !== 'ready' && raw.type !== 'session_end') {
         this.eventLog.append(raw);
       }
     }
