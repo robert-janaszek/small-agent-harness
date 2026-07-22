@@ -64,7 +64,7 @@ export class SmartHomeRenderer {
   private harnessActive = false;
   private harnessReady = false;
   private activityTimer: ReturnType<typeof setInterval> | null = null;
-  private runStartedAt: number | null = null;
+  private turnStartedAt: number | null = null;
   private elapsedMs = 0;
   private inputLine: TerminalInputLine;
   private commandQueue: string[] = [];
@@ -103,7 +103,6 @@ export class SmartHomeRenderer {
     const client = new HarnessSessionClient();
     client.onEvent((event) => this.onEvent(event));
 
-    this.runStartedAt = Date.now();
     this.elapsedMs = 0;
     this.startActivityTimer();
 
@@ -155,8 +154,7 @@ export class SmartHomeRenderer {
     await this.waitForSessionEnd(client);
 
     this.harnessActive = false;
-    this.elapsedMs = this.currentElapsedMs();
-    this.runStartedAt = null;
+    this.turnStartedAt = null;
     this.stopActivityTimer();
     this.inputLine.close();
     this.redraw();
@@ -205,20 +203,19 @@ export class SmartHomeRenderer {
 
   private async runTurn(client: HarnessSessionClient, command: string): Promise<void> {
     this.harnessActive = true;
-    if (this.runStartedAt === null) {
-      this.runStartedAt = Date.now();
-    }
+    this.turnStartedAt = Date.now();
 
     client.sendCommand(command);
     await client.waitForTurn();
     this.harnessActive = false;
-    this.elapsedMs = this.currentElapsedMs();
+    this.elapsedMs = Date.now() - this.turnStartedAt;
+    this.turnStartedAt = null;
     this.redraw();
   }
 
   private currentElapsedMs(): number {
-    if (this.runStartedAt !== null) {
-      return Date.now() - this.runStartedAt;
+    if (this.turnStartedAt !== null) {
+      return Date.now() - this.turnStartedAt;
     }
 
     return this.elapsedMs;
