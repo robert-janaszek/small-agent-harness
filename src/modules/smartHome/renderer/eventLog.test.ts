@@ -26,6 +26,18 @@ describe('formatEvent', () => {
       }),
     ).toBe('state Δ 1 change(s)');
   });
+
+  it('formats context init', () => {
+    expect(
+      formatEvent({
+        type: 'context_init',
+        changes: [
+          { controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'ON' },
+          { controlGroup: 'light', room: 'livingRoom', deviceId: '2', value: 'ON' },
+        ],
+      }),
+    ).toBe('state init 2 device(s)');
+  });
 });
 
 describe('EventLog', () => {

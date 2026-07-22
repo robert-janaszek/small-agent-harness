@@ -232,6 +232,7 @@ The harness writes **one JSON object per line** to stdout. Each object has a `ty
 | `type` | When | Fields |
 |--------|------|--------|
 | `ready` | Start of `--serve` session | `protocolVersion` |
+| `context_init` | Right after `ready` (smart home) | `changes[]` — full device snapshot |
 | `user_command` | Start of each turn | `command` |
 | `assistant_message` | Model returns text before tool calls | `content` |
 | `tool_call` | Before executing a tool | `name`, `args`, `toolCallId` |
@@ -245,6 +246,8 @@ The harness writes **one JSON object per line** to stdout. Each object has a `ty
 Example lines:
 
 ```json
+{"type":"ready","protocolVersion":1}
+{"type":"context_init","changes":[{"controlGroup":"light","room":"livingRoom","deviceId":"1","value":"ON"}]}
 {"type":"user_command","command":"turn off all lights in the living room"}
 {"type":"tool_call","name":"controlDevice","args":{"controlGroup":"light","room":"livingRoom","deviceId":"1","state":"OFF"},"toolCallId":"call_abc"}
 {"type":"tool_result","name":"controlDevice","content":"...","toolCallId":"call_abc"}
@@ -252,7 +255,7 @@ Example lines:
 {"type":"agent_response","content":"All living room lights are off.","iterations":4,"tokenUsage":{"prompt_tokens":1200,"completion_tokens":80,"total_tokens":1280}}
 ```
 
-`context_delta` emits only the delta since the previous tool round — not the full device state. AC devices use an object `value` (`power`, `targetTemperature`); binary devices use `"ON"` / `"OFF"`.
+`context_init` emits the full device snapshot once at session start so clients can rebuild state from a single event. `context_delta` emits only the delta since the previous tool round. AC devices use an object `value` (`power`, `targetTemperature`); binary devices use `"ON"` / `"OFF"`.
 
 Parsing from another process:
 

@@ -33,6 +33,8 @@ export function formatEvent(event: HarnessEvent): string {
       return `  ${event.name}: ${formatToolResult(event.name, event.content)}`;
     case 'tokens':
       return `tokens i${event.iteration} ${event.usage.total_tokens} total`;
+    case 'context_init':
+      return `state init ${event.changes.length} device(s)`;
     case 'context_delta':
       return `state Δ ${event.changes.length} change(s)`;
     case 'agent_response':

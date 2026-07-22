@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { PassThrough } from 'node:stream';
 
+import { createSmartHomeAgent } from '../modules/smartHome/agent';
 import { Harness } from '../harness/harness';
 import { Agent } from '../harness/agent.type';
 import type { HarnessConfig } from '../harness/harness.config.validate';
@@ -106,6 +107,24 @@ describe('runHarnessSession', () => {
       { type: 'ready', protocolVersion: 1 },
       { type: 'session_end', turnCount: 0 },
     ]);
+  });
+
+  it('emits context_init for smart home agents after ready', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    const harness = new Harness(createSmartHomeAgent(), { llmClient: { createChatCompletion: vi.fn() }, config: testConfig });
+
+    await runHarnessSession(harness, async () => null);
+
+    expect(events[0]).toEqual({ type: 'ready', protocolVersion: 1 });
+    expect(events[1]?.type).toBe('context_init');
+    if (events[1]?.type === 'context_init') {
+      expect(events[1].changes.length).toBeGreaterThan(0);
+    }
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 0 });
   });
 });
 

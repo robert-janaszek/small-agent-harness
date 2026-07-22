@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 
 import { resetEmitWriter, setEmitWriter } from '../../cli/jsonl';
-import { createContext, createContextDeltaEmitter } from './context';
+import { createContext, createContextDeltaEmitter, emitContextInit, snapshotContextChanges } from './context';
 import { setAcPower, setDeviceState } from './devices';
 
 describe('createContextDeltaEmitter', () => {
@@ -68,5 +68,42 @@ describe('createContextDeltaEmitter', () => {
     emitDelta();
 
     expect(lines).toHaveLength(0);
+  });
+});
+
+describe('emitContextInit', () => {
+  afterEach(() => {
+    resetEmitWriter();
+  });
+
+  it('emits the full device snapshot as context_init', () => {
+    const context = createContext();
+    const lines: string[] = [];
+    setEmitWriter((line) => lines.push(line));
+
+    emitContextInit(context);
+
+    expect(lines).toHaveLength(1);
+    const event = JSON.parse(lines[0].trimEnd());
+    expect(event.type).toBe('context_init');
+    expect(event.changes).toEqual(snapshotContextChanges(context));
+    expect(event.changes.length).toBeGreaterThan(0);
+  });
+
+  it('includes custom initial state in context_init', () => {
+    const context = createContext();
+    setDeviceState(context, { controlGroup: 'light', room: 'livingRoom', deviceId: '1' }, 'OFF');
+
+    const lines: string[] = [];
+    setEmitWriter((line) => lines.push(line));
+    emitContextInit(context);
+
+    const event = JSON.parse(lines[0].trimEnd());
+    expect(event.changes).toContainEqual({
+      controlGroup: 'light',
+      room: 'livingRoom',
+      deviceId: '1',
+      value: 'OFF',
+    });
   });
 });

@@ -11,7 +11,7 @@ import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayo
 import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
-import { applyContextDelta, createHomeState } from './homeState';
+import { applyContextDelta, createEmptyHomeState, homeStateFromChanges } from './homeState';
 import { paintStatusBar } from './statusBar';
 import type { TokenCounterState } from './tokenCounter';
 
@@ -58,7 +58,7 @@ export class SmartHomeRenderer {
   private terminal: DiffTerminal;
   private initialCommand: string | null;
   private eventLog = new EventLog();
-  private homeState = createHomeState();
+  private homeState = createEmptyHomeState();
   private tokenCounter: TokenCounterState | null = null;
   private activityTick = 0;
   private harnessActive = false;
@@ -305,12 +305,14 @@ export class SmartHomeRenderer {
         this.eventLog.append(raw);
       }
     } else if (raw.type !== 'context_delta' || raw.changes.length > 0) {
-      if (raw.type !== 'ready' && raw.type !== 'session_end') {
+      if (raw.type !== 'ready' && raw.type !== 'session_end' && raw.type !== 'context_init') {
         this.eventLog.append(raw);
       }
     }
 
-    if (raw.type === 'context_delta') {
+    if (raw.type === 'context_init') {
+      this.homeState = homeStateFromChanges(raw.changes);
+    } else if (raw.type === 'context_delta') {
       applyContextDelta(this.homeState, raw.changes);
     }
 

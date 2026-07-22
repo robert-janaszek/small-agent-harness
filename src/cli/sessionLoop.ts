@@ -12,6 +12,7 @@ export async function runHarnessSession(
   readCommand: () => Promise<string | null>,
 ): Promise<void> {
   emit({ type: 'ready', protocolVersion: HARNESS_PROTOCOL_VERSION });
+  harness.emitSessionStart();
 
   while (true) {
     const command = await readCommand();
@@ -44,6 +45,7 @@ export async function runHarnessServeSession(
   stdin: NodeJS.ReadableStream = process.stdin,
 ): Promise<void> {
   emit({ type: 'ready', protocolVersion: HARNESS_PROTOCOL_VERSION });
+  harness.emitSessionStart();
 
   let shuttingDown = false;
   let currentAbort: AbortController | null = null;
