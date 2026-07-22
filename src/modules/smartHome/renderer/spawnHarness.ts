@@ -3,7 +3,6 @@ export {
   isHarnessEvent,
   isTurnBoundaryEvent,
   readHarnessEvents,
-  spawnHarness,
   spawnHarnessSession,
   writeHarnessCommand,
 } from '../../../cli/harnessClient';
