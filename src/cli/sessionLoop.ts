@@ -33,6 +33,11 @@ export async function runHarnessSession(
       break;
     }
 
+    if (trimmed === '/reset') {
+      harness.resetSession();
+      continue;
+    }
+
     try {
       await harness.run(trimmed);
     } catch (error: unknown) {
@@ -66,6 +71,11 @@ export async function runHarnessServeSession(
         shuttingDown = true;
         currentAbort?.abort();
         emit({ type: 'session_end', turnCount: harness.getTurnCount() });
+        return;
+      }
+
+      if (command.type === 'reset') {
+        harness.resetSession();
         return;
       }
 

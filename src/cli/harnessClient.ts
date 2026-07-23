@@ -175,6 +175,12 @@ export class HarnessSessionClient {
     }
   }
 
+  resetSession(): void {
+    if (!this.sessionEnded && this.child.stdin) {
+      writeHarnessCommand(this.child.stdin, { type: 'reset' });
+    }
+  }
+
   async waitForTurn(): Promise<HarnessEvent> {
     return new Promise<HarnessEvent>((resolve) => {
       this.turnWaiter = resolve;

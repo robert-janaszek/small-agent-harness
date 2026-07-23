@@ -3,9 +3,10 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { emit, isHarnessCommand, resetEmitWriter, setEmitWriter } from './jsonl';
 
 describe('isHarnessCommand', () => {
-  it('accepts cancel and shutdown commands', () => {
+  it('accepts cancel, shutdown, and reset commands', () => {
     expect(isHarnessCommand({ type: 'cancel' })).toBe(true);
     expect(isHarnessCommand({ type: 'shutdown' })).toBe(true);
+    expect(isHarnessCommand({ type: 'reset' })).toBe(true);
   });
 
   it('accepts user_command with a string command field', () => {

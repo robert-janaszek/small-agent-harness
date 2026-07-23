@@ -77,6 +77,10 @@ export class Harness {
     this.agent.onSessionStart?.();
   }
 
+  public resetSession(): void {
+    this.agent.onSessionReset?.();
+  }
+
   public async run(userCommand: string, options?: HarnessRunOptions): Promise<HarnessRunResult> {
     options?.signal?.throwIfAborted();
 

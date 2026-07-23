@@ -47,11 +47,13 @@ describe('formatQueueBanner', () => {
 
 describe('getCommandPaletteMatches', () => {
   it('matches slash commands by prefix', () => {
-    expect(getCommandPaletteMatches('/')).toEqual(['/clear', '/exit']);
+    expect(getCommandPaletteMatches('/')).toEqual(['/clear', '/exit', '/reset']);
     expect(getCommandPaletteMatches('/ex')).toEqual(['/exit']);
     expect(getCommandPaletteMatches('/exit')).toEqual(['/exit']);
     expect(getCommandPaletteMatches('/cl')).toEqual(['/clear']);
     expect(getCommandPaletteMatches('/clear')).toEqual(['/clear']);
+    expect(getCommandPaletteMatches('/re')).toEqual(['/reset']);
+    expect(getCommandPaletteMatches('/reset')).toEqual(['/reset']);
   });
 
   it('returns no matches for non-command input', () => {
@@ -66,7 +68,10 @@ describe('getCommandPaletteState', () => {
   });
 
   it('clamps selected index to available matches', () => {
-    expect(getCommandPaletteState('/', false, 5)).toEqual({ matches: ['/clear', '/exit'], selectedIndex: 1 });
+    expect(getCommandPaletteState('/', false, 5)).toEqual({
+      matches: ['/clear', '/exit', '/reset'],
+      selectedIndex: 2,
+    });
   });
 
   it('returns null when palette is dismissed', () => {
@@ -182,7 +187,7 @@ describe('TerminalInputLine.start', () => {
     process.stdin.emit('data', Buffer.from('/'));
     process.stdin.emit('data', Buffer.from('\u001b[B'));
 
-    expect(input.getState().commandPalette).toEqual({ matches: ['/clear', '/exit'], selectedIndex: 1 });
+    expect(input.getState().commandPalette).toEqual({ matches: ['/clear', '/exit', '/reset'], selectedIndex: 1 });
 
     process.stdin.emit('data', Buffer.from('\r'));
 
@@ -242,6 +247,6 @@ describe('TerminalInputLine.start', () => {
     process.stdin.emit('data', Buffer.from('\u007f'));
 
     expect(input.getState().value).toBe('/');
-    expect(input.getState().commandPalette).toEqual({ matches: ['/clear', '/exit'], selectedIndex: 0 });
+    expect(input.getState().commandPalette).toEqual({ matches: ['/clear', '/exit', '/reset'], selectedIndex: 0 });
   });
 });

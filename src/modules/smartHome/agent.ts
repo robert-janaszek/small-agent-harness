@@ -1,6 +1,7 @@
 import { Agent } from "../../harness/agent.type";
 import { ToolContext } from "../../tools/types";
 import { createContext, createContextDeltaEmitter, emitContextInit } from "./context";
+import { resetContext } from "./devices";
 import { controlAc } from "./controlAc.tool";
 import { controlAllDevicesInRoom } from "./controlAllDevicesInRoom.tool";
 import { controlDevice } from "./controlDevice.tool";
@@ -53,6 +54,10 @@ export function createSmartHomeAgent(initialState?: ToolContext): SmartHomeAgent
   return {
     context,
     onSessionStart: () => emitContextInit(context),
+    onSessionReset: () => {
+      resetContext(context);
+      emitContextInit(context);
+    },
     onToolRound: createContextDeltaEmitter(context),
     prompt: SMART_HOME_PROMPT,
     tools: [
