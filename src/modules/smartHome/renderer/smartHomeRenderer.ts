@@ -135,6 +135,11 @@ export class SmartHomeRenderer {
         return;
       }
 
+      if (command === '/reset') {
+        client.resetSession();
+        return;
+      }
+
       if (command.length === 0) {
         return;
       }

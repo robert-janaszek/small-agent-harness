@@ -223,16 +223,17 @@ describe('HarnessSessionClient', () => {
     expect(stdinChunks.join('')).toBe('{"type":"user_command","command":"turn off lights"}\n');
   });
 
-  it('cancelTurn and shutdown write the expected commands', async () => {
+  it('cancelTurn, resetSession, and shutdown write the expected commands', async () => {
     const client = new HarnessSessionClient();
     const stdinChunks: string[] = [];
     getMockStdin().on('data', (chunk) => stdinChunks.push(chunk.toString()));
 
     client.cancelTurn();
+    client.resetSession();
     client.shutdown();
 
     expect(stdinChunks.join('')).toBe(
-      '{"type":"cancel"}\n{"type":"cancel"}\n{"type":"shutdown"}\n',
+      '{"type":"cancel"}\n{"type":"reset"}\n{"type":"cancel"}\n{"type":"shutdown"}\n',
     );
   });
 

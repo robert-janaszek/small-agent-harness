@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { PassThrough } from 'node:stream';
 
 import { createSmartHomeAgent } from '../modules/smartHome/agent';
+import { setDeviceState } from '../modules/smartHome/devices';
 import { Harness } from '../harness/harness';
 import { Agent } from '../harness/agent.type';
 import type { HarnessConfig } from '../harness/harness.config.validate';
@@ -190,6 +191,39 @@ describe('runHarnessSession', () => {
     }
     expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 0 });
   });
+
+  it('resets smart home state when /reset is entered in repl mode', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    const agent = createSmartHomeAgent();
+    setDeviceState(agent.context, { controlGroup: 'light', room: 'livingRoom', deviceId: '1' }, 'OFF');
+
+    const harness = new Harness(agent, { llmClient: { createChatCompletion: vi.fn() }, config: testConfig });
+
+    let call = 0;
+    await runHarnessSession(harness, async () => {
+      call += 1;
+      if (call === 1) {
+        return '/reset';
+      }
+      return null;
+    });
+
+    const contextInits = events.filter((event) => event.type === 'context_init');
+    expect(contextInits).toHaveLength(2);
+
+    const lastInit = contextInits[1];
+    if (lastInit?.type === 'context_init') {
+      const light1 = lastInit.changes.find(
+        (change) =>
+          change.controlGroup === 'light' && change.room === 'livingRoom' && change.deviceId === '1',
+      );
+      expect(light1?.value).toBe('ON');
+    }
+  });
 });
 
 describe('parseHarnessCommandLine', () => {
@@ -206,6 +240,10 @@ describe('parseHarnessCommandLine', () => {
 
   it('parses cancel', () => {
     expect(parseHarnessCommandLine('{"type":"cancel"}')).toEqual({ type: 'cancel' });
+  });
+
+  it('parses reset', () => {
+    expect(parseHarnessCommandLine('{"type":"reset"}')).toEqual({ type: 'reset' });
   });
 
   it('returns null for invalid json', () => {

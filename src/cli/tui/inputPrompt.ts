@@ -35,7 +35,7 @@ function isPrintableAscii(byte: number): boolean {
 }
 export const INPUT_PREFIX = '> ';
 
-export const SLASH_COMMANDS = ['/clear', '/exit'] as const;
+export const SLASH_COMMANDS = ['/clear', '/exit', '/reset'] as const;
 
 export type CommandPaletteState = {
   matches: readonly string[];
