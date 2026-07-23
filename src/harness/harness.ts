@@ -78,6 +78,9 @@ export class Harness {
   }
 
   public resetSession(): void {
+    this.messageHistory = [];
+    this.turnCount = 0;
+    this.sessionId = createLangfuseSessionId();
     this.agent.onSessionReset?.();
   }
 

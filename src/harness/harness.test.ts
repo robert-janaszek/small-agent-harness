@@ -84,6 +84,31 @@ describe('Harness', () => {
     ]);
   });
 
+  it('resetSession clears history, turn count, and rotates session id', async () => {
+    const onSessionReset = vi.fn();
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: assistantMessage('ok') }],
+    });
+    const llmClient: ChatCompletionClient = { createChatCompletion };
+
+    const harness = new Harness({ ...makeAgent(), onSessionReset }, { llmClient, config: testConfig });
+    await harness.run('hello');
+
+    const sessionIdBefore = harness.getSessionId();
+    harness.resetSession();
+
+    expect(harness.getMessageHistory()).toEqual([]);
+    expect(harness.getTurnCount()).toBe(0);
+    expect(harness.getSessionId()).not.toBe(sessionIdBefore);
+    expect(onSessionReset).toHaveBeenCalledTimes(1);
+
+    await harness.run('again');
+    expect(createChatCompletion.mock.calls[1][0].messages).toEqual([
+      { role: 'system', content: 'test prompt' },
+      { role: 'user', content: 'again' },
+    ]);
+  });
+
   it('ends the turn when the model returns an empty text response', async () => {
     const createChatCompletion = vi.fn().mockResolvedValue({
       choices: [{ message: assistantMessage('') }],
