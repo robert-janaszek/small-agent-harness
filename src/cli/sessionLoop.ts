@@ -121,6 +121,14 @@ export async function runHarnessServeSession(
           continue;
         }
 
+        if (command?.type === 'reset') {
+          // Abort any in-flight turn first; reset itself stays on the command
+          // chain so history rollback from the abort finishes before we clear.
+          currentAbort?.abort();
+          enqueue(command);
+          continue;
+        }
+
         if (command) {
           enqueue(command);
           continue;
@@ -137,6 +145,9 @@ export async function runHarnessServeSession(
       const command = parseHarnessCommandLine(buffer);
       if (command?.type === 'cancel') {
         currentAbort?.abort();
+      } else if (command?.type === 'reset') {
+        currentAbort?.abort();
+        enqueue(command);
       } else if (command) {
         enqueue(command);
       }

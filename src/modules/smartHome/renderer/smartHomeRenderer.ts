@@ -136,7 +136,15 @@ export class SmartHomeRenderer {
       }
 
       if (command === '/reset') {
+        this.clearCommandQueue();
+        if (this.harnessActive) {
+          client.cancelTurn();
+        }
+        this.eventLog.clear();
+        this.tokenCounter = null;
+        this.elapsedMs = 0;
         client.resetSession();
+        this.redraw();
         return;
       }
 

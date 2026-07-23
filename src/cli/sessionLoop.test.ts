@@ -201,28 +201,40 @@ describe('runHarnessSession', () => {
     const agent = createSmartHomeAgent();
     setDeviceState(agent.context, { controlGroup: 'light', room: 'livingRoom', deviceId: '1' }, 'OFF');
 
-    const harness = new Harness(agent, { llmClient: { createChatCompletion: vi.fn() }, config: testConfig });
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: { role: 'assistant', content: 'done', refusal: null } }],
+    });
+    const harness = new Harness(agent, { llmClient: { createChatCompletion }, config: testConfig });
 
     let call = 0;
     await runHarnessSession(harness, async () => {
       call += 1;
       if (call === 1) {
+        return 'turn off light 1';
+      }
+      if (call === 2) {
         return '/reset';
       }
       return null;
     });
 
+    expect(harness.getMessageHistory()).toEqual([]);
+    expect(harness.getTurnCount()).toBe(0);
+
     const contextInits = events.filter((event) => event.type === 'context_init');
     expect(contextInits).toHaveLength(2);
 
     const lastInit = contextInits[1];
-    if (lastInit?.type === 'context_init') {
-      const light1 = lastInit.changes.find(
-        (change) =>
-          change.controlGroup === 'light' && change.room === 'livingRoom' && change.deviceId === '1',
-      );
-      expect(light1?.value).toBe('ON');
+    expect(lastInit?.type).toBe('context_init');
+    if (lastInit?.type !== 'context_init') {
+      throw new Error('expected second context_init');
     }
+
+    const light1 = lastInit.changes.find(
+      (change) =>
+        change.controlGroup === 'light' && change.room === 'livingRoom' && change.deviceId === '1',
+    );
+    expect(light1?.value).toBe('ON');
   });
 });
 
@@ -289,6 +301,104 @@ describe('runHarnessServeSession', () => {
     expect(events.some((event) => event.type === 'agent_response' && event.content === 'second')).toBe(true);
     expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 2 });
     expect(harness.getTurnCount()).toBe(2);
+  });
+
+  it('resets history and turn count when reset arrives over stdin', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: 'assistant', content: 'first', refusal: null } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: 'assistant', content: 'second', refusal: null } }],
+      });
+
+    const llmClient: ChatCompletionClient = { createChatCompletion };
+    const harness = new Harness(makeAgent(), { llmClient, config: testConfig });
+
+    const stdin = new PassThrough();
+    const session = runHarnessServeSession(harness, stdin);
+
+    stdin.write('{"type":"user_command","command":"hello"}\n');
+    stdin.write('{"type":"reset"}\n');
+    stdin.write('{"type":"user_command","command":"again"}\n');
+    stdin.write('{"type":"shutdown"}\n');
+    stdin.end();
+
+    await session;
+
+    expect(createChatCompletion).toHaveBeenCalledTimes(2);
+    expect(createChatCompletion.mock.calls[1][0].messages).toEqual([
+      { role: 'system', content: 'test prompt' },
+      { role: 'user', content: 'again' },
+    ]);
+    expect(harness.getMessageHistory()).toEqual([
+      { role: 'user', content: 'again' },
+      { role: 'assistant', content: 'second' },
+    ]);
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 1 });
+  });
+
+  it('aborts an in-flight turn when reset arrives, then clears session state', async () => {
+    const events: HarnessEvent[] = [];
+    setEmitWriter((line) => {
+      events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
+    });
+
+    let callCount = 0;
+    let firstCallStarted: (() => void) | null = null;
+    const firstCallStartedPromise = new Promise<void>((resolve) => {
+      firstCallStarted = resolve;
+    });
+
+    const createChatCompletion = vi.fn().mockImplementation((_params, options?: { signal?: AbortSignal }) => {
+      callCount += 1;
+      const signal = options?.signal;
+
+      if (callCount === 1) {
+        firstCallStarted?.();
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+          });
+        });
+      }
+
+      return Promise.resolve({
+        choices: [{ message: { role: 'assistant', content: 'after-reset', refusal: null } }],
+      });
+    });
+
+    const llmClient: ChatCompletionClient = { createChatCompletion };
+    const harness = new Harness(makeAgent(), { llmClient, config: testConfig });
+
+    const stdin = new PassThrough();
+    const session = runHarnessServeSession(harness, stdin);
+
+    stdin.write('{"type":"user_command","command":"slow"}\n');
+    await firstCallStartedPromise;
+
+    stdin.write('{"type":"reset"}\n');
+    stdin.write('{"type":"user_command","command":"again"}\n');
+    stdin.write('{"type":"shutdown"}\n');
+    stdin.end();
+
+    await session;
+
+    expect(events.some((event) => event.type === 'error' && event.message === 'Cancelled.')).toBe(true);
+    expect(events.some((event) => event.type === 'agent_response' && event.content === 'after-reset')).toBe(
+      true,
+    );
+    expect(createChatCompletion.mock.calls[1][0].messages).toEqual([
+      { role: 'system', content: 'test prompt' },
+      { role: 'user', content: 'again' },
+    ]);
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 1 });
   });
 
   it('cancels an in-flight turn and continues with the next command', async () => {
