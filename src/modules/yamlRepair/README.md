@@ -58,6 +58,18 @@ npm run yaml-repair -- fix syntax errors only, skip placeholders
 npm run yaml-repair -- --serve
 ```
 
+**TUI split-view** (spawns `--serve`, left panel = agent log, right panel = parse status):
+
+```bash
+npm run yaml-repair:tui
+```
+
+Optional initial command:
+
+```bash
+npm run yaml-repair:tui -- call yamlParse only
+```
+
 On startup the harness writes the **work file path to stderr** — a temp copy of the fixture so the source in the repo stays untouched. The file is **left on disk after exit** so you can inspect the repaired result (`cat`, diff, re-run `yamlParse` tools, etc.):
 
 ```

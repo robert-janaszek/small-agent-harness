@@ -413,6 +413,7 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run yaml-repair` | YAML repair REPL (JSONL on stdout) — see [module README](src/modules/yamlRepair/README.md) |
 | `npm run yaml-repair:batch` | YAML repair one-shot with default instruction |
 | `npm run yaml-repair -- --serve` | YAML repair harness server (JSONL stdin/stdout) |
+| `npm run yaml-repair:tui` | YAML repair split-view TUI (requires TTY) |
 | `npm run yaml-repair:human` | YAML repair batch with human-readable trace (dev) |
 | `npm run dev` | Same as `harness` |
 | `npm test` | Unit tests (no LLM) |

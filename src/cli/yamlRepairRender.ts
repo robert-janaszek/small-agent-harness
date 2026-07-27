@@ -1,0 +1,71 @@
+import { YamlRepairRenderer } from '../modules/yamlRepair/renderer/yamlRepairRenderer';
+import { YAML_REPAIR_DEFAULT_COMMAND } from '../modules/yamlRepair/defaultCommand';
+import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
+import { DiffTerminal } from './tui/diffTerminal';
+
+function getTerminalSize(): { rows: number; cols: number } {
+  return {
+    rows: process.stdout.rows ?? 24,
+    cols: process.stdout.columns ?? 80,
+  };
+}
+
+async function main(): Promise<void> {
+  initLangfuseTracing();
+
+  if (!process.stdout.isTTY) {
+    process.stderr.write('TUI renderer requires an interactive terminal (TTY).\n');
+    process.exit(1);
+  }
+
+  if (!process.stdin.isTTY) {
+    process.stderr.write('TUI renderer requires an interactive terminal (TTY).\n');
+    process.exit(1);
+  }
+
+  const override = process.argv.slice(2).join(' ').trim();
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    process.stderr.write('Usage: npm run yaml-repair:tui [-- <initial-command>]\n');
+    process.exit(0);
+  }
+
+  const initialCommand = override.length > 0 ? override : YAML_REPAIR_DEFAULT_COMMAND;
+  const { rows, cols } = getTerminalSize();
+  const terminal = new DiffTerminal(rows, cols);
+  terminal.enter();
+
+  const cleanup = (): void => {
+    terminal.leave();
+  };
+
+  process.on('SIGINT', () => {
+    void flushLangfuse().finally(() => {
+      cleanup();
+      process.exit(130);
+    });
+  });
+  process.on('SIGTERM', cleanup);
+
+  const renderer = new YamlRepairRenderer(terminal, initialCommand);
+
+  process.stdout.on('resize', () => {
+    const size = getTerminalSize();
+    terminal.resize(size.rows, size.cols);
+    renderer.refresh();
+  });
+
+  try {
+    const exitCode = await renderer.run();
+    cleanup();
+    await flushLangfuse();
+    process.exit(exitCode);
+  } catch (error: unknown) {
+    cleanup();
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    process.stderr.write(`${message}\n`);
+    await flushLangfuse();
+    process.exit(1);
+  }
+}
+
+main();

@@ -104,6 +104,15 @@ describe('formatYamlRepairEvent', () => {
     ).toBe('agent: The file is valid YAML.');
   });
 
+  it('formats user commands for the event log', () => {
+    expect(
+      formatYamlRepairEvent({
+        type: 'user_command',
+        command: 'call yamlParse only',
+      }),
+    ).toBe('> call yamlParse only');
+  });
+
   it('skips noisy events like tokens', () => {
     expect(
       formatYamlRepairEvent({
