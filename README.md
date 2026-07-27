@@ -410,7 +410,10 @@ Results will vary widely between models and quantizations. This repo is meant to
 |---------|-------------|
 | `npm start [-- <command>]` | TUI split-view renderer (requires TTY, default) |
 | `npm run harness [-- args]` | Headless harness CLI (batch, REPL, or `--serve`) |
-| `npm run yaml-repair` | YAML repair benchmark — see [module README](src/modules/yamlRepair/README.md) |
+| `npm run yaml-repair` | YAML repair REPL (JSONL on stdout) — see [module README](src/modules/yamlRepair/README.md) |
+| `npm run yaml-repair:batch` | YAML repair one-shot with default instruction |
+| `npm run yaml-repair -- --serve` | YAML repair harness server (JSONL stdin/stdout) |
+| `npm run yaml-repair:human` | YAML repair batch with human-readable trace (dev) |
 | `npm run dev` | Same as `harness` |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:coverage` | Unit tests with V8 coverage report |

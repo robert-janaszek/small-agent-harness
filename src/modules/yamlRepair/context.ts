@@ -76,6 +76,13 @@ export function createWorkFile(sourcePath: string = FIXTURE_PATH): WorkFile {
   };
 }
 
+/** Restore the work file from the fixture and clear edit/parse tracking state. */
+export function resetContext(context: YamlRepairContext, sourcePath: string = FIXTURE_PATH): void {
+  copyFileSync(sourcePath, context.filePath);
+  context.history.clear();
+  context.lastParseErrorCount = null;
+}
+
 export function createContext(filePath?: string): YamlRepairContext {
   const history = createHistoryStack();
 
