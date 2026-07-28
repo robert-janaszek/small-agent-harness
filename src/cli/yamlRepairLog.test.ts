@@ -113,6 +113,15 @@ describe('formatYamlRepairEvent', () => {
     ).toBe('> call yamlParse only');
   });
 
+  it('formats work file events for the event log', () => {
+    expect(
+      formatYamlRepairEvent({
+        type: 'work_file',
+        path: '/tmp/yaml-repair-123/broken.work.yaml',
+      }),
+    ).toBe('work file: /tmp/yaml-repair-123/broken.work.yaml');
+  });
+
   it('skips noisy events like tokens', () => {
     expect(
       formatYamlRepairEvent({

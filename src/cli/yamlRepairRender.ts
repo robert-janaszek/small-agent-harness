@@ -1,6 +1,7 @@
 import { YamlRepairRenderer } from '../modules/yamlRepair/renderer/yamlRepairRenderer';
 import { YAML_REPAIR_DEFAULT_COMMAND } from '../modules/yamlRepair/defaultCommand';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
+import { formatHarnessError } from './formatHarnessError';
 import { DiffTerminal } from './tui/diffTerminal';
 
 function getTerminalSize(): { rows: number; cols: number } {
@@ -38,15 +39,20 @@ async function main(): Promise<void> {
     terminal.leave();
   };
 
-  process.on('SIGINT', () => {
+  const renderer = new YamlRepairRenderer(terminal, initialCommand);
+  let terminating = false;
+
+  const terminate = (exitCode: number): void => {
+    if (terminating) {
+      return;
+    }
+    terminating = true;
+    renderer.shutdown();
     void flushLangfuse().finally(() => {
       cleanup();
-      process.exit(130);
+      process.exit(exitCode);
     });
-  });
-  process.on('SIGTERM', cleanup);
-
-  const renderer = new YamlRepairRenderer(terminal, initialCommand);
+  };
 
   process.stdout.on('resize', () => {
     const size = getTerminalSize();
@@ -54,17 +60,23 @@ async function main(): Promise<void> {
     renderer.refresh();
   });
 
+  process.on('SIGINT', () => terminate(130));
+  process.on('SIGTERM', () => terminate(143));
+
   try {
     const exitCode = await renderer.run();
-    cleanup();
-    await flushLangfuse();
-    process.exit(exitCode);
+    if (!terminating) {
+      cleanup();
+      await flushLangfuse();
+      process.exit(exitCode);
+    }
   } catch (error: unknown) {
-    cleanup();
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    process.stderr.write(`${message}\n`);
-    await flushLangfuse();
-    process.exit(1);
+    if (!terminating) {
+      cleanup();
+      process.stderr.write(`${formatHarnessError(error)}\n`);
+      await flushLangfuse();
+      process.exit(1);
+    }
   }
 }
 

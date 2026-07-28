@@ -137,6 +137,7 @@ describe('yamlRepair harness protocol', () => {
 
     expect(events).toEqual([
       { type: 'ready', protocolVersion: 1 },
+      { type: 'work_file', path: agent.context.filePath },
       { type: 'context_init', changes: [] },
     ]);
     expect(stderrSpy).toHaveBeenCalledWith(`[yamlRepair] work file: ${agent.context.filePath}\n`);
@@ -176,7 +177,8 @@ describe('yamlRepair harness protocol', () => {
     await session;
 
     expect(events[0]).toEqual({ type: 'ready', protocolVersion: 1 });
-    expect(events[1]).toEqual({ type: 'context_init', changes: [] });
+    expect(events[1]).toEqual({ type: 'work_file', path: agent.context.filePath });
+    expect(events[2]).toEqual({ type: 'context_init', changes: [] });
     expect(events.filter((event) => event.type === 'context_init').length).toBe(2);
     expect(events.some((event) => event.type === 'agent_response' && event.content === 'second')).toBe(true);
     expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 1 });
@@ -201,7 +203,10 @@ describe('emitYamlRepairSessionStart', () => {
 
     emitYamlRepairSessionStart(context);
 
-    expect(events).toEqual([{ type: 'context_init', changes: [] }]);
+    expect(events).toEqual([
+      { type: 'work_file', path: context.filePath },
+      { type: 'context_init', changes: [] },
+    ]);
     expect(stderrSpy).toHaveBeenCalledWith(`[yamlRepair] work file: ${context.filePath}\n`);
 
     stderrSpy.mockRestore();

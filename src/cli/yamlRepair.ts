@@ -1,6 +1,7 @@
 import { Harness } from '../harness/harness';
 import { createYamlRepairAgent } from '../modules/yamlRepair/agent';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
+import { formatHarnessError } from './formatHarnessError';
 import { emit } from './jsonl';
 import { createUserCommandReader, readUserCommand } from './readUserCommand';
 import { runHarnessReplSession, runHarnessServeSession, emitHarnessStartup } from './sessionLoop';
@@ -51,8 +52,7 @@ async function main() {
 }
 
 main().catch(async (error: unknown) => {
-  const message = error instanceof Error ? error.message : 'Unknown error';
-  emit({ type: 'error', message });
+  emit({ type: 'error', message: formatHarnessError(error) });
   await flushLangfuse();
   process.exit(1);
 });

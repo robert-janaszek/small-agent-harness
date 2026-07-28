@@ -4,12 +4,18 @@ import { join } from 'node:path';
 
 import type { HarnessCommand, HarnessEvent } from './jsonl';
 
-function resolveHarnessEntry(): string {
-  return join(process.cwd(), 'src/cli/main.ts');
+export type HarnessSessionClientOptions = {
+  entry?: string;
+  extraArgs?: string[];
+};
+
+function resolveHarnessEntry(entry = 'src/cli/main.ts'): string {
+  return join(process.cwd(), entry);
 }
 
-function resolveHarnessSpawnArgs(extraArgs: string[] = []): { cmd: string; args: string[] } {
-  const entry = resolveHarnessEntry();
+function resolveHarnessSpawnArgs(options: HarnessSessionClientOptions = {}): { cmd: string; args: string[] } {
+  const entry = resolveHarnessEntry(options.entry);
+  const extraArgs = options.extraArgs ?? [];
   const tsxBin = join(process.cwd(), 'node_modules/.bin/tsx');
 
   if (existsSync(tsxBin)) {
@@ -19,8 +25,11 @@ function resolveHarnessSpawnArgs(extraArgs: string[] = []): { cmd: string; args:
   return { cmd: 'npx', args: ['tsx', entry, ...extraArgs] };
 }
 
-export function spawnHarnessSession(): ReturnType<typeof spawn> {
-  const { cmd, args } = resolveHarnessSpawnArgs(['--serve']);
+export function spawnHarnessSession(options: HarnessSessionClientOptions = {}): ReturnType<typeof spawn> {
+  const { cmd, args } = resolveHarnessSpawnArgs({
+    entry: options.entry,
+    extraArgs: options.extraArgs ?? ['--serve'],
+  });
   return spawn(cmd, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: { ...process.env },
@@ -99,8 +108,8 @@ export class HarnessSessionClient {
   private readonly sessionEndedListeners = new Set<() => void>();
   private readonly eventsDone: Promise<void>;
 
-  constructor() {
-    this.child = spawnHarnessSession();
+  constructor(options: HarnessSessionClientOptions = {}) {
+    this.child = spawnHarnessSession(options);
 
     this.child.on('close', (code) => {
       this.exitCode = code ?? 1;

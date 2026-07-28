@@ -1,5 +1,4 @@
 import type { HarnessEvent } from '../../../cli/jsonl';
-import { HarnessSessionClient } from '../../../cli/harnessClient';
 import { DiffTerminal } from '../../../cli/tui/diffTerminal';
 import {
   paintCommandPalette,
@@ -12,6 +11,7 @@ import { EventLog } from './eventLog';
 import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
 import { paintHomePanel } from './homeFloorPlan';
 import { applyHomeStateEvent, createHomeState } from './homeState';
+import { SmartHomeHarnessClient } from './smartHomeHarnessClient';
 import { paintStatusBar } from './statusBar';
 import type { TokenCounterState } from './tokenCounter';
 
@@ -58,6 +58,7 @@ export function getBottomLayout(
 export class SmartHomeRenderer {
   private terminal: DiffTerminal;
   private initialCommand: string | null;
+  private client: SmartHomeHarnessClient | null = null;
   private eventLog = new EventLog();
   private homeState = createHomeState();
   private tokenCounter: TokenCounterState | null = null;
@@ -90,7 +91,7 @@ export class SmartHomeRenderer {
     this.redraw();
   }
 
-  private requestExit(client: HarnessSessionClient): void {
+  private requestExit(client: SmartHomeHarnessClient): void {
     if (this.interrupted || client.hasSessionEnded()) {
       return;
     }
@@ -100,8 +101,16 @@ export class SmartHomeRenderer {
     client.shutdown();
   }
 
+  shutdown(): void {
+    const client = this.client;
+    if (client) {
+      this.requestExit(client);
+    }
+  }
+
   async run(): Promise<number> {
-    const client = new HarnessSessionClient();
+    const client = new SmartHomeHarnessClient();
+    this.client = client;
     client.onEvent((event) => this.onEvent(event));
 
     this.elapsedMs = 0;
@@ -179,10 +188,12 @@ export class SmartHomeRenderer {
     this.inputLine.close();
     this.redraw();
 
-    return client.waitForExit();
+    const exitCode = await client.waitForExit();
+    this.client = null;
+    return exitCode;
   }
 
-  private async waitForSessionEnd(client: HarnessSessionClient): Promise<void> {
+  private async waitForSessionEnd(client: SmartHomeHarnessClient): Promise<void> {
     if (client.hasSessionEnded() || this.interrupted) {
       return;
     }
@@ -195,7 +206,7 @@ export class SmartHomeRenderer {
     });
   }
 
-  private async drainQueue(client: HarnessSessionClient): Promise<void> {
+  private async drainQueue(client: SmartHomeHarnessClient): Promise<void> {
     if (this.dispatching || !this.harnessReady || this.interrupted || client.hasSessionEnded()) {
       return;
     }
@@ -221,7 +232,7 @@ export class SmartHomeRenderer {
     }
   }
 
-  private async runTurn(client: HarnessSessionClient, command: string): Promise<void> {
+  private async runTurn(client: SmartHomeHarnessClient, command: string): Promise<void> {
     this.harnessActive = true;
     this.turnStartedAt = Date.now();
 

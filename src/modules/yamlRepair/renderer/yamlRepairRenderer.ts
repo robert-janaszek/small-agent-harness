@@ -62,6 +62,7 @@ export function getBottomLayout(
 export class YamlRepairRenderer {
   private terminal: DiffTerminal;
   private initialCommand: string | null;
+  private client: YamlRepairHarnessClient | null = null;
   private eventLog = new EventLog();
   private parseStatus = createParseStatusState();
   private tokenCounter: TokenCounterState | null = null;
@@ -104,8 +105,16 @@ export class YamlRepairRenderer {
     client.shutdown();
   }
 
+  shutdown(): void {
+    const client = this.client;
+    if (client) {
+      this.requestExit(client);
+    }
+  }
+
   async run(): Promise<number> {
     const client = new YamlRepairHarnessClient();
+    this.client = client;
     client.onEvent((event) => this.onEvent(event));
 
     this.elapsedMs = 0;
@@ -182,7 +191,9 @@ export class YamlRepairRenderer {
     this.inputLine.close();
     this.redraw();
 
-    return client.waitForExit();
+    const exitCode = await client.waitForExit();
+    this.client = null;
+    return exitCode;
   }
 
   private async waitForSessionEnd(client: YamlRepairHarnessClient): Promise<void> {
@@ -264,6 +275,8 @@ export class YamlRepairRenderer {
 
   private paintStatusBarOnTerminal(): void {
     const split = getSplitColumns(this.terminal.width);
+    // TODO: Clamp both panels to the real terminal width instead of forcing
+    // PARSE_PANEL_MIN_WIDTH and silently clipping on narrow terminals.
     const rightWidth = Math.max(split.rightWidth, PARSE_PANEL_MIN_WIDTH);
 
     paintStatusBar(this.terminal, split.dividerCol + 1, rightWidth, this.terminal.height - 1, {
@@ -294,6 +307,8 @@ export class YamlRepairRenderer {
       palette?.matches.length ?? 0,
     );
     const leftLines = this.eventLog.render(layout.contentRows, split.leftWidth);
+    // TODO: Clamp both panels to the real terminal width instead of forcing
+    // PARSE_PANEL_MIN_WIDTH and silently clipping on narrow terminals.
     const rightWidth = Math.max(split.rightWidth, PARSE_PANEL_MIN_WIDTH);
 
     this.terminal.clear();

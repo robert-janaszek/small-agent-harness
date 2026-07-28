@@ -34,6 +34,10 @@ describe('yamlRepair renderer frame composition', () => {
     const parseStatus = createParseStatusState();
 
     eventLog.append({
+      type: 'work_file',
+      path: '/tmp/yaml-repair-123/broken.work.yaml',
+    });
+    eventLog.append({
       type: 'user_command',
       command: 'call yamlParse',
     });
@@ -53,6 +57,7 @@ describe('yamlRepair renderer frame composition', () => {
     const leftLines = eventLog.render(4, 40);
     const rightLines = renderParseStatusLines(parseStatus, 6, 30);
 
+    expect(leftLines.join('\n')).toContain('work file: /tmp/yaml-repair-123/broken.');
     expect(leftLines.join('\n')).toContain('> call yamlParse');
     expect(leftLines.join('\n')).toContain('→ yamlParse');
     expect(rightLines).toContain('2 errors');

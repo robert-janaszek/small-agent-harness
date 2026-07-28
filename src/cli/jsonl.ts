@@ -23,6 +23,7 @@ export type HarnessCommand =
 
 export type HarnessEvent =
   | { type: 'ready'; protocolVersion: number }
+  | { type: 'work_file'; path: string }
   | { type: 'user_command'; command: string }
   | { type: 'assistant_message'; content: string }
   | { type: 'tool_call'; name: string; args: unknown; toolCallId: string }
