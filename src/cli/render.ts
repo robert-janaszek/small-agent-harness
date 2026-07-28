@@ -13,6 +13,11 @@ function getTerminalSize(): { rows: number; cols: number } {
 async function main(): Promise<void> {
   initLangfuseTracing();
 
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    process.stderr.write('Usage: npm start [-- <initial-command>]\n');
+    process.exit(0);
+  }
+
   if (!process.stdout.isTTY) {
     process.stderr.write('TUI renderer requires an interactive terminal (TTY).\n');
     process.exit(1);
@@ -24,10 +29,6 @@ async function main(): Promise<void> {
   }
 
   const command = process.argv.slice(2).join(' ').trim() || null;
-  if (process.argv.includes('--help') || process.argv.includes('-h')) {
-    process.stderr.write('Usage: npm start [-- <initial-command>]\n');
-    process.exit(0);
-  }
 
   const { rows, cols } = getTerminalSize();
   const terminal = new DiffTerminal(rows, cols);

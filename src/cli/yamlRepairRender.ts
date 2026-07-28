@@ -14,6 +14,11 @@ function getTerminalSize(): { rows: number; cols: number } {
 async function main(): Promise<void> {
   initLangfuseTracing();
 
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    process.stderr.write('Usage: npm run yaml-repair:tui [-- <initial-command>]\n');
+    process.exit(0);
+  }
+
   if (!process.stdout.isTTY) {
     process.stderr.write('TUI renderer requires an interactive terminal (TTY).\n');
     process.exit(1);
@@ -25,10 +30,6 @@ async function main(): Promise<void> {
   }
 
   const override = process.argv.slice(2).join(' ').trim();
-  if (process.argv.includes('--help') || process.argv.includes('-h')) {
-    process.stderr.write('Usage: npm run yaml-repair:tui [-- <initial-command>]\n');
-    process.exit(0);
-  }
 
   const initialCommand = override.length > 0 ? override : YAML_REPAIR_DEFAULT_COMMAND;
   const { rows, cols } = getTerminalSize();

@@ -3,7 +3,7 @@ import { createYamlRepairAgent } from '../modules/yamlRepair/agent';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { formatHarnessError } from './formatHarnessError';
 import { emit } from './jsonl';
-import { createUserCommandReader, readUserCommand } from './readUserCommand';
+import { createUserCommandReader } from './readUserCommand';
 import { runHarnessReplSession, runHarnessServeSession, emitHarnessStartup } from './sessionLoop';
 import { parseYamlRepairArgv } from './yamlRepairArgv';
 import { installYamlRepairLogWriter } from './yamlRepairLog';
@@ -36,15 +36,8 @@ async function main() {
       return;
     }
 
-    const userCommand = command.length > 0 ? command : await readUserCommand([]);
-    if (!userCommand) {
-      emit({ type: 'error', message: 'Command is required.' });
-      process.exitCode = 1;
-      return;
-    }
-
     emitHarnessStartup(harness);
-    await harness.run(userCommand);
+    await harness.run(command);
   } finally {
     agent.context.history.clear();
     await flushLangfuse();
