@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import type { ChatCompletionClient } from '../client/llmClient.type';
-import { parseYamlRepairArgv } from './yamlRepair';
+import { parseYamlRepairArgv } from './yamlRepairArgv';
 import { Harness } from '../harness/harness';
 import type { HarnessConfig } from '../harness/harness.config.validate';
 import { resetEmitWriter, setEmitWriter, type HarnessEvent } from './jsonl';
