@@ -62,6 +62,30 @@ describe('parseYamlRepairArgv', () => {
       human: true,
     });
   });
+
+  it('rejects --serve combined with --default', () => {
+    expect(() => parseYamlRepairArgv(['--serve', '--default'])).toThrow(
+      '`--serve` cannot be combined with `--default`.',
+    );
+  });
+
+  it('rejects --serve combined with a batch command', () => {
+    expect(() => parseYamlRepairArgv(['fix syntax only', '--serve'])).toThrow(
+      '`--serve` cannot be combined with a batch command.',
+    );
+  });
+
+  it('rejects --serve combined with --human', () => {
+    expect(() => parseYamlRepairArgv(['--serve', '--human'])).toThrow(
+      '`--serve` cannot be combined with `--human`.',
+    );
+  });
+
+  it('rejects --default combined with a custom command', () => {
+    expect(() => parseYamlRepairArgv(['--default', 'fix syntax only'])).toThrow(
+      '`--default` cannot be combined with a custom command.',
+    );
+  });
 });
 
 describe('resetContext', () => {
