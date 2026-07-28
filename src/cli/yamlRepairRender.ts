@@ -15,7 +15,7 @@ async function main(): Promise<void> {
   initLangfuseTracing();
 
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
-    process.stderr.write('Usage: npm run yaml-repair:tui [-- <initial-command>]\n');
+    process.stderr.write('Usage: npm run yaml-repair [-- <initial-command>]\n');
     process.exit(0);
   }
 

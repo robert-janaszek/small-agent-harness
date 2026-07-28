@@ -34,10 +34,22 @@ cp .env.sample .env
 
 ### Run the agent
 
-**Interactive REPL** (no arguments — same pattern as `npm run harness`):
+**TUI split-view** (default — same role as `npm start` for smart home):
 
 ```bash
 npm run yaml-repair
+```
+
+Optional initial command:
+
+```bash
+npm run yaml-repair -- call yamlParse only
+```
+
+**Headless CLI** (JSONL on stdout — same role as `npm run harness`):
+
+```bash
+npm run yaml-repair:harness
 ```
 
 **One-shot batch** with the default repair instruction:
@@ -49,25 +61,13 @@ npm run yaml-repair:batch
 **Custom batch command:**
 
 ```bash
-npm run yaml-repair -- fix syntax errors only, skip placeholders
+npm run yaml-repair:harness -- fix syntax errors only, skip placeholders
 ```
 
-**Serve mode** (JSONL on stdout, commands on stdin — for renderers and automation):
+**Serve mode** (JSONL on stdout, commands on stdin — for external renderers):
 
 ```bash
-npm run yaml-repair -- --serve
-```
-
-**TUI split-view** (spawns `--serve`, left panel = agent log, right panel = parse status):
-
-```bash
-npm run yaml-repair:tui
-```
-
-Optional initial command:
-
-```bash
-npm run yaml-repair:tui -- call yamlParse only
+npm run yaml-repair:harness -- --serve
 ```
 
 On startup the harness writes the **work file path to stderr** — a temp copy of the fixture so the source in the repo stays untouched. The file is **left on disk after exit** so you can inspect the repaired result (`cat`, diff, re-run `yamlParse` tools, etc.):
@@ -82,7 +82,7 @@ On startup the harness writes the **work file path to stderr** — a temp copy o
 
 ```bash
 npm run yaml-repair:human
-# or: npm run yaml-repair -- --default --human
+# or: npm run yaml-repair:harness -- --default --human
 ```
 
 Example human output:
@@ -150,4 +150,4 @@ yamlRepair/
 └── *.test.ts
 ```
 
-Entry point: `src/cli/yamlRepair.ts` (`npm run yaml-repair`).
+Entry point: `src/cli/yamlRepairRender.ts` (`npm run yaml-repair`). Headless harness: `src/cli/yamlRepair.ts` (`npm run yaml-repair:harness`).
