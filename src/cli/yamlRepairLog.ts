@@ -101,9 +101,12 @@ export function formatYamlRepairEvent(event: HarnessEvent): string | null {
     }
     case 'error':
       return `ERROR: ${event.message}`;
+    case 'work_file':
+      return `work file: ${event.path}`;
+    case 'user_command':
+      return `> ${event.command}`;
     case 'tokens':
     case 'ready':
-    case 'user_command':
     case 'context_init':
     case 'context_delta':
     case 'session_end':

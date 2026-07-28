@@ -1,4 +1,5 @@
-import { SmartHomeRenderer } from '../modules/smartHome/renderer/smartHomeRenderer';
+import { YamlRepairRenderer } from '../modules/yamlRepair/renderer/yamlRepairRenderer';
+import { YAML_REPAIR_DEFAULT_COMMAND } from '../modules/yamlRepair/defaultCommand';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { formatHarnessError } from './formatHarnessError';
 import { DiffTerminal } from './tui/diffTerminal';
@@ -14,7 +15,7 @@ async function main(): Promise<void> {
   initLangfuseTracing();
 
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
-    process.stderr.write('Usage: npm start [-- <initial-command>]\n');
+    process.stderr.write('Usage: npm run yaml-repair [-- <initial-command>]\n');
     process.exit(0);
   }
 
@@ -28,8 +29,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const command = process.argv.slice(2).join(' ').trim() || null;
+  const override = process.argv.slice(2).join(' ').trim();
 
+  const initialCommand = override.length > 0 ? override : YAML_REPAIR_DEFAULT_COMMAND;
   const { rows, cols } = getTerminalSize();
   const terminal = new DiffTerminal(rows, cols);
   terminal.enter();
@@ -38,7 +40,7 @@ async function main(): Promise<void> {
     terminal.leave();
   };
 
-  const renderer = new SmartHomeRenderer(terminal, command);
+  const renderer = new YamlRepairRenderer(terminal, initialCommand);
   let terminating = false;
 
   const terminate = (exitCode: number): void => {

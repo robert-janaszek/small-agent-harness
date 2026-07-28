@@ -8,12 +8,16 @@ import {
 } from '../../../cli/tui/inputPrompt';
 import { drawVerticalDivider, getSplitColumns } from '../../../cli/tui/splitLayout';
 import { EventLog } from './eventLog';
-import { FLOOR_PLAN_MIN_WIDTH } from './homeFloorPlan.template';
-import { paintHomePanel } from './homeFloorPlan';
-import { applyHomeStateEvent, createHomeState } from './homeState';
-import { SmartHomeHarnessClient } from './smartHomeHarnessClient';
+import {
+  applyParseStatusEvent,
+  createParseStatusState,
+  PARSE_PANEL_MIN_WIDTH,
+  paintParseStatusPanel,
+  resetParseStatusState,
+} from './parseStatusPanel';
 import { paintStatusBar } from './statusBar';
 import type { TokenCounterState } from './tokenCounter';
+import { YamlRepairHarnessClient } from './yamlRepairHarnessClient';
 
 const ACTIVITY_INTERVAL_MS = 120;
 
@@ -55,12 +59,12 @@ export function getBottomLayout(
   };
 }
 
-export class SmartHomeRenderer {
+export class YamlRepairRenderer {
   private terminal: DiffTerminal;
   private initialCommand: string | null;
-  private client: SmartHomeHarnessClient | null = null;
+  private client: YamlRepairHarnessClient | null = null;
   private eventLog = new EventLog();
-  private homeState = createHomeState();
+  private parseStatus = createParseStatusState();
   private tokenCounter: TokenCounterState | null = null;
   private activityTick = 0;
   private harnessActive = false;
@@ -91,7 +95,7 @@ export class SmartHomeRenderer {
     this.redraw();
   }
 
-  private requestExit(client: SmartHomeHarnessClient): void {
+  private requestExit(client: YamlRepairHarnessClient): void {
     if (this.interrupted || client.hasSessionEnded()) {
       return;
     }
@@ -109,7 +113,7 @@ export class SmartHomeRenderer {
   }
 
   async run(): Promise<number> {
-    const client = new SmartHomeHarnessClient();
+    const client = new YamlRepairHarnessClient();
     this.client = client;
     client.onEvent((event) => this.onEvent(event));
 
@@ -118,8 +122,6 @@ export class SmartHomeRenderer {
 
     this.inputLine.setOnInterrupt(() => {
       if (this.harnessReady && this.harnessActive) {
-        // Cancel the in-flight turn and drop pending work so Ctrl+C cannot get
-        // stuck repeatedly cancelling a non-empty queue.
         this.clearCommandQueue();
         client.cancelTurn();
         return;
@@ -152,6 +154,7 @@ export class SmartHomeRenderer {
         this.eventLog.clear();
         this.tokenCounter = null;
         this.elapsedMs = 0;
+        resetParseStatusState(this.parseStatus);
         client.resetSession();
         this.redraw();
         return;
@@ -193,7 +196,7 @@ export class SmartHomeRenderer {
     return exitCode;
   }
 
-  private async waitForSessionEnd(client: SmartHomeHarnessClient): Promise<void> {
+  private async waitForSessionEnd(client: YamlRepairHarnessClient): Promise<void> {
     if (client.hasSessionEnded() || this.interrupted) {
       return;
     }
@@ -206,7 +209,7 @@ export class SmartHomeRenderer {
     });
   }
 
-  private async drainQueue(client: SmartHomeHarnessClient): Promise<void> {
+  private async drainQueue(client: YamlRepairHarnessClient): Promise<void> {
     if (this.dispatching || !this.harnessReady || this.interrupted || client.hasSessionEnded()) {
       return;
     }
@@ -232,7 +235,7 @@ export class SmartHomeRenderer {
     }
   }
 
-  private async runTurn(client: SmartHomeHarnessClient, command: string): Promise<void> {
+  private async runTurn(client: YamlRepairHarnessClient, command: string): Promise<void> {
     this.harnessActive = true;
     this.turnStartedAt = Date.now();
 
@@ -272,7 +275,9 @@ export class SmartHomeRenderer {
 
   private paintStatusBarOnTerminal(): void {
     const split = getSplitColumns(this.terminal.width);
-    const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
+    // TODO: Clamp both panels to the real terminal width instead of forcing
+    // PARSE_PANEL_MIN_WIDTH and silently clipping on narrow terminals.
+    const rightWidth = Math.max(split.rightWidth, PARSE_PANEL_MIN_WIDTH);
 
     paintStatusBar(this.terminal, split.dividerCol + 1, rightWidth, this.terminal.height - 1, {
       tokenCounter: this.tokenCounter,
@@ -302,7 +307,9 @@ export class SmartHomeRenderer {
       palette?.matches.length ?? 0,
     );
     const leftLines = this.eventLog.render(layout.contentRows, split.leftWidth);
-    const rightWidth = Math.max(split.rightWidth, FLOOR_PLAN_MIN_WIDTH);
+    // TODO: Clamp both panels to the real terminal width instead of forcing
+    // PARSE_PANEL_MIN_WIDTH and silently clipping on narrow terminals.
+    const rightWidth = Math.max(split.rightWidth, PARSE_PANEL_MIN_WIDTH);
 
     this.terminal.clear();
 
@@ -311,7 +318,13 @@ export class SmartHomeRenderer {
     }
 
     drawVerticalDivider(this.terminal, split.dividerCol);
-    paintHomePanel(this.terminal, split.dividerCol + 1, rightWidth, layout.contentRows, this.homeState);
+    paintParseStatusPanel(
+      this.terminal,
+      split.dividerCol + 1,
+      rightWidth,
+      layout.contentRows,
+      this.parseStatus,
+    );
 
     if (layout.queueBannerRow !== null) {
       paintQueueBanner(this.terminal, layout.queueBannerRow, split.leftWidth, queueLength);
@@ -334,14 +347,11 @@ export class SmartHomeRenderer {
       if (raw.content.trim().length > 0) {
         this.eventLog.append(raw);
       }
-    } else if (raw.type !== 'context_delta' || raw.changes.length > 0) {
-      if (raw.type !== 'ready' && raw.type !== 'session_end') {
-        this.eventLog.append(raw);
-      }
+    } else if (raw.type !== 'context_init' && raw.type !== 'ready' && raw.type !== 'session_end') {
+      this.eventLog.append(raw);
     }
 
-    applyHomeStateEvent(this.homeState, raw);
-
+    applyParseStatusEvent(this.parseStatus, raw);
     this.redraw();
   }
 }

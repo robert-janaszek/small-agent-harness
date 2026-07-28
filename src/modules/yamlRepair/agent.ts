@@ -1,6 +1,7 @@
 import { Agent } from '../../harness/agent.type';
-import { createContext, type YamlRepairContext } from './context';
+import { createContext, resetContext, type YamlRepairContext } from './context';
 import { grepTool } from './grep.tool';
+import { emitYamlRepairContextInit, emitYamlRepairSessionStart } from './protocol';
 import { readTool } from './read.tool';
 import { replaceTool } from './replace.tool';
 import { undoTool } from './undo.tool';
@@ -49,6 +50,11 @@ export function createYamlRepairAgent(filePath?: string): YamlRepairAgent {
 
   return {
     context,
+    onSessionStart: () => emitYamlRepairSessionStart(context),
+    onSessionReset: () => {
+      resetContext(context);
+      emitYamlRepairContextInit();
+    },
     prompt: YAML_REPAIR_PROMPT,
     tools: [
       readTool(context),

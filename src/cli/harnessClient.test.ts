@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { spawn } from 'node:child_process';
 import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChildProcess } from 'node:child_process';
@@ -164,6 +165,25 @@ describe('HarnessSessionClient', () => {
     emitStdoutEvent({ type: 'ready', protocolVersion: 1 });
 
     await expect(ready).resolves.toBeUndefined();
+  });
+
+  it('supports overriding the spawned harness entry and args', async () => {
+    new HarnessSessionClient({
+      entry: 'src/cli/yamlRepair.ts',
+      extraArgs: ['--serve'],
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      expect.stringContaining('node_modules/.bin/tsx'),
+      [
+        expect.stringContaining('src/cli/yamlRepair.ts'),
+        '--serve',
+      ],
+      {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: expect.any(Object),
+      },
+    );
   });
 
   it('resolves waitForContextInit when context_init arrives after waiting', async () => {

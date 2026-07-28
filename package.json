@@ -11,7 +11,10 @@
     "test:watch": "vitest",
     "build": "tsc",
     "harness": "tsx src/cli/main.ts",
-    "yaml-repair": "tsx src/cli/yamlRepair.ts",
+    "yaml-repair": "tsx src/cli/yamlRepairRender.ts",
+    "yaml-repair:harness": "tsx src/cli/yamlRepair.ts",
+    "yaml-repair:batch": "tsx src/cli/yamlRepair.ts --default",
+    "yaml-repair:human": "tsx src/cli/yamlRepair.ts --default --human",
     "start": "tsx src/cli/render.ts",
     "render": "tsx src/cli/render.ts"
   },

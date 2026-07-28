@@ -34,25 +34,63 @@ cp .env.sample .env
 
 ### Run the agent
 
+**TUI split-view** (default — same role as `npm start` for smart home):
+
 ```bash
 npm run yaml-repair
 ```
 
-On startup the CLI prints the **work file path** — a temp copy of the fixture so the source in the repo stays untouched. The file is **left on disk after exit** so you can inspect the repaired result (`cat`, diff, re-run `yamlParse` tools, etc.):
+Optional initial command:
+
+```bash
+npm run yaml-repair -- call yamlParse only
+```
+
+**Headless CLI** (JSONL on stdout — same role as `npm run harness`):
+
+```bash
+npm run yaml-repair:harness
+```
+
+**One-shot batch** with the default repair instruction:
+
+```bash
+npm run yaml-repair:batch
+```
+
+**Custom batch command:**
+
+```bash
+npm run yaml-repair:harness -- fix syntax errors only, skip placeholders
+```
+
+**Serve mode** (JSONL on stdout, commands on stdin — for external renderers):
+
+```bash
+npm run yaml-repair:harness -- --serve
+```
+
+On startup the harness writes the **work file path to stderr** — a temp copy of the fixture so the source in the repo stays untouched. The file is **left on disk after exit** so you can inspect the repaired result (`cat`, diff, re-run `yamlParse` tools, etc.):
 
 ```
 [yamlRepair] work file: /tmp/yaml-repair-XXXX/broken.work.yaml
+```
+
+**Stdout contract:** newline-delimited JSON events (`ready`, `user_command`, `tool_call`, `tool_result`, `tokens`, `agent_response`, `session_end`, …). Same protocol as the smart-home harness.
+
+**Human-readable trace** (dev/debug only):
+
+```bash
+npm run yaml-repair:human
+# or: npm run yaml-repair:harness -- --default --human
+```
+
+Example human output:
+
+```
 → yamlParse
 ← yamlParse: 6 error(s)
 …
-```
-
-Output on stdout is a **human-readable trace** (tool calls, replace old→new with visible indentation, parse results). JSONL is not printed; the harness still emits the same events internally for future renderers.
-
-Optional: override the default repair instruction:
-
-```bash
-npm run yaml-repair -- fix syntax errors only, skip placeholders
 ```
 
 ### Unit tests (no LLM)
@@ -112,4 +150,4 @@ yamlRepair/
 └── *.test.ts
 ```
 
-Entry point: `src/cli/yamlRepair.ts` (`npm run yaml-repair`).
+Entry point: `src/cli/yamlRepairRender.ts` (`npm run yaml-repair`). Headless harness: `src/cli/yamlRepair.ts` (`npm run yaml-repair:harness`).
