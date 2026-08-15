@@ -1,3 +1,5 @@
+import { firstGrapheme, graphemes } from './unicode';
+
 export type TrueColor = { r: number; g: number; b: number };
 
 export type CharCell = { ch: string; fg?: number; bg?: number; trueColorBg?: TrueColor };
@@ -81,12 +83,13 @@ export class DiffTerminal {
     trueColorBg?: TrueColor,
   ): void {
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return;
-    this.buffer[row][col] = { ch: ch.slice(0, 1) || ' ', fg, bg, trueColorBg };
+    this.buffer[row][col] = { ch: firstGrapheme(ch), fg, bg, trueColorBg };
   }
 
   fill(row: number, col: number, text: string): void {
-    for (let i = 0; i < text.length; i++) {
-      this.setChar(row, col + i, text[i] ?? ' ');
+    const chars = graphemes(text);
+    for (let i = 0; i < chars.length; i++) {
+      this.setChar(row, col + i, chars[i] ?? ' ');
     }
   }
 

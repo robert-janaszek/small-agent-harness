@@ -76,4 +76,18 @@ describe('DiffTerminal', () => {
 
     expect(output.join('')).toContain('\x1b[37;48;2;135;206;250mx\x1b[0m');
   });
+
+  it('fills Polish letters as whole cells', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(1, 5, (chunk) => output.push(chunk));
+
+    terminal.fill(0, 0, 'żółć');
+    terminal.flush();
+
+    const rendered = output.join('');
+    expect(rendered).toContain('ż');
+    expect(rendered).toContain('ó');
+    expect(rendered).toContain('ł');
+    expect(rendered).toContain('ć');
+  });
 });

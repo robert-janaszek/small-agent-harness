@@ -2,6 +2,7 @@ import { stdin } from 'node:process';
 
 import type { DiffTerminal } from './diffTerminal';
 import { colors } from './colors';
+import { deleteGraphemeBefore, isPrintableText, moveCursorByGrapheme } from './unicode';
 
 const CURSOR_ON_EMPTY = '\u2581';
 const KEY_ENTER = '\r';
@@ -15,8 +16,6 @@ const KEY_ARROW_RIGHT = `${KEY_ESCAPE}[C`;
 const KEY_ARROW_UP = `${KEY_ESCAPE}[A`;
 const KEY_ARROW_DOWN = `${KEY_ESCAPE}[B`;
 const CTRL_C_BYTE = 0x03;
-const PRINTABLE_ASCII_MIN = 0x20;
-const PRINTABLE_ASCII_MAX = 0x7f;
 
 function isEnterKey(key: string): boolean {
   return key === KEY_ENTER || key === KEY_NEWLINE;
@@ -30,9 +29,6 @@ function isEscapeSequence(key: string): boolean {
   return key.startsWith(KEY_ESCAPE);
 }
 
-function isPrintableAscii(byte: number): boolean {
-  return byte >= PRINTABLE_ASCII_MIN && byte < PRINTABLE_ASCII_MAX;
-}
 export const INPUT_PREFIX = '> ';
 
 export const SLASH_COMMANDS = ['/clear', '/exit', '/reset'] as const;
@@ -180,11 +176,12 @@ export class TerminalInputLine {
   private onInterrupt: (() => void) | null = null;
   private readonly onUpdate: () => void;
   private readonly handleInputData: (chunk: Buffer) => void;
+  private decoder = new TextDecoder('utf-8');
 
   constructor(onUpdate: () => void) {
     this.onUpdate = onUpdate;
     this.handleInputData = (chunk) => {
-      this.handleKey(chunk);
+      this.handleRawChunk(chunk);
     };
   }
 
@@ -217,6 +214,7 @@ export class TerminalInputLine {
     this.paletteDismissed = false;
     this.paletteSelectedIndex = 0;
     this.lastPaletteMatchKey = '';
+    this.decoder = new TextDecoder('utf-8');
     this.onUpdate();
 
     stdin.setRawMode(true);
@@ -233,6 +231,7 @@ export class TerminalInputLine {
     if (stdin.isTTY) {
       stdin.setRawMode(false);
     }
+    stdin.pause();
 
     this.active = false;
     this.onSubmit = null;
@@ -241,6 +240,7 @@ export class TerminalInputLine {
     this.paletteDismissed = false;
     this.paletteSelectedIndex = 0;
     this.lastPaletteMatchKey = '';
+    this.decoder = new TextDecoder('utf-8');
     this.onUpdate();
   }
 
@@ -279,14 +279,21 @@ export class TerminalInputLine {
     return true;
   }
 
-  private handleKey(chunk: Buffer): void {
+  private handleRawChunk(chunk: Buffer): void {
     if (chunk.length === 1 && chunk[0] === CTRL_C_BYTE) {
       this.onInterrupt?.();
       return;
     }
 
-    const key = chunk.toString();
+    const key = this.decoder.decode(chunk, { stream: true });
+    if (key.length === 0) {
+      return;
+    }
 
+    this.handleKey(key);
+  }
+
+  private handleKey(key: string): void {
     if (isEnterKey(key)) {
       const palette = this.getVisiblePalette();
       const submitValue = palette ? palette.matches[palette.selectedIndex]! : this.value.trim();
@@ -316,8 +323,9 @@ export class TerminalInputLine {
 
     if (isBackspaceKey(key)) {
       if (this.cursor > 0) {
-        this.value = `${this.value.slice(0, this.cursor - 1)}${this.value.slice(this.cursor)}`;
-        this.cursor -= 1;
+        const next = deleteGraphemeBefore(this.value, this.cursor);
+        this.value = next.text;
+        this.cursor = next.cursor;
         this.syncPaletteDismissed();
         this.syncPaletteSelection();
         this.onUpdate();
@@ -337,18 +345,14 @@ export class TerminalInputLine {
     }
 
     if (key === KEY_ARROW_LEFT) {
-      if (this.cursor > 0) {
-        this.cursor -= 1;
-        this.onUpdate();
-      }
+      this.cursor = moveCursorByGrapheme(this.value, this.cursor, -1);
+      this.onUpdate();
       return;
     }
 
     if (key === KEY_ARROW_RIGHT) {
-      if (this.cursor < this.value.length) {
-        this.cursor += 1;
-        this.onUpdate();
-      }
+      this.cursor = moveCursorByGrapheme(this.value, this.cursor, 1);
+      this.onUpdate();
       return;
     }
 
@@ -356,7 +360,7 @@ export class TerminalInputLine {
       return;
     }
 
-    if (chunk.every((byte) => isPrintableAscii(byte))) {
+    if (isPrintableText(key)) {
       this.value = `${this.value.slice(0, this.cursor)}${key}${this.value.slice(this.cursor)}`;
       this.cursor += key.length;
       this.syncPaletteDismissed();
