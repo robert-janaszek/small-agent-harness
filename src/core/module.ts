@@ -10,7 +10,7 @@ export type ModuleRuntime = {
 export type Module = {
   id: string;
   prompt?: string;
-  tools?: Tool[];
+  tools?: Tool<any>[];
   onSessionStart?: (runtime: ModuleRuntime) => void;
   onSessionReset?: (runtime: ModuleRuntime) => void;
   onToolRound?: (runtime: ModuleRuntime) => void;
@@ -34,8 +34,8 @@ export function composeSystemPrompt(basePrompt: string, modules: Module[]): stri
   return parts.join('\n\n');
 }
 
-export function collectTools(modules: Module[]): Tool[] {
-  const tools: Tool[] = [];
+export function collectTools(modules: Module[]): Tool<any>[] {
+  const tools: Tool<any>[] = [];
   const seen = new Map<string, string>();
 
   for (const module of modules) {

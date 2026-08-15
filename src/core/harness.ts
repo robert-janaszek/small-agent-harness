@@ -14,7 +14,8 @@ import {
   type Module,
   type ModuleRuntime,
 } from './module';
-import { CORE_PROTOCOL_VERSION, createStdoutEmit, type EmitFn, type TokenUsage } from './protocol';
+import { createEventBus, type EventBus } from './eventBus';
+import { CORE_PROTOCOL_VERSION, type TokenUsage } from './protocol';
 import { formatMessageContent, hasToolCalls, runTools, toAssistantHistoryMessage } from './runTools';
 import type { Tool } from './tool';
 
@@ -23,7 +24,7 @@ export type HarnessOptions = {
   prompt?: string;
   llmClient?: ChatCompletionClient;
   config?: HarnessConfig;
-  emit?: EmitFn;
+  bus?: EventBus;
 };
 
 export type HarnessRunOptions = {
@@ -52,11 +53,11 @@ function isAbortError(error: unknown): boolean {
 export class Harness {
   private modules: Module[];
   private runtimes: Map<string, ModuleRuntime>;
-  private tools: Tool[];
+  private tools: Tool<any>[];
   private systemPrompt: string;
   private llmClient: ChatCompletionClient;
   private config: HarnessConfig;
-  private emit: EmitFn;
+  private bus: EventBus;
   private messageHistory: ChatCompletionMessageParam[];
   private turnCount: number;
 
@@ -67,9 +68,9 @@ export class Harness {
     this.systemPrompt = composeSystemPrompt(options.prompt ?? DEFAULT_PROMPT, this.modules);
     this.config = options.config ?? getHarnessConfig();
     this.llmClient = options.llmClient ?? createOpenAiClient(this.config);
-    this.emit = options.emit ?? createStdoutEmit();
+    this.bus = options.bus ?? createEventBus();
     this.runtimes = new Map(
-      this.modules.map((module) => [module.id, createModuleRuntime(module.id, this.emit)]),
+      this.modules.map((module) => [module.id, createModuleRuntime(module.id, this.bus.emit)]),
     );
     this.messageHistory = [];
     this.turnCount = 0;
@@ -84,7 +85,7 @@ export class Harness {
   }
 
   public startSession(): void {
-    this.emit({ type: 'ready', protocolVersion: CORE_PROTOCOL_VERSION });
+    this.bus.emit({ type: 'ready', protocolVersion: CORE_PROTOCOL_VERSION });
     this.forEachModule('onSessionStart');
   }
 
@@ -95,11 +96,11 @@ export class Harness {
   }
 
   public emitError(message: string): void {
-    this.emit({ type: 'error', message });
+    this.bus.emit({ type: 'error', message });
   }
 
   public endSession(): void {
-    this.emit({ type: 'session_end', turnCount: this.turnCount });
+    this.bus.emit({ type: 'session_end', turnCount: this.turnCount });
   }
 
   public async run(userCommand: string, options?: HarnessRunOptions): Promise<HarnessRunResult> {
@@ -109,7 +110,7 @@ export class Harness {
     const turnCheckpoint = this.turnCount;
 
     try {
-      this.emit({ type: 'user_command', command: userCommand });
+      this.bus.emit({ type: 'user_command', command: userCommand });
       this.messageHistory.push({ role: 'user', content: userCommand });
       this.turnCount += 1;
 
@@ -149,7 +150,7 @@ export class Harness {
           tokenUsage.prompt_tokens += response.usage.prompt_tokens;
           tokenUsage.completion_tokens += response.usage.completion_tokens;
           tokenUsage.total_tokens += response.usage.total_tokens;
-          this.emit({ type: 'tokens', iteration, usage: tokenUsage });
+          this.bus.emit({ type: 'tokens', iteration, usage: tokenUsage });
         }
 
         this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
@@ -158,11 +159,11 @@ export class Harness {
           options?.signal?.throwIfAborted();
 
           const toolResponse = await runTools(responseMessage, this.tools, {
-            onAssistantMessage: (content) => this.emit({ type: 'assistant_message', content }),
+            onAssistantMessage: (content) => this.bus.emit({ type: 'assistant_message', content }),
             onToolCall: (name, args, toolCallId) =>
-              this.emit({ type: 'tool_call', name, args, toolCallId }),
+              this.bus.emit({ type: 'tool_call', name, args, toolCallId }),
             onToolResult: (name, content, toolCallId) =>
-              this.emit({ type: 'tool_result', name, content, toolCallId }),
+              this.bus.emit({ type: 'tool_result', name, content, toolCallId }),
           });
           this.messageHistory.push(...toolResponse);
           this.forEachModule('onToolRound');
@@ -179,7 +180,7 @@ export class Harness {
           tokenUsage,
           iterations: iteration,
         };
-        this.emit({
+        this.bus.emit({
           type: 'agent_response',
           content: result.content,
           iterations: result.iterations,

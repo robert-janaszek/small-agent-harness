@@ -4,6 +4,7 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { z } from 'zod';
 
 import { Harness } from './harness';
+import { createEventBus } from './eventBus';
 import { DEFAULT_PROMPT, type Module } from './module';
 import type { CoreEvent } from './protocol';
 import { createTool } from './tool';
@@ -52,14 +53,16 @@ function createTestHarness(
   options: { modules?: Module[]; prompt?: string; events?: CoreEvent[] } = {},
 ) {
   const events = options.events ?? [];
+  const bus = createEventBus();
+  bus.subscribe((event) => events.push(event));
   const harness = new Harness({
     modules: options.modules ?? [],
     prompt: options.prompt,
     llmClient,
     config: testConfig,
-    emit: (event) => events.push(event),
+    bus,
   });
-  return { harness, events };
+  return { harness, events, bus };
 }
 
 describe('core Harness', () => {
@@ -210,6 +213,8 @@ describe('core Harness', () => {
 
   it('emits ready and module session-start events', () => {
     const events: CoreEvent[] = [];
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
     const harness = new Harness({
       modules: [
         {
@@ -219,7 +224,7 @@ describe('core Harness', () => {
       ],
       llmClient: { createChatCompletion: vi.fn() },
       config: testConfig,
-      emit: (event) => events.push(event),
+      bus,
     });
 
     harness.startSession();
@@ -244,7 +249,6 @@ describe('core Harness', () => {
     const harness = new Harness({
       llmClient: { createChatCompletion },
       config: { ...testConfig, maxIterations: 2 },
-      emit: () => {},
     });
 
     await expect(harness.run('loop')).rejects.toThrow('Max iterations reached');
@@ -253,11 +257,13 @@ describe('core Harness', () => {
 
   it('throws AbortError when signal is aborted before run starts', async () => {
     const events: CoreEvent[] = [];
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
     const createChatCompletion = vi.fn();
     const harness = new Harness({
       llmClient: { createChatCompletion },
       config: testConfig,
-      emit: (event) => events.push(event),
+      bus,
     });
 
     const controller = new AbortController();
@@ -316,7 +322,6 @@ describe('core Harness', () => {
           modules: [{ id: 'echo' }, { id: 'echo' }],
           llmClient: { createChatCompletion: vi.fn() },
           config: testConfig,
-          emit: () => {},
         }),
     ).toThrow('Duplicate module id "echo"');
   });
@@ -338,7 +343,6 @@ describe('core Harness', () => {
           ],
           llmClient: { createChatCompletion: vi.fn() },
           config: testConfig,
-          emit: () => {},
         }),
     ).toThrow('Duplicate tool "echo" registered by modules "a" and "b"');
   });
