@@ -1,0 +1,138 @@
+import OpenAI from 'openai';
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { z } from 'zod';
+
+import { Tool } from './tool';
+
+type ChatCompletionMessage = OpenAI.Chat.Completions.ChatCompletionMessage;
+type ChatCompletionMessageToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
+
+export type ToolRunnerHooks = {
+  onAssistantMessage?: (content: string) => void;
+  onToolCall?: (name: string, args: unknown, toolCallId: string) => void;
+  onToolResult?: (name: string, content: string, toolCallId: string) => void;
+};
+
+export function formatZodError(error: z.ZodError, title: string): string {
+  return `${title}:\n- ${error.issues.map((issue) => issue.message).join('\n- ')}`;
+}
+
+export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
+  return responseMessage.tool_calls && responseMessage.tool_calls.length > 0;
+};
+
+export function formatMessageContent(
+  content: ChatCompletionMessage['content'],
+): string {
+  if (typeof content === 'string') {
+    return content.trim();
+  }
+
+  return '';
+}
+
+export function toAssistantHistoryMessage(
+  message: ChatCompletionMessage,
+): ChatCompletionMessageParam {
+  const content = formatMessageContent(message.content);
+
+  if (message.tool_calls?.length) {
+    return {
+      role: 'assistant',
+      content: content || null,
+      tool_calls: message.tool_calls,
+    };
+  }
+
+  return {
+    role: 'assistant',
+    content,
+  };
+}
+
+function unsupportedToolCallMessage(toolCall: ChatCompletionMessageToolCall): string {
+  if (toolCall.type === 'custom') {
+    return `Custom tool "${toolCall.custom.name}" is not supported. Use the provided function tools.`;
+  }
+
+  return `Unsupported tool call type "${toolCall.type}". Use the provided function tools.`;
+}
+
+export const runTools = async (
+  responseMessage: ChatCompletionMessage,
+  toolsDefinition: Tool<any>[],
+  hooks: ToolRunnerHooks = {},
+): Promise<ChatCompletionMessageParam[]> => {
+  if (!responseMessage.tool_calls) {
+    return [];
+  }
+
+  const assistantContent = formatMessageContent(responseMessage.content);
+  if (assistantContent) {
+    hooks.onAssistantMessage?.(assistantContent);
+  }
+
+  const toolMessages: ChatCompletionMessageParam[] = [];
+
+  for (const toolCall of responseMessage.tool_calls) {
+    if (toolCall.type !== 'function') {
+      toolMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: unsupportedToolCallMessage(toolCall),
+      });
+      continue;
+    }
+
+    const toolName = toolCall.function.name;
+    const tool = toolsDefinition.find((candidate) => candidate.function.name === toolName);
+    if (!tool) {
+      toolMessages.push({
+        role: 'tool' as const,
+        tool_call_id: toolCall.id,
+        content: `Unknown tool: ${toolName}, called with arguments ${toolCall.function.arguments}. Use correct tool name`,
+      });
+      continue;
+    }
+
+    let rawArgs: unknown;
+    try {
+      rawArgs = JSON.parse(toolCall.function.arguments);
+    } catch {
+      toolMessages.push({
+        role: 'tool' as const,
+        tool_call_id: toolCall.id,
+        content: 'Invalid tool arguments: malformed JSON',
+      });
+      continue;
+    }
+
+    const parsedArgs = tool.argsSchema.safeParse(rawArgs);
+    if (!parsedArgs.success) {
+      toolMessages.push({
+        role: 'tool' as const,
+        tool_call_id: toolCall.id,
+        content: formatZodError(parsedArgs.error, 'Invalid tool arguments'),
+      });
+      continue;
+    }
+
+    let toolResult: string;
+    try {
+      hooks.onToolCall?.(toolName, parsedArgs.data, toolCall.id);
+      toolResult = await tool.call(parsedArgs.data);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toolResult = JSON.stringify({ error: message });
+    }
+
+    hooks.onToolResult?.(toolName, toolResult, toolCall.id);
+    toolMessages.push({
+      role: 'tool' as const,
+      tool_call_id: toolCall.id,
+      content: toolResult,
+    });
+  }
+
+  return toolMessages;
+};
