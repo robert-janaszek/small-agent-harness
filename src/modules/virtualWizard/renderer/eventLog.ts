@@ -4,6 +4,7 @@ const MAX_CONTENT_PREVIEW = 56;
 const MAX_WRAPPED_AGENT_LINES = 10;
 const AGENT_PREFIX = 'agent: ';
 const ASSISTANT_PREFIX = 'assistant: ';
+const PROMPT_PREFIX = '> ';
 
 function truncate(text: string, max = MAX_CONTENT_PREVIEW): string {
   if (max <= 0) return '';
@@ -86,8 +87,7 @@ export function wrapAgentLine(line: string, width: number): string[] {
   const result: string[] = [];
 
   for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
-    const linePrefix = paragraphIndex === 0 && result.length === 0 ? prefix : indent;
-    const availableWidth = width - linePrefix.length;
+    const availableWidth = width - (paragraphIndex === 0 && result.length === 0 ? prefix.length : indent.length);
     const wrappedParagraph = wrapParagraph(paragraph, availableWidth);
 
     for (const [lineIndex, segment] of wrappedParagraph.entries()) {
@@ -103,52 +103,71 @@ export function wrapAgentLine(line: string, width: number): string[] {
   return result.length > MAX_WRAPPED_AGENT_LINES ? result.slice(0, MAX_WRAPPED_AGENT_LINES) : result;
 }
 
+function wrapPromptLine(line: string, width: number): string[] {
+  if (!line.startsWith(PROMPT_PREFIX) || width <= PROMPT_PREFIX.length) {
+    return [truncate(line, width)];
+  }
+
+  const content = line.slice(PROMPT_PREFIX.length);
+  const wrapped = wrapParagraph(content, width - PROMPT_PREFIX.length);
+  return wrapped.map((segment, index) =>
+    truncate(`${index === 0 ? PROMPT_PREFIX : '  '}${segment}`, width),
+  );
+}
+
 function isAgentLine(line: string): boolean {
   return line.startsWith(AGENT_PREFIX) || line.startsWith(ASSISTANT_PREFIX);
 }
 
-function formatToolResult(name: string, content: string): string {
-  if (name === 'listDevices') {
-    try {
-      const parsed = JSON.parse(content) as { devices?: unknown[] };
-      const count = parsed.devices?.length ?? 0;
-      return `listDevices → ${count} devices`;
-    } catch {
-      return `listDevices → (invalid json)`;
+function isPromptLine(line: string): boolean {
+  return line.startsWith(PROMPT_PREFIX);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function formatToolCall(name: string, args: unknown): string {
+  if (name === 'validateCurrentStep' && isRecord(args)) {
+    const parts = Object.entries(args)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => `${key}=${String(value)}`);
+    if (parts.length > 0) {
+      return `→ ${name} ${truncate(parts.join(' '), 40)}`;
     }
   }
 
-  return truncate(content.replace(/\s+/g, ' '));
+  return `→ ${name}`;
 }
 
-export function formatEvent(event: HarnessEvent): string {
+export function formatVirtualWizardEvent(event: HarnessEvent): string | null {
   switch (event.type) {
     case 'user_command':
       return `> ${event.command}`;
-    case 'assistant_message':
-      return `assistant: ${event.content}`;
+    case 'assistant_message': {
+      const text = event.content.trim();
+      return text.length === 0 ? null : `assistant: ${text}`;
+    }
     case 'tool_call':
-      return `call ${event.name}(${truncate(JSON.stringify(event.args), 40)})`;
-    case 'tool_result':
-      return `  ${event.name}: ${formatToolResult(event.name, event.content)}`;
-    case 'tokens':
-      return `tokens i${event.iteration} ${event.usage.total_tokens} total`;
-    case 'context_init':
-      return `state init ${event.changes.length} device(s)`;
-    case 'context_delta':
-      return `state Δ ${event.changes.length} change(s)`;
-    case 'agent_response':
-      return `agent: ${event.content}`;
-    case 'ready':
-      return `session ready (protocol v${event.protocolVersion})`;
-    case 'session_end':
-      return `session ended (${event.turnCount} turn(s))`;
+      return formatToolCall(event.name, event.args);
+    case 'tool_result': {
+      const firstLine = event.content.split('\n')[0] ?? event.content;
+      return `← ${event.name}: ${truncate(firstLine.replace(/\s+/g, ' '))}`;
+    }
+    case 'agent_response': {
+      const text = event.content.trim();
+      return text.length === 0 ? null : `agent: ${text}`;
+    }
     case 'error':
       return `ERROR: ${event.message}`;
-    case 'work_file':
-      return `work file: ${event.path}`;
+    case 'tokens':
+    case 'ready':
+    case 'context_init':
+    case 'context_delta':
     case 'wizard_state':
-      return `wizard step ${event.currentIndex + 1}/${event.steps.length}`;
+    case 'work_file':
+    case 'session_end':
+      return null;
     default: {
       const _exhaustive: never = event;
       return String(_exhaustive);
@@ -160,16 +179,12 @@ export class EventLog {
   private lines: string[] = [];
 
   append(event: HarnessEvent): void {
-    if (event.type === 'context_delta' && event.changes.length === 0) {
+    const formatted = formatVirtualWizardEvent(event);
+    if (formatted === null) {
       return;
     }
-    if (
-      (event.type === 'agent_response' || event.type === 'assistant_message') &&
-      event.content.trim().length === 0
-    ) {
-      return;
-    }
-    this.lines.push(formatEvent(event));
+
+    this.lines.push(formatted);
   }
 
   clear(): void {
@@ -181,9 +196,15 @@ export class EventLog {
       return [];
     }
 
-    const wrappedLines = this.lines.flatMap((line) =>
-      isAgentLine(line) ? wrapAgentLine(line, width) : [truncate(line, width)],
-    );
+    const wrappedLines = this.lines.flatMap((line) => {
+      if (isAgentLine(line)) {
+        return wrapAgentLine(line, width);
+      }
+      if (isPromptLine(line)) {
+        return wrapPromptLine(line, width);
+      }
+      return [truncate(line, width)];
+    });
 
     return wrappedLines.slice(-maxLines);
   }
