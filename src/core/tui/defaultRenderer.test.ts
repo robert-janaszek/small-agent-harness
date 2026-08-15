@@ -4,6 +4,7 @@ import { DiffTerminal } from '../../cli/tui/diffTerminal';
 import { createEventBus } from '../eventBus';
 import { Harness } from '../harness';
 import type { HarnessConfig } from '../../harness/harness.config.validate';
+import type { ModulePanel, PanelPaintContext } from '../module';
 import { DefaultRenderer, paintNoModulePanel } from './defaultRenderer';
 import { getBottomLayout } from './layout';
 
@@ -126,6 +127,44 @@ describe('DefaultRenderer', () => {
     await renderer.handleInput('/exit');
 
     expect(events.some((event) => event.type === 'session_end')).toBe(true);
+  });
+
+  it('paints a module panel instead of the placeholder and forwards module events', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    let label = 'dummy-panel';
+    const panel: ModulePanel = {
+      onEvent(event, payload) {
+        if (event === 'label' && typeof payload === 'string') {
+          label = payload;
+        }
+      },
+      paint({ terminal: pane, startCol, width }: PanelPaintContext) {
+        const text = label.slice(0, width);
+        for (let index = 0; index < text.length; index++) {
+          pane.setChar(0, startCol + index, text[index] ?? ' ');
+        }
+      },
+    };
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion: vi.fn() },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus, { panel });
+
+    harness.startSession();
+    bus.emit({ type: 'module', module: 'dummy', event: 'label', payload: 'from-event' });
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const text = visibleText(output.join(''));
+    expect(text).toContain('from-event');
+    expect(text).not.toContain('no module');
   });
 
   it('resolves run() when /exit is entered', async () => {

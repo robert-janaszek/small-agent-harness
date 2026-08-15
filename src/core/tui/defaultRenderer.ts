@@ -9,6 +9,7 @@ import {
 import { drawVerticalDivider, getSplitColumns } from '../../cli/tui/splitLayout';
 import type { EventBus } from '../eventBus';
 import type { Harness } from '../harness';
+import type { ModulePanel } from '../module';
 import type { CoreEvent } from '../protocol';
 import { EventLog } from './eventLog';
 import { getBottomLayout } from './layout';
@@ -41,11 +42,17 @@ export function paintNoModulePanel(
   }
 }
 
+export type DefaultRendererOptions = {
+  initialCommand?: string | null;
+  panel?: ModulePanel | null;
+};
+
 export class DefaultRenderer {
   private terminal: DiffTerminal;
   private harness: Harness;
   private bus: EventBus;
   private initialCommand: string | null;
+  private panel: ModulePanel | null;
   private eventLog = new EventLog();
   private inputLine: TerminalInputLine;
   private commandQueue: string[] = [];
@@ -67,12 +74,13 @@ export class DefaultRenderer {
     terminal: DiffTerminal,
     harness: Harness,
     bus: EventBus,
-    initialCommand: string | null = null,
+    options: DefaultRendererOptions = {},
   ) {
     this.terminal = terminal;
     this.harness = harness;
     this.bus = bus;
-    this.initialCommand = initialCommand;
+    this.initialCommand = options.initialCommand ?? null;
+    this.panel = options.panel ?? null;
     this.inputLine = new TerminalInputLine(() => {
       this.redraw();
     });
@@ -258,6 +266,8 @@ export class DefaultRenderer {
       this.tokenCounter = { usage: event.usage, iteration: event.iteration };
     } else if (event.type === 'agent_response') {
       this.tokenCounter = { usage: event.tokenUsage, iteration: event.iterations };
+    } else if (event.type === 'module') {
+      this.panel?.onEvent?.(event.event, event.payload);
     }
 
     this.eventLog.append(event);
@@ -334,7 +344,16 @@ export class DefaultRenderer {
     }
 
     drawVerticalDivider(this.terminal, split.dividerCol);
-    paintNoModulePanel(this.terminal, split.dividerCol + 1, split.rightWidth, layout.contentRows);
+    if (this.panel) {
+      this.panel.paint({
+        terminal: this.terminal,
+        startCol: split.dividerCol + 1,
+        width: split.rightWidth,
+        height: layout.contentRows,
+      });
+    } else {
+      paintNoModulePanel(this.terminal, split.dividerCol + 1, split.rightWidth, layout.contentRows);
+    }
 
     if (layout.queueBannerRow !== null) {
       paintQueueBanner(this.terminal, layout.queueBannerRow, split.leftWidth, queueLength);

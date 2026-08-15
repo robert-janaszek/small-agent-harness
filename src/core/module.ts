@@ -1,3 +1,4 @@
+import type { DiffTerminal } from '../cli/tui/diffTerminal';
 import type { EmitFn } from './protocol';
 import type { Tool } from './tool';
 
@@ -7,10 +8,23 @@ export type ModuleRuntime = {
   emit(event: string, payload?: unknown): void;
 };
 
+export type PanelPaintContext = {
+  terminal: DiffTerminal;
+  startCol: number;
+  width: number;
+  height: number;
+};
+
+export type ModulePanel = {
+  paint(ctx: PanelPaintContext): void;
+  onEvent?(event: string, payload?: unknown): void;
+};
+
 export type Module = {
   id: string;
   prompt?: string;
   tools?: Tool<any>[];
+  createPanel?: () => ModulePanel;
   onSessionStart?: (runtime: ModuleRuntime) => void;
   onSessionReset?: (runtime: ModuleRuntime) => void;
   onToolRound?: (runtime: ModuleRuntime) => void;
