@@ -110,9 +110,7 @@ export class DefaultRenderer {
     this.redraw();
 
     if (this.initialCommand) {
-      this.commandQueue.push(this.initialCommand);
-      this.redraw();
-      void this.drainQueue();
+      void this.submitCommand(this.initialCommand);
     }
 
     await this.waitForSessionEnd();
@@ -150,9 +148,17 @@ export class DefaultRenderer {
       return;
     }
 
-    this.commandQueue.push(command);
-    this.redraw();
-    await this.drainQueue();
+    await this.submitCommand(command);
+  }
+
+  private async submitCommand(command: string): Promise<void> {
+    if (this.dispatching || this.turnActive) {
+      this.commandQueue.push(command);
+      this.redraw();
+      return;
+    }
+
+    await this.drainQueue(command);
   }
 
   private async handleInterrupt(): Promise<void> {
@@ -208,12 +214,16 @@ export class DefaultRenderer {
     });
   }
 
-  private async drainQueue(): Promise<void> {
+  private async drainQueue(first?: string): Promise<void> {
     if (this.dispatching || this.interrupted || this.sessionEnded) {
       return;
     }
 
     this.dispatching = true;
+
+    if (first) {
+      await this.runTurn(first);
+    }
 
     while (this.commandQueue.length > 0 && !this.interrupted && !this.sessionEnded) {
       const command = this.commandQueue.shift()!;

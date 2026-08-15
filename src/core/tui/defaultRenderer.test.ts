@@ -129,6 +129,61 @@ describe('DefaultRenderer', () => {
     expect(events.some((event) => event.type === 'session_end')).toBe(true);
   });
 
+  it('does not flash a pending-task banner when submitting while idle', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: { role: 'assistant', content: 'ok', refusal: null } }],
+    });
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    await renderer.handleInput('hello');
+
+    expect(visibleText(output.join(''))).not.toContain('pending');
+  });
+
+  it('shows the pending banner only when a turn is already running', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started!: () => void;
+    const startedPromise = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const createChatCompletion = vi.fn().mockImplementation(async () => {
+      started();
+      await blocked;
+      return { choices: [{ message: { role: 'assistant', content: 'ok', refusal: null } }] };
+    });
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const first = renderer.handleInput('slow');
+    await startedPromise;
+    output.length = 0;
+    void renderer.handleInput('next');
+
+    expect(visibleText(output.join(''))).toContain('pending');
+    release();
+    await first;
+  });
+
   it('paints a module panel instead of the placeholder and forwards module events', () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
