@@ -16,11 +16,13 @@ export const VIRTUAL_WIZARD_MODULE_ID = 'virtualWizard';
 
 export const VIRTUAL_WIZARD_START_COMMAND = 'Start the onboarding wizard.';
 
-export const VIRTUAL_WIZARD_PROMPT = `Gather everything you need from the user and fill the onboarding wizard with tools.
+export const VIRTUAL_WIZARD_PROMPT = `Gather what you need from the user and fill the onboarding wizard with tools.
 
-Default: ask for missing information, one step at a time. After the user answers, call tools, then ask for the next missing field.
+Listen to the user. Treat their reply as an answer, including "make one up", "whatever", "you decide", or a partial value. If they ask you to invent a field, invent a value that passes validation and continue. Do not insist they type their own real name, email, or plan.
 
-Exception: if the user says not to ask questions and also supplies the required data, complete the whole wizard with tools. Do not invent missing values. If they forbade questions but omitted data, ask only for what is still missing.
+Default: ask for missing information one step at a time. After they answer, call tools, then ask only for what is still missing.
+
+Exception: if they say not to ask questions, complete as far as you can. Invent remaining fields only when they allowed it (for example "fill it in" / "make something up"). Otherwise ask only for what is still missing.
 
 Steps:
 1. Welcome — no answers. Call validateCurrentStep, then nextStep, then greet the user and say you will collect profile and plan.
