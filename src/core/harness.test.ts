@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { Harness } from './harness';
 import { createEventBus } from './eventBus';
-import { DEFAULT_PROMPT, type Module } from './module';
+import { composeSystemPrompt, HARNESS_PROMPT, type Module } from './module';
 import type { CoreEvent } from './protocol';
 import { createTool } from './tool';
 import type { HarnessConfig } from '../harness/harness.config.validate';
@@ -84,7 +84,7 @@ describe('core Harness', () => {
       {
         model: 'test-model',
         messages: [
-          { role: 'system', content: DEFAULT_PROMPT },
+          { role: 'system', content: HARNESS_PROMPT },
           { role: 'user', content: 'what is 2+2' },
         ],
       },
@@ -117,7 +117,7 @@ describe('core Harness', () => {
       { role: 'assistant', content: 'second' },
     ]);
     expect(createChatCompletion.mock.calls[1][0].messages).toEqual([
-      { role: 'system', content: DEFAULT_PROMPT },
+      { role: 'system', content: HARNESS_PROMPT },
       { role: 'user', content: 'hello' },
       { role: 'assistant', content: 'first' },
       { role: 'user', content: 'again' },
@@ -143,7 +143,7 @@ describe('core Harness', () => {
 
     await harness.run('again');
     expect(createChatCompletion.mock.calls[1][0].messages).toEqual([
-      { role: 'system', content: DEFAULT_PROMPT },
+      { role: 'system', content: HARNESS_PROMPT },
       { role: 'user', content: 'again' },
     ]);
   });
@@ -195,7 +195,7 @@ describe('core Harness', () => {
     expect(createChatCompletion.mock.calls[0][0].tool_choice).toBe('auto');
     expect(createChatCompletion.mock.calls[0][0].messages[0]).toEqual({
       role: 'system',
-      content: `${DEFAULT_PROMPT}\n\nYou can echo text with the echo tool.`,
+      content: `${HARNESS_PROMPT}\n\n# Module: echo\nYou can echo text with the echo tool.`,
     });
 
     const secondCallMessages = createChatCompletion.mock.calls[1][0].messages;
@@ -209,6 +209,12 @@ describe('core Harness', () => {
         expect.objectContaining({ type: 'agent_response', content: 'finished' }),
       ]),
     );
+  });
+
+  it('prefixes module instructions onto the harness system prompt', () => {
+    expect(
+      composeSystemPrompt(HARNESS_PROMPT, [{ id: 'echo', prompt: 'Use the echo tool.' }]),
+    ).toBe(`${HARNESS_PROMPT}\n\n# Module: echo\nUse the echo tool.`);
   });
 
   it('emits ready and module session-start events', () => {

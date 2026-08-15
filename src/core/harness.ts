@@ -10,7 +10,7 @@ import {
   collectTools,
   composeSystemPrompt,
   createModuleRuntime,
-  DEFAULT_PROMPT,
+  HARNESS_PROMPT,
   type Module,
   type ModuleRuntime,
 } from './module';
@@ -65,7 +65,7 @@ export class Harness {
     this.modules = options.modules ?? [];
     assertUniqueModuleIds(this.modules);
     this.tools = collectTools(this.modules);
-    this.systemPrompt = composeSystemPrompt(options.prompt ?? DEFAULT_PROMPT, this.modules);
+    this.systemPrompt = composeSystemPrompt(options.prompt ?? HARNESS_PROMPT, this.modules);
     this.config = options.config ?? getHarnessConfig();
     this.llmClient = options.llmClient ?? createOpenAiClient(this.config);
     this.bus = options.bus ?? createEventBus();

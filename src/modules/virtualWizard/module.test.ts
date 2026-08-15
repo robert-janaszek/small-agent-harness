@@ -65,11 +65,12 @@ function moduleStateEvents(events: CoreEvent[]) {
 
 describe('createVirtualWizardModule', () => {
   it('asks the user for missing answers and only auto-fills when told not to ask', () => {
-    expect(VIRTUAL_WIZARD_PROMPT).toContain('Ask questions and collect everything');
-    expect(VIRTUAL_WIZARD_PROMPT).toContain('Do not invent answers');
+    expect(VIRTUAL_WIZARD_PROMPT).toContain('Gather everything you need from the user');
+    expect(VIRTUAL_WIZARD_PROMPT).toContain('ask for missing information');
     expect(VIRTUAL_WIZARD_PROMPT).not.toContain('There is no human-in-the-loop');
+    expect(VIRTUAL_WIZARD_PROMPT).not.toContain('tool-calling harness');
     expect(VIRTUAL_WIZARD_PROMPT).toContain(
-      'if the user explicitly says not to ask questions and also supplies the required data',
+      'if the user says not to ask questions and also supplies the required data',
     );
   });
 

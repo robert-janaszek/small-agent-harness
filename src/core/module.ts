@@ -2,7 +2,14 @@ import type { DiffTerminal } from '../cli/tui/diffTerminal';
 import type { EmitFn } from './protocol';
 import type { Tool } from './tool';
 
-export const DEFAULT_PROMPT = "You are a helpful assistant. Answer the user's questions.";
+export const HARNESS_PROMPT = `You are an agent running inside a tool-calling harness.
+
+How this harness works:
+- Each user message starts a turn. You may call tools, then you will see their results and can call more tools, until you reply with text.
+- Tools come from optional modules. If none are available, answer from the conversation alone. Never invent a tool name.
+- This is a conversation with a human. Ask questions when you need information. Do not invent facts the user has not given you.
+- Follow any module instructions below. They describe the task and how to use that module's tools.
+- When the task for this turn is done, reply in prose. Do not keep calling tools after you have finished.`;
 
 export type ModuleRuntime = {
   emit(event: string, payload?: unknown): void;
@@ -44,7 +51,14 @@ export function createModuleRuntime(moduleId: string, emit: EmitFn): ModuleRunti
 }
 
 export function composeSystemPrompt(basePrompt: string, modules: Module[]): string {
-  const parts = [basePrompt, ...modules.map((module) => module.prompt).filter((prompt): prompt is string => Boolean(prompt))];
+  const parts = [basePrompt.trim()];
+  for (const module of modules) {
+    const prompt = module.prompt?.trim();
+    if (!prompt) {
+      continue;
+    }
+    parts.push(`# Module: ${module.id}\n${prompt}`);
+  }
   return parts.join('\n\n');
 }
 
