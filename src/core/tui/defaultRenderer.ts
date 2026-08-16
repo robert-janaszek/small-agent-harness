@@ -258,7 +258,13 @@ export class DefaultRenderer {
       await this.harness.run(command, { signal });
     } catch (error: unknown) {
       if (isAbortError(error)) {
-        this.harness.emitError('Cancelled.');
+        if (!this.interrupted && !this.sessionEnded) {
+          this.harness.emitError('Cancelled.');
+        }
+        return;
+      }
+
+      if (this.sessionEnded) {
         return;
       }
 

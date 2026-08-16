@@ -47,6 +47,19 @@ describe('EventBus', () => {
     expect(stderrWrite).toHaveBeenCalledWith('[eventBus] listener error: boom\n');
     stderrWrite.mockRestore();
   });
+
+  it('drops events after close', () => {
+    const bus = createEventBus();
+    const events: CoreEvent[] = [];
+    bus.subscribe((event) => events.push(event));
+
+    bus.emit({ type: 'user_command', command: 'before' });
+    bus.close();
+    bus.emit({ type: 'error', message: 'after' });
+    bus.close();
+
+    expect(events).toEqual([{ type: 'user_command', command: 'before' }]);
+  });
 });
 
 describe('JSONL subscriber', () => {

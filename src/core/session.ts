@@ -121,8 +121,10 @@ export async function runServeSession(
         await harness.run(trimmed, { signal: currentAbort.signal });
       } catch (error: unknown) {
         if (isAbortError(error)) {
-          harness.emitError('Cancelled.');
-        } else {
+          if (!shuttingDown) {
+            harness.emitError('Cancelled.');
+          }
+        } else if (!shuttingDown) {
           const message = error instanceof Error ? error.message : 'Unknown error';
           harness.emitError(message);
         }
@@ -144,6 +146,13 @@ export async function runServeSession(
         const command = parseCommandLine(line);
         if (command?.type === 'cancel') {
           currentAbort?.abort();
+          continue;
+        }
+
+        if (command?.type === 'shutdown') {
+          shuttingDown = true;
+          currentAbort?.abort();
+          harness.endSession();
           continue;
         }
 
@@ -169,6 +178,10 @@ export async function runServeSession(
       const command = parseCommandLine(buffer);
       if (command?.type === 'cancel') {
         currentAbort?.abort();
+      } else if (command?.type === 'shutdown') {
+        shuttingDown = true;
+        currentAbort?.abort();
+        harness.endSession();
       } else if (command?.type === 'reset') {
         currentAbort?.abort();
         enqueue(command);

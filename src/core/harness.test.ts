@@ -323,6 +323,58 @@ describe('core Harness', () => {
     ]);
   });
 
+  it('endSession reports committed turns and drops later events while a turn is in flight', async () => {
+    const controller = new AbortController();
+    let started!: () => void;
+    const startedPromise = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let callCount = 0;
+    const createChatCompletion = vi.fn().mockImplementation((_params, options?: { signal?: AbortSignal }) => {
+      callCount += 1;
+      if (callCount === 1) {
+        return Promise.resolve({
+          choices: [{ message: assistantMessage('first') }],
+        });
+      }
+
+      started();
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        });
+      });
+    });
+    const { harness, events } = createTestHarness({ createChatCompletion });
+
+    await harness.run('hello');
+    expect(harness.getTurnCount()).toBe(1);
+
+    const runPromise = harness.run('cancel me', { signal: controller.signal });
+    await startedPromise;
+
+    harness.endSession();
+    controller.abort();
+    await expect(runPromise).rejects.toMatchObject({ name: 'AbortError' });
+    harness.emitError('Cancelled.');
+
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 1 });
+    expect(events.some((event) => event.type === 'error')).toBe(false);
+    expect(harness.getTurnCount()).toBe(1);
+  });
+
+  it('endSession reports the current turnCount when no turn is in flight', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: assistantMessage('ok') }],
+    });
+    const { harness, events } = createTestHarness({ createChatCompletion });
+
+    await harness.run('hello');
+    harness.endSession();
+
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 1 });
+  });
+
   it('rejects duplicate module ids', () => {
     expect(
       () =>

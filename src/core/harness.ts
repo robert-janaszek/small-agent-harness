@@ -62,6 +62,7 @@ export class Harness {
   private messageHistory: ChatCompletionMessageParam[];
   private turnCount: number;
   private sessionId: string;
+  private committedTurnCount: number | null;
 
   constructor(options: HarnessOptions = {}) {
     this.modules = options.modules ?? [];
@@ -77,6 +78,7 @@ export class Harness {
     this.messageHistory = [];
     this.turnCount = 0;
     this.sessionId = createLangfuseSessionId();
+    this.committedTurnCount = null;
   }
 
   public getMessageHistory(): readonly ChatCompletionMessageParam[] {
@@ -108,7 +110,11 @@ export class Harness {
   }
 
   public endSession(): void {
-    this.bus.emit({ type: 'session_end', turnCount: this.turnCount });
+    this.bus.emit({
+      type: 'session_end',
+      turnCount: this.committedTurnCount ?? this.turnCount,
+    });
+    this.bus.close();
   }
 
   public async run(userCommand: string, options?: HarnessRunOptions): Promise<HarnessRunResult> {
@@ -116,6 +122,7 @@ export class Harness {
 
     const historyCheckpoint = this.messageHistory.length;
     const turnCheckpoint = this.turnCount;
+    this.committedTurnCount = turnCheckpoint;
 
     try {
       return await withAgentObservation(
@@ -202,6 +209,7 @@ export class Harness {
                 tokenUsage: result.tokenUsage,
               },
             });
+            this.committedTurnCount = null;
             this.bus.emit({
               type: 'agent_response',
               content: result.content,
@@ -220,6 +228,8 @@ export class Harness {
         this.turnCount = turnCheckpoint;
       }
       throw error;
+    } finally {
+      this.committedTurnCount = null;
     }
   }
 

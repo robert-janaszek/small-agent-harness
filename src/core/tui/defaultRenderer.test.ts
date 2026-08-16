@@ -129,6 +129,40 @@ describe('DefaultRenderer', () => {
     expect(events.some((event) => event.type === 'session_end')).toBe(true);
   });
 
+  it('exits immediately during an in-flight turn without emitting Cancelled after session_end', async () => {
+    const events: Array<{ type: string; turnCount?: number; message?: string }> = [];
+    const terminal = new DiffTerminal(12, 80, () => {});
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
+    let started!: () => void;
+    const startedPromise = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const createChatCompletion = vi.fn().mockImplementation((_params, options?: { signal?: AbortSignal }) => {
+      started();
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        });
+      });
+    });
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const first = renderer.handleInput('slow');
+    await startedPromise;
+    await renderer.handleInput('/exit');
+    await first;
+
+    expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 0 });
+    expect(events.some((event) => event.type === 'error' && event.message === 'Cancelled.')).toBe(false);
+  });
+
   it('does not flash a pending-task banner when submitting while idle', async () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
