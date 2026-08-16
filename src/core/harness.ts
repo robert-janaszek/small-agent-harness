@@ -5,6 +5,7 @@ import { createOpenAiClient } from '../client/createOpenAiClient';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { getHarnessConfig } from '../harness/harness.config';
 import type { HarnessConfig } from '../harness/harness.config.validate';
+import { createLangfuseSessionId, withAgentObservation } from '../observability/langfuse';
 import {
   assertUniqueModuleIds,
   collectTools,
@@ -60,6 +61,7 @@ export class Harness {
   private bus: EventBus;
   private messageHistory: ChatCompletionMessageParam[];
   private turnCount: number;
+  private sessionId: string;
 
   constructor(options: HarnessOptions = {}) {
     this.modules = options.modules ?? [];
@@ -74,6 +76,7 @@ export class Harness {
     );
     this.messageHistory = [];
     this.turnCount = 0;
+    this.sessionId = createLangfuseSessionId();
   }
 
   public getMessageHistory(): readonly ChatCompletionMessageParam[] {
@@ -84,6 +87,10 @@ export class Harness {
     return this.turnCount;
   }
 
+  public getSessionId(): string {
+    return this.sessionId;
+  }
+
   public startSession(): void {
     this.bus.emit({ type: 'ready', protocolVersion: CORE_PROTOCOL_VERSION });
     this.forEachModule('onSessionStart');
@@ -92,6 +99,7 @@ export class Harness {
   public resetSession(): void {
     this.messageHistory = [];
     this.turnCount = 0;
+    this.sessionId = createLangfuseSessionId();
     this.forEachModule('onSessionReset');
   }
 
@@ -110,86 +118,102 @@ export class Harness {
     const turnCheckpoint = this.turnCount;
 
     try {
-      this.bus.emit({ type: 'user_command', command: userCommand });
-      this.messageHistory.push({ role: 'user', content: userCommand });
-      this.turnCount += 1;
+      return await withAgentObservation(
+        {
+          name: 'harness-turn',
+          sessionId: this.sessionId,
+          input: { command: userCommand },
+        },
+        async (observation) => {
+          this.bus.emit({ type: 'user_command', command: userCommand });
+          this.messageHistory.push({ role: 'user', content: userCommand });
+          this.turnCount += 1;
 
-      const tokenUsage: TokenUsage = {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0,
-      };
-      let iteration = 0;
+          const tokenUsage: TokenUsage = {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
+          };
+          let iteration = 0;
 
-      while (iteration < this.config.maxIterations) {
-        options?.signal?.throwIfAborted();
-        iteration++;
+          while (iteration < this.config.maxIterations) {
+            options?.signal?.throwIfAborted();
+            iteration++;
 
-        const messages: ChatCompletionMessageParam[] = [
-          {
-            role: 'system',
-            content: this.systemPrompt,
-          },
-          ...this.messageHistory,
-        ];
+            const messages: ChatCompletionMessageParam[] = [
+              {
+                role: 'system',
+                content: this.systemPrompt,
+              },
+              ...this.messageHistory,
+            ];
 
-        const response = await this.llmClient.createChatCompletion(
-          {
-            model: this.config.modelName,
-            messages,
-            ...(this.tools.length > 0
-              ? { tools: this.tools, tool_choice: 'auto' as const }
-              : {}),
-          },
-          { signal: options?.signal },
-        );
+            const response = await this.llmClient.createChatCompletion(
+              {
+                model: this.config.modelName,
+                messages,
+                ...(this.tools.length > 0
+                  ? { tools: this.tools, tool_choice: 'auto' as const }
+                  : {}),
+              },
+              { signal: options?.signal },
+            );
 
-        const responseMessage = getResponseMessage(response);
+            const responseMessage = getResponseMessage(response);
 
-        if (response.usage) {
-          tokenUsage.prompt_tokens += response.usage.prompt_tokens;
-          tokenUsage.completion_tokens += response.usage.completion_tokens;
-          tokenUsage.total_tokens += response.usage.total_tokens;
-          this.bus.emit({ type: 'tokens', iteration, usage: tokenUsage });
-        }
+            if (response.usage) {
+              tokenUsage.prompt_tokens += response.usage.prompt_tokens;
+              tokenUsage.completion_tokens += response.usage.completion_tokens;
+              tokenUsage.total_tokens += response.usage.total_tokens;
+              this.bus.emit({ type: 'tokens', iteration, usage: tokenUsage });
+            }
 
-        this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
+            this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
 
-        if (hasToolCalls(responseMessage)) {
-          options?.signal?.throwIfAborted();
+            if (hasToolCalls(responseMessage)) {
+              options?.signal?.throwIfAborted();
 
-          const toolResponse = await runTools(responseMessage, this.tools, {
-            onAssistantMessage: (content) => this.bus.emit({ type: 'assistant_message', content }),
-            onToolCall: (name, args, toolCallId) =>
-              this.bus.emit({ type: 'tool_call', name, args, toolCallId }),
-            onToolResult: (name, content, toolCallId) =>
-              this.bus.emit({ type: 'tool_result', name, content, toolCallId }),
-          });
-          this.messageHistory.push(...toolResponse);
-          this.forEachModule('onToolRound');
-          continue;
-        }
+              const toolResponse = await runTools(responseMessage, this.tools, {
+                onAssistantMessage: (content) => this.bus.emit({ type: 'assistant_message', content }),
+                onToolCall: (name, args, toolCallId) =>
+                  this.bus.emit({ type: 'tool_call', name, args, toolCallId }),
+                onToolResult: (name, content, toolCallId) =>
+                  this.bus.emit({ type: 'tool_result', name, content, toolCallId }),
+              });
+              this.messageHistory.push(...toolResponse);
+              this.forEachModule('onToolRound');
+              continue;
+            }
 
-        const content = formatMessageContent(responseMessage.content);
-        if (!content) {
-          this.messageHistory.pop();
-        }
+            const content = formatMessageContent(responseMessage.content);
+            if (!content) {
+              this.messageHistory.pop();
+            }
 
-        const result = {
-          content,
-          tokenUsage,
-          iterations: iteration,
-        };
-        this.bus.emit({
-          type: 'agent_response',
-          content: result.content,
-          iterations: result.iterations,
-          tokenUsage: result.tokenUsage,
-        });
-        return result;
-      }
+            const result = {
+              content,
+              tokenUsage,
+              iterations: iteration,
+            };
+            observation.update({
+              output: {
+                content: result.content,
+                iterations: result.iterations,
+                tokenUsage: result.tokenUsage,
+              },
+            });
+            this.bus.emit({
+              type: 'agent_response',
+              content: result.content,
+              iterations: result.iterations,
+              tokenUsage: result.tokenUsage,
+            });
+            return result;
+          }
 
-      throw new Error('Max iterations reached');
+          throw new Error('Max iterations reached');
+        },
+      );
     } catch (error) {
       if (isAbortError(error)) {
         this.messageHistory.length = historyCheckpoint;

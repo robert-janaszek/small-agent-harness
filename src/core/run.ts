@@ -1,4 +1,5 @@
 import { DiffTerminal } from '../cli/tui/diffTerminal';
+import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { createEventBus } from './eventBus';
 import { Harness } from './harness';
 import type { Module } from './module';
@@ -104,6 +105,8 @@ export async function run(options: RunOptions = {}): Promise<number> {
     return 0;
   }
 
+  initLangfuseTracing();
+
   try {
     const { mode, command } = parseArgv(argv);
     const resolvedCommand = command || options.defaultCommand || '';
@@ -117,5 +120,7 @@ export async function run(options: RunOptions = {}): Promise<number> {
     const message = error instanceof Error ? error.message : 'Unknown error';
     writeFatalError(message);
     return 1;
+  } finally {
+    await flushLangfuse();
   }
 }

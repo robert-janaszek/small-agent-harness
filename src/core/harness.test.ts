@@ -135,10 +135,12 @@ describe('core Harness', () => {
     );
 
     await harness.run('hello');
+    const sessionIdBefore = harness.getSessionId();
     harness.resetSession();
 
     expect(harness.getMessageHistory()).toEqual([]);
     expect(harness.getTurnCount()).toBe(0);
+    expect(harness.getSessionId()).not.toBe(sessionIdBefore);
     expect(onSessionReset).toHaveBeenCalledTimes(1);
 
     await harness.run('again');
