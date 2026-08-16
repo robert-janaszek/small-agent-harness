@@ -109,6 +109,7 @@ export function formatYamlRepairEvent(event: HarnessEvent): string | null {
     case 'ready':
     case 'context_init':
     case 'context_delta':
+    case 'wizard_state':
     case 'session_end':
       return null;
     default: {

@@ -154,7 +154,7 @@ export function paintParseStatusPanel(
     const text = lines[row] ?? '';
     for (let col = 0; col < width; col++) {
       const ch = text[col] ?? ' ';
-      let fg = colors.text;
+      let fg: number = colors.text;
 
       if (row === 0) {
         fg = colors.banner;

@@ -138,6 +138,17 @@ describe('TerminalInputLine.start', () => {
     expect(input.isActive()).toBe(true);
   });
 
+  it('pauses stdin when closed so the process can exit', () => {
+    const { input } = createInput();
+    const pause = vi.spyOn(process.stdin, 'pause');
+
+    input.close();
+
+    expect(input.isActive()).toBe(false);
+    expect(pause).toHaveBeenCalled();
+    pause.mockRestore();
+  });
+
   it('calls onInterrupt for ctrl+c', () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
     process.stdin.setRawMode = vi.fn() as typeof process.stdin.setRawMode;
@@ -213,6 +224,37 @@ describe('TerminalInputLine.start', () => {
     process.stdin.emit('data', Buffer.from('\r'));
 
     expect(onSubmit).toHaveBeenCalledWith('/clear');
+  });
+
+  it('accepts Polish diacritics encoded as UTF-8', () => {
+    const { input, onSubmit } = createInput();
+
+    process.stdin.emit('data', Buffer.from('zażółć gęślą jaźń', 'utf8'));
+    expect(input.getState().value).toBe('zażółć gęślą jaźń');
+
+    process.stdin.emit('data', Buffer.from('\r'));
+    expect(onSubmit).toHaveBeenCalledWith('zażółć gęślą jaźń');
+  });
+
+  it('assembles a Polish letter split across UTF-8 chunks', () => {
+    const { input } = createInput();
+    const encoded = Buffer.from('ą', 'utf8');
+
+    expect(encoded.length).toBeGreaterThan(1);
+    process.stdin.emit('data', encoded.subarray(0, 1));
+    expect(input.getState().value).toBe('');
+
+    process.stdin.emit('data', encoded.subarray(1));
+    expect(input.getState().value).toBe('ą');
+  });
+
+  it('backspaces a Polish letter as a single character', () => {
+    const { input } = createInput();
+
+    process.stdin.emit('data', Buffer.from('ość', 'utf8'));
+    process.stdin.emit('data', Buffer.from('\u007f'));
+
+    expect(input.getState().value).toBe('oś');
   });
 
   it('hides palette on ESC while keeping the typed value', () => {

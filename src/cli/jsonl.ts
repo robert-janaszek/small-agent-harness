@@ -13,6 +13,18 @@ export type ContextDeltaChange = {
   value: string | AcState;
 };
 
+export type WizardStepSnapshot = {
+  id: string;
+  title: string;
+  validated: boolean;
+  lastError: string | null;
+};
+
+export type WizardStatePayload = {
+  currentIndex: number;
+  steps: WizardStepSnapshot[];
+};
+
 export const HARNESS_PROTOCOL_VERSION = 1;
 
 export type HarnessCommand =
@@ -31,6 +43,7 @@ export type HarnessEvent =
   | { type: 'tokens'; iteration: number; usage: TokenUsage }
   | { type: 'context_init'; changes: ContextDeltaChange[] }
   | { type: 'context_delta'; changes: ContextDeltaChange[] }
+  | ({ type: 'wizard_state' } & WizardStatePayload)
   | { type: 'agent_response'; content: string; iterations: number; tokenUsage: TokenUsage }
   | { type: 'session_end'; turnCount: number }
   | { type: 'error'; message: string };

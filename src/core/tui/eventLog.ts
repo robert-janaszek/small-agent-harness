@@ -1,4 +1,4 @@
-import type { HarnessEvent } from '../../../cli/jsonl';
+import type { CoreEvent } from '../protocol';
 
 const MAX_CONTENT_PREVIEW = 56;
 const MAX_WRAPPED_AGENT_LINES = 10;
@@ -6,9 +6,15 @@ const AGENT_PREFIX = 'agent: ';
 const ASSISTANT_PREFIX = 'assistant: ';
 
 function truncate(text: string, max = MAX_CONTENT_PREVIEW): string {
-  if (max <= 0) return '';
-  if (text.length <= max) return text;
-  if (max === 1) return '…';
+  if (max <= 0) {
+    return '';
+  }
+  if (text.length <= max) {
+    return text;
+  }
+  if (max === 1) {
+    return '…';
+  }
   return `${text.slice(0, max - 1)}…`;
 }
 
@@ -107,51 +113,29 @@ function isAgentLine(line: string): boolean {
   return line.startsWith(AGENT_PREFIX) || line.startsWith(ASSISTANT_PREFIX);
 }
 
-function formatToolResult(name: string, content: string): string {
-  if (name === 'listDevices') {
-    try {
-      const parsed = JSON.parse(content) as { devices?: unknown[] };
-      const count = parsed.devices?.length ?? 0;
-      return `listDevices → ${count} devices`;
-    } catch {
-      return `listDevices → (invalid json)`;
-    }
-  }
-
-  return truncate(content.replace(/\s+/g, ' '));
-}
-
-export function formatEvent(event: HarnessEvent): string {
+export function formatEvent(event: CoreEvent): string | null {
   switch (event.type) {
+    case 'ready':
+    case 'session_end':
+    case 'tokens':
+      return null;
     case 'user_command':
       return `> ${event.command}`;
     case 'assistant_message':
-      return `assistant: ${event.content}`;
+      return event.content.trim().length === 0 ? null : `assistant: ${event.content}`;
     case 'tool_call':
       return `call ${event.name}(${truncate(JSON.stringify(event.args), 40)})`;
     case 'tool_result':
-      return `  ${event.name}: ${formatToolResult(event.name, event.content)}`;
-    case 'tokens':
-      return `tokens i${event.iteration} ${event.usage.total_tokens} total`;
-    case 'context_init':
-      return `state init ${event.changes.length} device(s)`;
-    case 'context_delta':
-      return `state Δ ${event.changes.length} change(s)`;
+      return `  ${event.name}: ${truncate(event.content.replace(/\s+/g, ' '))}`;
     case 'agent_response':
-      return `agent: ${event.content}`;
-    case 'ready':
-      return `session ready (protocol v${event.protocolVersion})`;
-    case 'session_end':
-      return `session ended (${event.turnCount} turn(s))`;
+      return event.content.trim().length === 0 ? null : `agent: ${event.content}`;
     case 'error':
       return `ERROR: ${event.message}`;
-    case 'work_file':
-      return `work file: ${event.path}`;
-    case 'wizard_state':
-      return `wizard step ${event.currentIndex + 1}/${event.steps.length}`;
-    default: {
-      const _exhaustive: never = event;
-      return String(_exhaustive);
+    case 'module': {
+      if (event.payload === undefined) {
+        return `module.${event.module} ${event.event}`;
+      }
+      return `module.${event.module} ${event.event} ${truncate(JSON.stringify(event.payload), 32)}`;
     }
   }
 }
@@ -159,17 +143,12 @@ export function formatEvent(event: HarnessEvent): string {
 export class EventLog {
   private lines: string[] = [];
 
-  append(event: HarnessEvent): void {
-    if (event.type === 'context_delta' && event.changes.length === 0) {
+  append(event: CoreEvent): void {
+    const line = formatEvent(event);
+    if (line === null) {
       return;
     }
-    if (
-      (event.type === 'agent_response' || event.type === 'assistant_message') &&
-      event.content.trim().length === 0
-    ) {
-      return;
-    }
-    this.lines.push(formatEvent(event));
+    this.lines.push(line);
   }
 
   clear(): void {

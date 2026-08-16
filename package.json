@@ -11,10 +11,13 @@
     "test:watch": "vitest",
     "build": "tsc",
     "harness": "tsx src/cli/main.ts",
+    "core": "tsx src/core/cli.ts",
     "yaml-repair": "tsx src/cli/yamlRepairRender.ts",
     "yaml-repair:harness": "tsx src/cli/yamlRepair.ts",
     "yaml-repair:batch": "tsx src/cli/yamlRepair.ts --default",
     "yaml-repair:human": "tsx src/cli/yamlRepair.ts --default --human",
+    "virtual-wizard": "tsx src/modules/virtualWizard/main.ts",
+    "virtual-wizard:harness": "tsx src/cli/virtualWizard.ts",
     "start": "tsx src/cli/render.ts",
     "render": "tsx src/cli/render.ts"
   },
