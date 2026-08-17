@@ -13,6 +13,7 @@ import { setDeviceState } from './devices';
 import {
   createSmartHomeModule,
   createSmartHomePanel,
+  isToolContext,
   SMART_HOME_MODULE_ID,
   SMART_HOME_PROMPT,
 } from './module';
@@ -173,6 +174,21 @@ describe('createSmartHomePanel', () => {
     expect(text).toContain('●1');
   });
 
+  it('ignores payloads that are not a device snapshot', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(16, 80, (chunk) => output.push(chunk));
+    const panel = createSmartHomePanel();
+    panel.onEvent?.('state', { currentIndex: 0, steps: [] });
+    panel.onEvent?.('state', {});
+    panel.onEvent?.('state', { light: 'ON' });
+    panel.paint({ terminal, startCol: 40, width: 39, height: 14 });
+    terminal.flush();
+
+    const text = visibleText(output.join(''));
+    expect(text).toContain('livingRoom');
+    expect(text).toContain('●1');
+  });
+
   it('paints the floor plan in the default renderer after session start', () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(16, 80, (chunk) => output.push(chunk));
@@ -185,6 +201,7 @@ describe('createSmartHomePanel', () => {
     });
     const renderer = new DefaultRenderer(terminal, harness, bus, {
       panel: createSmartHomePanel(),
+      panelModuleId: SMART_HOME_MODULE_ID,
     });
 
     harness.startSession();
@@ -195,5 +212,19 @@ describe('createSmartHomePanel', () => {
     const text = visibleText(output.join(''));
     expect(text).toContain('livingRoom');
     expect(text).not.toContain('no module');
+  });
+});
+
+describe('isToolContext', () => {
+  it('accepts a nested device snapshot and rejects wizard-like objects', () => {
+    expect(
+      isToolContext({
+        light: { livingRoom: { '1': 'ON' } },
+        ac: { livingRoom: { '1': { power: 'OFF', targetTemperature: 22 } } },
+      }),
+    ).toBe(true);
+    expect(isToolContext({ currentIndex: 0, steps: [] })).toBe(false);
+    expect(isToolContext({})).toBe(false);
+    expect(isToolContext({ light: 'ON' })).toBe(false);
   });
 });

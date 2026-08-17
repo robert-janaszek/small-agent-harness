@@ -45,6 +45,7 @@ export function paintNoModulePanel(
 export type DefaultRendererOptions = {
   initialCommand?: string | null;
   panel?: ModulePanel | null;
+  panelModuleId?: string | null;
 };
 
 export class DefaultRenderer {
@@ -53,6 +54,7 @@ export class DefaultRenderer {
   private bus: EventBus;
   private initialCommand: string | null;
   private panel: ModulePanel | null;
+  private panelModuleId: string | null;
   private eventLog = new EventLog();
   private inputLine: TerminalInputLine;
   private commandQueue: string[] = [];
@@ -69,6 +71,7 @@ export class DefaultRenderer {
   private activityTimer: ReturnType<typeof setInterval> | null = null;
   private turnStartedAt: number | null = null;
   private elapsedMs = 0;
+  private exitCode = 0;
 
   constructor(
     terminal: DiffTerminal,
@@ -81,6 +84,7 @@ export class DefaultRenderer {
     this.bus = bus;
     this.initialCommand = options.initialCommand ?? null;
     this.panel = options.panel ?? null;
+    this.panelModuleId = options.panelModuleId ?? null;
     this.inputLine = new TerminalInputLine(() => {
       this.redraw();
     });
@@ -91,7 +95,8 @@ export class DefaultRenderer {
     this.redraw();
   }
 
-  shutdown(): void {
+  shutdown(exitCode = 0): void {
+    this.exitCode = exitCode;
     void this.requestExit();
   }
 
@@ -120,7 +125,7 @@ export class DefaultRenderer {
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.redraw();
-    return 0;
+    return this.exitCode;
   }
 
   async handleInput(command: string): Promise<void> {
@@ -169,6 +174,7 @@ export class DefaultRenderer {
       return;
     }
 
+    this.exitCode = 130;
     await this.requestExit();
   }
 
@@ -283,7 +289,9 @@ export class DefaultRenderer {
     } else if (event.type === 'agent_response') {
       this.tokenCounter = { usage: event.tokenUsage, iteration: event.iterations };
     } else if (event.type === 'module') {
-      this.panel?.onEvent?.(event.event, event.payload);
+      if (!this.panelModuleId || event.module === this.panelModuleId) {
+        this.panel?.onEvent?.(event.event, event.payload);
+      }
     }
 
     this.eventLog.append(event);

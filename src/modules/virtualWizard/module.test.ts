@@ -164,6 +164,7 @@ describe('createVirtualWizardPanel', () => {
     });
     const renderer = new DefaultRenderer(terminal, harness, bus, {
       panel: createVirtualWizardPanel(),
+      panelModuleId: VIRTUAL_WIZARD_MODULE_ID,
     });
 
     harness.startSession();

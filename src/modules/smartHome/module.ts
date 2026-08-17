@@ -1,6 +1,6 @@
 import type { Module, ModulePanel } from '../../core/module';
 import type { Tool } from '../../core/tool';
-import type { ToolContext } from '../../tools/types';
+import { acStateSchema, type ToolContext } from '../../tools/types';
 import { createContext, snapshotHomeState } from './context';
 import { controlAc } from './controlAc.tool';
 import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';
@@ -55,8 +55,36 @@ Rules for water valves:
 
 export type SmartHomeModule = Module & { context: ToolContext };
 
-function isToolContext(payload: unknown): payload is ToolContext {
-  return typeof payload === 'object' && payload !== null && !Array.isArray(payload);
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isDeviceValue(value: unknown): boolean {
+  return typeof value === 'string' || acStateSchema.safeParse(value).success;
+}
+
+export function isToolContext(payload: unknown): payload is ToolContext {
+  if (!isPlainObject(payload) || Object.keys(payload).length === 0) {
+    return false;
+  }
+
+  for (const rooms of Object.values(payload)) {
+    if (!isPlainObject(rooms)) {
+      return false;
+    }
+    for (const devices of Object.values(rooms)) {
+      if (!isPlainObject(devices)) {
+        return false;
+      }
+      for (const deviceValue of Object.values(devices)) {
+        if (!isDeviceValue(deviceValue)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
 }
 
 export function createSmartHomePanel(): ModulePanel {

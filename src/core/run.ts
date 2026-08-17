@@ -94,6 +94,7 @@ async function runTuiSession(module: Module | undefined, command: string): Promi
   const renderer = new DefaultRenderer(terminal, harness, bus, {
     initialCommand: command || null,
     panel: module?.createPanel?.() ?? null,
+    panelModuleId: module?.id,
   });
   let leaving = false;
 
@@ -111,20 +112,24 @@ async function runTuiSession(module: Module | undefined, command: string): Promi
     renderer.refresh();
   };
 
-  const onSignal = (): void => {
-    renderer.shutdown();
+  const onSigint = (): void => {
+    renderer.shutdown(130);
+  };
+
+  const onSigterm = (): void => {
+    renderer.shutdown(143);
   };
 
   process.stdout.on('resize', onResize);
-  process.on('SIGINT', onSignal);
-  process.on('SIGTERM', onSignal);
+  process.on('SIGINT', onSigint);
+  process.on('SIGTERM', onSigterm);
 
   try {
     return await renderer.run();
   } finally {
     process.stdout.off('resize', onResize);
-    process.off('SIGINT', onSignal);
-    process.off('SIGTERM', onSignal);
+    process.off('SIGINT', onSigint);
+    process.off('SIGTERM', onSigterm);
     leave();
   }
 }
