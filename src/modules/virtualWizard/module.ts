@@ -19,6 +19,7 @@ export const VIRTUAL_WIZARD_START_COMMAND = 'Start the onboarding wizard.';
 export const VIRTUAL_WIZARD_PROMPT = `Gather what you need from the user and fill the onboarding wizard with tools.
 
 Listen to the user. Treat their reply as an answer, including "make one up", "whatever", "you decide", or a partial value. If they ask you to invent a field, invent a value that passes validation and continue. Do not insist they type their own real name, email, or plan.
+If they tell you to choose, invent, skip, or fill in a value, do that. Do not refuse and re-ask for the same field.
 
 Default: ask for missing information one step at a time. After they answer, call tools, then ask only for what is still missing.
 

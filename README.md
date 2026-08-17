@@ -82,12 +82,18 @@ Or pass an initial command:
 npm start -- turn off all lights in the living room
 ```
 
-On a TTY this is the Core split-view (`DefaultRenderer`). Headless JSONL uses the same entrypoint when stdout is not a TTY, or with `--serve`:
+On a TTY this is the Core split-view (`DefaultRenderer`). `npm run harness` always writes JSONL (`--jsonl`), including on a TTY. The same entrypoint also uses JSONL when stdout is not a TTY, or with `--serve`.
 
-**One-shot JSONL** — pass the command as CLI arguments without a TTY (or pipe stdout):
+**One-shot JSONL** — `npm run harness` forces JSONL even in an interactive terminal:
 
 ```bash
 npm run harness -- turn off all lights in the living room
+```
+
+Or from `npm start` / `npm run smart-home`:
+
+```bash
+npm start -- --jsonl turn off all lights in the living room
 ```
 
 **Serve mode** — long-lived JSONL session for external clients (stdin commands, stdout events):
@@ -137,13 +143,13 @@ modules/smartHome/main.ts
         │     ├── ChatCompletionClient
         │     ├── agent loop (system prompt + history + tools)
         │     └── runTools()
-        └── DefaultRenderer (TTY) or JSONL stdout (non-TTY / --serve)
+        └── DefaultRenderer (TTY) or JSONL stdout (non-TTY / --jsonl / --serve)
               └── module.createPanel()  → ASCII floor plan
 ```
 
 ### Core concepts
 
-**`run(options)`** — process host. On a TTY it starts `DefaultRenderer`; otherwise it writes Core JSONL. A module is optional (`npm run core` has none).
+**`run(options)`** — process host. On a TTY it starts `DefaultRenderer`, unless `--jsonl` or `--serve` is set (or stdout is not a TTY). A module is optional (`npm run core` has none).
 
 **`Harness`** — domain-agnostic loop. Calls the LLM, executes tool calls, repeats until the model returns a text response or `maxIterations` is reached. Maintains `messageHistory` across multiple `run()` calls within a session. Returns a structured `HarnessRunResult` (`content`, token usage, iteration count). Throws if the iteration limit is hit or the API returns an empty `choices` array.
 
@@ -210,7 +216,7 @@ npm run harness -- turn on the bedroom ceiling light
 npm run harness -- Is anyone home? check if there are any lights on
 ```
 
-After each run, stdout is a stream of JSON Lines (one event per line) when the process is not attached to a TTY. An external process can spawn the harness and parse each line.
+After each run, stdout is a stream of JSON Lines (one event per line) when using `npm run harness`, `--jsonl`, `--serve`, or a non-TTY stdout. An external process can spawn the harness and parse each line.
 
 ---
 
@@ -322,9 +328,10 @@ npm start
 | Command | Output |
 |---------|--------|
 | `npm start [-- <command>]` | Split-view TUI (multi-turn, default on TTY) |
-| `npm run harness -- <command>` | Same host; TUI on TTY, JSONL when not a TTY |
+| `npm run harness -- <command>` | One-shot JSONL (forced with `--jsonl`, including on a TTY) |
 | `npm run harness -- --serve` | JSONL stdin/stdout session |
-| `npm run smart-home` | Alias for the smart home entrypoint |
+| `npm start -- --jsonl <command>` | Same one-shot JSONL from the TUI entrypoint |
+| `npm run smart-home` | Alias for `npm start` |
 | `npm run core` | Host with no module (placeholder panel) |
 
 ---
@@ -405,8 +412,8 @@ Results will vary widely between models and quantizations. This repo is meant to
 | Command | Description |
 |---------|-------------|
 | `npm start [-- <command>]` | Smart home Core host (TUI on TTY) |
-| `npm run smart-home [-- args]` | Alias for the smart home entrypoint |
-| `npm run harness [-- args]` | Same host; JSONL when not a TTY or with `--serve` |
+| `npm run smart-home [-- args]` | Alias for `npm start` |
+| `npm run harness [-- args]` | Smart home JSONL (`--jsonl`; one-shot or `--serve`) |
 | `npm run core` | Core host with no module |
 | `npm run virtual-wizard` | Virtual wizard Core plugin |
 | `npm run yaml-repair [-- <command>]` | YAML repair split-view TUI (requires TTY, default) |
@@ -414,7 +421,7 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run yaml-repair:batch` | Headless one-shot with default repair instruction |
 | `npm run yaml-repair:harness -- --serve` | JSONL stdin/stdout session (for external renderers) |
 | `npm run yaml-repair:human` | Headless batch with human-readable trace (dev) |
-| `npm run dev` | Same as `harness` |
+| `npm run dev` | Same as `npm start` |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:coverage` | Unit tests with V8 coverage report |
 | `npm run test:system` | E2E tests against local model |

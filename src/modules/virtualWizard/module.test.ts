@@ -68,6 +68,7 @@ describe('createVirtualWizardModule', () => {
     expect(VIRTUAL_WIZARD_PROMPT).toContain('Gather what you need from the user');
     expect(VIRTUAL_WIZARD_PROMPT).toContain('Listen to the user');
     expect(VIRTUAL_WIZARD_PROMPT).toContain('If they ask you to invent a field');
+    expect(VIRTUAL_WIZARD_PROMPT).toContain('Do not refuse and re-ask for the same field');
     expect(VIRTUAL_WIZARD_PROMPT).not.toContain('There is no human-in-the-loop');
     expect(VIRTUAL_WIZARD_PROMPT).not.toContain('tool-calling harness');
     expect(VIRTUAL_WIZARD_PROMPT).not.toContain('Do not invent missing values');
@@ -163,6 +164,7 @@ describe('createVirtualWizardPanel', () => {
     });
     const renderer = new DefaultRenderer(terminal, harness, bus, {
       panel: createVirtualWizardPanel(),
+      panelModuleId: VIRTUAL_WIZARD_MODULE_ID,
     });
 
     harness.startSession();

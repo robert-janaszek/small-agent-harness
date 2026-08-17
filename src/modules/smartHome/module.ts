@@ -1,6 +1,6 @@
 import type { Module, ModulePanel } from '../../core/module';
 import type { Tool } from '../../core/tool';
-import type { ToolContext } from '../../tools/types';
+import { acStateSchema, type ToolContext } from '../../tools/types';
 import { createContext, snapshotHomeState } from './context';
 import { controlAc } from './controlAc.tool';
 import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';
@@ -16,10 +16,12 @@ import { setAcTemperatureTool } from './setAcTemperature.tool';
 export const SMART_HOME_MODULE_ID = 'smartHome';
 
 export const SMART_HOME_PROMPT = `You are a proactive smart home manager running in a loop.
+The user issues commands. Execute them with tools.
+Never ask the user a question — they cannot read assistant text in this session and cannot answer you.
+If a command is ambiguous, pick a reasonable interpretation and act. Do not wait for confirmation or permission.
+Final text is a status report of what you did or found, not a question.
 Always verify that every command actually succeeded by checking device state after executing an action.
 If something fails, retry or try an alternative approach.
-There is no human-in-the-loop.
-Do not ask any questions (even for permission).
 Focus on actions, not conversation.
 Do not finish until you have confirmed the task is fully and correctly done.
 
@@ -53,8 +55,36 @@ Rules for water valves:
 
 export type SmartHomeModule = Module & { context: ToolContext };
 
-function isToolContext(payload: unknown): payload is ToolContext {
-  return typeof payload === 'object' && payload !== null && !Array.isArray(payload);
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isDeviceValue(value: unknown): boolean {
+  return typeof value === 'string' || acStateSchema.safeParse(value).success;
+}
+
+export function isToolContext(payload: unknown): payload is ToolContext {
+  if (!isPlainObject(payload) || Object.keys(payload).length === 0) {
+    return false;
+  }
+
+  for (const rooms of Object.values(payload)) {
+    if (!isPlainObject(rooms)) {
+      return false;
+    }
+    for (const devices of Object.values(rooms)) {
+      if (!isPlainObject(devices)) {
+        return false;
+      }
+      for (const deviceValue of Object.values(devices)) {
+        if (!isDeviceValue(deviceValue)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
 }
 
 export function createSmartHomePanel(): ModulePanel {

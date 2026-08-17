@@ -5,6 +5,7 @@ import { DiffTerminal } from '../../cli/tui/diffTerminal';
 import type { ChatCompletionClient } from '../../client/llmClient.type';
 import { createEventBus } from '../../core/eventBus';
 import { Harness } from '../../core/harness';
+import { composeSystemPrompt, HARNESS_PROMPT } from '../../core/module';
 import type { CoreEvent } from '../../core/protocol';
 import { DefaultRenderer } from '../../core/tui/defaultRenderer';
 import type { HarnessConfig } from '../../harness/harness.config.validate';
@@ -12,6 +13,7 @@ import { setDeviceState } from './devices';
 import {
   createSmartHomeModule,
   createSmartHomePanel,
+  isToolContext,
   SMART_HOME_MODULE_ID,
   SMART_HOME_PROMPT,
 } from './module';
@@ -65,10 +67,18 @@ function moduleStateEvents(events: CoreEvent[]) {
 }
 
 describe('createSmartHomeModule', () => {
-  it('keeps the autonomous smart home prompt', () => {
-    expect(SMART_HOME_PROMPT).toContain('There is no human-in-the-loop');
+  it('forbids asking the user because they cannot read assistant text', () => {
+    expect(SMART_HOME_PROMPT).toContain('Never ask the user a question');
+    expect(SMART_HOME_PROMPT).toContain('they cannot read assistant text');
     expect(SMART_HOME_PROMPT).toContain('Always verify that every command actually succeeded');
     expect(SMART_HOME_PROMPT).not.toContain('tool-calling harness');
+    expect(SMART_HOME_PROMPT).not.toContain('Ask only when something is still missing');
+
+    const composed = composeSystemPrompt(HARNESS_PROMPT, [createSmartHomeModule()]);
+    expect(composed).toContain('Never ask the user a question');
+    expect(composed).toContain('Module instructions override these defaults');
+    expect(composed).not.toContain('Ask only when something is still missing');
+    expect(composed).not.toContain('This is a conversation with a human');
   });
 
   it('emits a namespaced state snapshot on session start', () => {
@@ -164,6 +174,21 @@ describe('createSmartHomePanel', () => {
     expect(text).toContain('●1');
   });
 
+  it('ignores payloads that are not a device snapshot', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(16, 80, (chunk) => output.push(chunk));
+    const panel = createSmartHomePanel();
+    panel.onEvent?.('state', { currentIndex: 0, steps: [] });
+    panel.onEvent?.('state', {});
+    panel.onEvent?.('state', { light: 'ON' });
+    panel.paint({ terminal, startCol: 40, width: 39, height: 14 });
+    terminal.flush();
+
+    const text = visibleText(output.join(''));
+    expect(text).toContain('livingRoom');
+    expect(text).toContain('●1');
+  });
+
   it('paints the floor plan in the default renderer after session start', () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(16, 80, (chunk) => output.push(chunk));
@@ -176,6 +201,7 @@ describe('createSmartHomePanel', () => {
     });
     const renderer = new DefaultRenderer(terminal, harness, bus, {
       panel: createSmartHomePanel(),
+      panelModuleId: SMART_HOME_MODULE_ID,
     });
 
     harness.startSession();
@@ -186,5 +212,19 @@ describe('createSmartHomePanel', () => {
     const text = visibleText(output.join(''));
     expect(text).toContain('livingRoom');
     expect(text).not.toContain('no module');
+  });
+});
+
+describe('isToolContext', () => {
+  it('accepts a nested device snapshot and rejects wizard-like objects', () => {
+    expect(
+      isToolContext({
+        light: { livingRoom: { '1': 'ON' } },
+        ac: { livingRoom: { '1': { power: 'OFF', targetTemperature: 22 } } },
+      }),
+    ).toBe(true);
+    expect(isToolContext({ currentIndex: 0, steps: [] })).toBe(false);
+    expect(isToolContext({})).toBe(false);
+    expect(isToolContext({ light: 'ON' })).toBe(false);
   });
 });

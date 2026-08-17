@@ -242,7 +242,7 @@ describe('DefaultRenderer', () => {
       config: testConfig,
       bus,
     });
-    const renderer = new DefaultRenderer(terminal, harness, bus, { panel });
+    const renderer = new DefaultRenderer(terminal, harness, bus, { panel, panelModuleId: 'dummy' });
 
     harness.startSession();
     bus.emit({ type: 'module', module: 'dummy', event: 'label', payload: 'from-event' });
@@ -254,6 +254,48 @@ describe('DefaultRenderer', () => {
     const text = visibleText(output.join(''));
     expect(text).toContain('from-event');
     expect(text).not.toContain('no module');
+  });
+
+  it('does not apply module events from a different module to the panel', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    let label = 'dummy-panel';
+    const panel: ModulePanel = {
+      onEvent(event, payload) {
+        if (event === 'label' && typeof payload === 'string') {
+          label = payload;
+        }
+      },
+      paint({ terminal: pane, startCol, width }: PanelPaintContext) {
+        const text = label.slice(0, width);
+        for (let index = 0; index < text.length; index++) {
+          pane.setChar(0, startCol + index, text[index] ?? ' ');
+        }
+      },
+    };
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion: vi.fn() },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus, {
+      panel,
+      panelModuleId: 'dummy',
+    });
+
+    harness.startSession();
+    bus.emit({ type: 'module', module: 'other', event: 'label', payload: 'hijacked' });
+
+    expect(label).toBe('dummy-panel');
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const text = visibleText(output.join(''));
+    expect(text).toContain('dummy-panel');
   });
 
   it('resolves run() when /exit is entered', async () => {
@@ -277,6 +319,35 @@ describe('DefaultRenderer', () => {
       const running = renderer.run();
       await renderer.handleInput('/exit');
       await expect(running).resolves.toBe(0);
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true });
+      process.stdin.setRawMode = originalSetRawMode;
+      process.stdin.pause = originalPause;
+      process.stdin.removeAllListeners('data');
+    }
+  });
+
+  it('returns 130 from run() when shutdown is called with SIGINT status', async () => {
+    const originalIsTTY = process.stdin.isTTY;
+    const originalSetRawMode = process.stdin.setRawMode;
+    const originalPause = process.stdin.pause;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+    process.stdin.setRawMode = vi.fn() as typeof process.stdin.setRawMode;
+    process.stdin.pause = vi.fn() as typeof process.stdin.pause;
+
+    try {
+      const terminal = new DiffTerminal(12, 80, () => {});
+      const bus = createEventBus();
+      const harness = new Harness({
+        modules: [],
+        llmClient: { createChatCompletion: vi.fn() },
+        config: testConfig,
+        bus,
+      });
+      const renderer = new DefaultRenderer(terminal, harness, bus);
+      const running = renderer.run();
+      renderer.shutdown(130);
+      await expect(running).resolves.toBe(130);
     } finally {
       Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true });
       process.stdin.setRawMode = originalSetRawMode;

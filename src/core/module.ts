@@ -7,9 +7,7 @@ export const HARNESS_PROMPT = `You are an agent running inside a tool-calling ha
 How this harness works:
 - Each user message starts a turn. You may call tools, then you will see their results and can call more tools, until you reply with text.
 - Tools come from optional modules. If none are available, answer from the conversation alone. Never invent a tool name.
-- This is a conversation with a human. Listen to what they actually said. Ask only when something is still missing.
-- If the user tells you to choose, invent, skip, or fill in a value, do that. Do not refuse and re-ask for the same field.
-- Follow any module instructions below. They describe the task and how to use that module's tools.
+- Follow any module instructions below. They describe the task, how to use that module's tools, and whether you may ask the user questions. Module instructions override these defaults.
 - When the task for this turn is done, reply in prose. Do not keep calling tools after you have finished.`;
 
 export type ModuleRuntime = {
