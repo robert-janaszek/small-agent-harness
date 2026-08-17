@@ -70,7 +70,7 @@ MODEL_NAME=google/gemma-3-12b
 HARNESS_MAX_ITERATIONS=15
 ```
 
-Start your local model server, then run the TUI renderer:
+Start your local model server, then run the in-process TUI:
 
 ```bash
 npm start
@@ -82,30 +82,21 @@ Or pass an initial command:
 npm start -- turn off all lights in the living room
 ```
 
-For headless CLI usage (JSONL output, scripts, `--serve` mode), use `npm run harness` instead.
+On a TTY this is the Core split-view (`DefaultRenderer`). Headless JSONL uses the same entrypoint when stdout is not a TTY, or with `--serve`:
 
-**Batch mode** — pass the command as CLI arguments (one shot, process exits):
+**One-shot JSONL** — pass the command as CLI arguments without a TTY (or pipe stdout):
 
 ```bash
 npm run harness -- turn off all lights in the living room
 ```
 
-**Interactive REPL** — multi-turn session in the terminal:
-
-```bash
-npm run harness
-> turn off all lights in the living room
-> are any lights still on?
-> /exit
-```
-
-**Serve mode** — long-lived JSONL session for external renderers (stdin commands, stdout events):
+**Serve mode** — long-lived JSONL session for external clients (stdin commands, stdout events):
 
 ```bash
 npm run harness -- --serve
 ```
 
-The command is read by `readUserCommand()` in batch mode, or via REPL / `--serve` for multi-turn sessions.
+`npm run smart-home` is an alias for the same entrypoint. `npm run core` runs the host with no module (placeholder right panel).
 
 ---
 
@@ -138,31 +129,29 @@ Each `harness.run` turn becomes an agent trace that includes:
 ## Architecture
 
 ```text
-cli/main.ts
-  └── readUserCommand()        ← CLI args (batch) or interactive prompt
-  └── --serve / REPL           ← multi-turn session modes
-  └── Harness(agent, options?)
-        ├── messageHistory     ← persists across turns within a session
-        ├── ChatCompletionClient   ← createOpenAiClient() or inject a mock
-        ├── agent loop             ← system prompt + full history + tools
-        └── runTools()             ← Zod-validated tool execution
-
-modules/smartHome/
-  └── createSmartHomeAgent()
-        ├── ToolContext            ← in-memory fake device state (per agent instance)
-        ├── tools                  ← listDevices, controlDevice, controlAc, …
-        └── onToolRound            ← optional context_delta emission after each tool round
+modules/smartHome/main.ts
+  └── core/run({ module })
+        ├── EventBus
+        ├── Harness({ modules })
+        │     ├── messageHistory
+        │     ├── ChatCompletionClient
+        │     ├── agent loop (system prompt + history + tools)
+        │     └── runTools()
+        └── DefaultRenderer (TTY) or JSONL stdout (non-TTY / --serve)
+              └── module.createPanel()  → ASCII floor plan
 ```
 
 ### Core concepts
 
+**`run(options)`** — process host. On a TTY it starts `DefaultRenderer`; otherwise it writes Core JSONL. A module is optional (`npm run core` has none).
+
 **`Harness`** — domain-agnostic loop. Calls the LLM, executes tool calls, repeats until the model returns a text response or `maxIterations` is reached. Maintains `messageHistory` across multiple `run()` calls within a session. Returns a structured `HarnessRunResult` (`content`, token usage, iteration count). Throws if the iteration limit is hit or the API returns an empty `choices` array.
 
-**`Agent`** — a system prompt, a list of tools, and an optional `onToolRound` callback. The harness core never imports domain modules.
+**`Module`** — an id, optional prompt and tools, optional `createPanel()`, and session hooks (`onSessionStart`, `onSessionReset`, `onToolRound`). Domain state is emitted as `{ type: 'module', module, event, payload }`. The harness core never imports domain modules.
 
 **`Tool` / `defineTool`** — each tool has a Zod `argsSchema` (single source of truth) and a `call` handler. OpenAI `function.parameters` are generated from the schema via `z.toJSONSchema()` — no duplicate JSON Schema hand-written in tool files.
 
-**`createSmartHomeAgent(initialState?)`** — factory that builds an agent with its own isolated `ToolContext`. Pass `initialState` to customize starting device states in tests. Multiple agents can run in parallel without sharing mutable singleton state.
+**`createSmartHomeModule(initialState?)`** — factory that builds a module with its own isolated `ToolContext`. Pass `initialState` to customize starting device states in tests. Multiple modules can run in parallel without sharing mutable singleton state.
 
 ---
 
@@ -204,7 +193,7 @@ npm run test:watch
 | `npm run test:coverage` | Same as `npm test`, plus V8 coverage (`text` + `html` under `coverage/`) |
 | `npm run test:system` | Full agent runs: lights off, AC on + temperature, water valve — skipped automatically if the API is unreachable |
 
-System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when no server is available, so CI and offline development still work with unit tests only. They check `HarnessRunResult.iterations < maxIterations` and domain state in `agent.context` — not only side effects that could occur before the loop fails.
+System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when no server is available, so CI and offline development still work with unit tests only. They check `HarnessRunResult.iterations < maxIterations` and domain state in `module.context` — not only side effects that could occur before the loop fails.
 
 ---
 
@@ -221,46 +210,45 @@ npm run harness -- turn on the bedroom ceiling light
 npm run harness -- Is anyone home? check if there are any lights on
 ```
 
-After each run, stdout is a stream of JSON Lines (one event per line). An external process can spawn the harness and parse each line. Interactive mode writes the `> ` prompt to stderr so stdout stays machine-readable.
+After each run, stdout is a stream of JSON Lines (one event per line) when the process is not attached to a TTY. An external process can spawn the harness and parse each line.
 
 ---
 
 ## JSONL output protocol
 
-The harness writes **one JSON object per line** to stdout. Each object has a `type` field.
+The Core host writes **one JSON object per line** to stdout. Each object has a `type` field.
 
 | `type` | When | Fields |
 |--------|------|--------|
-| `ready` | Start of session (batch, REPL, or `--serve`) | `protocolVersion` |
-| `context_init` | Right after `ready` (smart home) | `changes[]` — full device snapshot |
+| `ready` | Start of session | `protocolVersion` |
+| `module` | Domain hook (`onSessionStart`, `onToolRound`, `onSessionReset`) | `module`, `event`, optional `payload` |
 | `user_command` | Start of each turn | `command` |
 | `assistant_message` | Model returns text before tool calls | `content` |
 | `tool_call` | Before executing a tool | `name`, `args`, `toolCallId` |
 | `tool_result` | After executing a tool | `name`, `content`, `toolCallId` |
 | `tokens` | After each LLM call | `iteration`, `usage` (cumulative per turn) |
-| `context_delta` | After each tool round (smart home) | `changes[]` — only devices that changed |
 | `agent_response` | Final text response for a turn | `content`, `iterations`, `tokenUsage` |
 | `session_end` | End of session | `turnCount` |
 | `error` | CLI or runtime failure | `message` |
+
+Smart home emits `{ type: 'module', module: 'smartHome', event: 'state', payload }` with a full `ToolContext` snapshot (lights, AC, valves). Binary devices use `"ON"` / `"OFF"`; AC values are `{ power, targetTemperature }`.
 
 Example lines:
 
 ```json
 {"type":"ready","protocolVersion":1}
-{"type":"context_init","changes":[{"controlGroup":"light","room":"livingRoom","deviceId":"1","value":"ON"}]}
+{"type":"module","module":"smartHome","event":"state","payload":{"light":{"livingRoom":{"1":"ON"}}}}
 {"type":"user_command","command":"turn off all lights in the living room"}
-{"type":"tool_call","name":"controlDevice","args":{"controlGroup":"light","room":"livingRoom","deviceId":"1","state":"OFF"},"toolCallId":"call_abc"}
+{"type":"tool_call","name":"controlDevice","args":{"controlGroup":"light","room":"livingRoom","deviceId":"1","action":"turn_off"},"toolCallId":"call_abc"}
 {"type":"tool_result","name":"controlDevice","content":"...","toolCallId":"call_abc"}
-{"type":"context_delta","changes":[{"controlGroup":"light","room":"livingRoom","deviceId":"1","value":"OFF"}]}
+{"type":"module","module":"smartHome","event":"state","payload":{"light":{"livingRoom":{"1":"OFF"}}}}
 {"type":"agent_response","content":"All living room lights are off.","iterations":4,"tokenUsage":{"prompt_tokens":1200,"completion_tokens":80,"total_tokens":1280}}
 ```
-
-`context_init` emits the full device snapshot once at session start so clients can rebuild state from a single event. `context_delta` emits only the delta since the previous tool round. AC devices use an object `value` (`power`, `targetTemperature`); binary devices use `"ON"` / `"OFF"`.
 
 Parsing from another process:
 
 ```bash
-# -s hides npm's own stdout banner; stderr holds only the interactive prompt
+# -s hides npm's own stdout banner
 npm run harness -s -- turn off all lights in the living room 2>/dev/null | jq -cn 'inputs | .type'
 ```
 
@@ -273,17 +261,21 @@ npm run harness -s -- turn off all lights in the living room 2>/dev/null | jq -c
 **Do not use `echo "$line" | jq` on macOS.** Builtin `echo` interprets `\n` inside JSON strings as real newlines, which breaks valid JSONL. Use `jq -cn 'inputs'` (reads one JSON object per line) or `printf '%s\n' "$line" | jq .` in a `while read` loop.
 
 - **stdout** — JSONL events only (dotenv load is silent)
-- **stderr** — interactive `> ` prompt (REPL mode) or debug; never parse as protocol
+- **stderr** — debug; never parse as protocol
+
+yamlRepair and virtualWizard still have a **legacy** JSONL CLI (`context_init` / `context_delta` / `wizard_state`) used by their spawn renderers (`npm run yaml-repair`, `npm run virtual-wizard:harness`).
 
 ---
 
 ## JSONL input protocol (`--serve`)
 
-In serve mode, the harness reads **one JSON object per line** from stdin:
+In serve mode, the host reads **one JSON object per line** from stdin:
 
 | `type` | Fields | Description |
 |--------|--------|-------------|
 | `user_command` | `command` | Start a new turn (wait for `agent_response` before sending another) |
+| `cancel` | — | Abort the current turn |
+| `reset` | — | Clear history and restore module state |
 | `shutdown` | — | End the session gracefully |
 
 **Stream rules:**
@@ -295,9 +287,11 @@ In serve mode, the harness reads **one JSON object per line** from stdin:
 
 ```text
 ← {"type":"ready","protocolVersion":1}
+← {"type":"module","module":"smartHome","event":"state","payload":{...}}
 → {"type":"user_command","command":"turn off all lights"}
 ← {"type":"user_command","command":"turn off all lights"}
 ← {"type":"tool_call",...}
+← {"type":"module","module":"smartHome","event":"state","payload":{...}}
 ← {"type":"agent_response",...}
 → {"type":"user_command","command":"are any lights still on?"}
 ← ...
@@ -305,16 +299,16 @@ In serve mode, the harness reads **one JSON object per line** from stdin:
 ← {"type":"session_end","turnCount":2}
 ```
 
-Any language can implement a renderer by spawning `npm run harness -- --serve` with piped stdin/stdout. The TypeScript TUI (`npm start`) is a reference client built on this protocol.
+Any language can implement a client by spawning `npm run harness -- --serve` with piped stdin/stdout. The TypeScript TUI (`npm start`) is in-process and does not spawn.
 
 ---
 
 ## TUI renderer
 
-For a human-readable split view (Claude Code style), use the smart home renderer. It **spawns** the harness in `--serve` mode, sends commands on stdin, reads JSONL from stdout, and draws a TUI:
+On a TTY, `npm start` runs Core `DefaultRenderer` in-process (no spawn):
 
 - **Left panel** — event log (`tool_call`, `tool_result`, tokens, agent response, …)
-- **Right panel** — ASCII floor-plan of the home; updates on `context_delta`
+- **Right panel** — ASCII floor-plan of the home; updates on `module` / `state`
 - **Diff rendering** — only changed terminal cells are rewritten (no full-screen clear)
 - **Multi-turn** — after each `agent_response`, enter another command; `/exit` ends the session
 
@@ -327,22 +321,23 @@ npm start
 
 | Command | Output |
 |---------|--------|
-| `npm start [-- <command>]` | Split-view TUI (multi-turn, default) |
-| `npm run harness -- <command>` | JSONL on stdout, single turn, exit |
-| `npm run harness` | Interactive REPL (multi-turn) |
-| `npm run harness -- --serve` | JSONL stdin/stdout session (for external renderers) |
+| `npm start [-- <command>]` | Split-view TUI (multi-turn, default on TTY) |
+| `npm run harness -- <command>` | Same host; TUI on TTY, JSONL when not a TTY |
+| `npm run harness -- --serve` | JSONL stdin/stdout session |
+| `npm run smart-home` | Alias for the smart home entrypoint |
+| `npm run core` | Host with no module (placeholder panel) |
 
 ---
 
 ## Adding your own module
 
-The harness does not depend on smart home. To add another domain:
+The Core host does not depend on smart home. To add another domain:
 
 1. Create `src/modules/yourDomain/`
 2. Define Zod schemas for tool arguments
 3. Use `defineTool()` to declare tools against a context (in-memory state, file, mock API, etc.)
-4. Export a factory, e.g. `createYourDomainAgent(): Agent`
-5. Wire it in `cli/main.ts`: `new Harness(createYourDomainAgent())`
+4. Export `createYourDomainModule(): Module` with prompt, tools, hooks, and optional `createPanel()`
+5. Add `main.ts` that calls `run({ module: createYourDomainModule(), argv: process.argv.slice(2) })`
 
 Keep the domain module responsible for its own state and side effects. Keep `Harness` free of domain imports.
 
@@ -355,37 +350,38 @@ src/
 ├── client/                 # OpenAI-compatible LLM client
 │   ├── createOpenAiClient.ts
 │   └── llmClient.type.ts
-├── harness/                # Agent loop, config, types
-│   ├── harness.ts          # Agent loop + HarnessRunResult
-│   ├── agent.type.ts       # Agent interface
-│   ├── harness.config.*    # Env config (lazy getHarnessConfig)
-│   └── loadEnv.ts          # Idempotent dotenv loader
-├── cli/                    # Entry point + user input + JSONL protocol
-│   ├── main.ts
-│   ├── jsonl.ts            # emit() — stdout JSON Lines + HarnessCommand types
-│   ├── sessionLoop.ts      # REPL and --serve session loops
-│   ├── harnessClient.ts    # spawn --serve, writeHarnessCommand, HarnessSessionClient
-│   ├── readHarnessCommands.ts
-│   ├── render.ts           # TUI renderer entry (spawn + split view)
-│   ├── tui/                # diff terminal + split layout
-│   └── readUserCommand.ts  # CLI batch / interactive input (prompt on stderr)
+├── core/                   # Host: run(), Harness, EventBus, DefaultRenderer
+│   ├── run.ts
+│   ├── harness.ts
+│   ├── module.ts           # Module + ModulePanel contract
+│   ├── protocol.ts         # Core JSONL events
+│   └── tui/                # Default split-view renderer
+├── harness/                # Shared config + legacy Agent loop
+│   ├── harness.ts
+│   ├── agent.type.ts
+│   ├── harness.config.*
+│   └── loadEnv.ts
+├── cli/                    # Legacy JSONL CLI (yamlRepair, virtualWizard)
+│   ├── jsonl.ts
+│   ├── sessionLoop.ts
+│   ├── harnessClient.ts
+│   └── tui/                # diff terminal + split layout
 ├── tools/                  # Tool framework
-│   ├── defineTool.ts       # Tool factory + Zod → OpenAI parameters
-│   ├── runTools.ts         # Tool dispatch + Zod validation
-│   ├── types.ts            # Tool, ToolContext, acStateSchema
-│   └── validation.ts       # Shared Zod error formatting
+│   ├── defineTool.ts
+│   ├── runTools.ts
+│   ├── types.ts
+│   └── validation.ts
 └── modules/
-    ├── smartHome/          # Imaginary smart home integration (demo domain)
-    │   ├── agent.ts        # createSmartHomeAgent() + system prompt
+    ├── smartHome/          # Imaginary smart home integration (Core plugin)
+    │   ├── main.ts         # run({ module })
+    │   ├── module.ts       # createSmartHomeModule() + floor-plan panel
     │   ├── devices.ts      # In-memory state + helpers
     │   ├── schemas.ts      # Zod argument schemas
-    │   ├── context.ts      # Context factory + context_delta emitter
-    │   ├── renderer/       # TUI: spawn harness, floor-plan, event log
-    │   └── *.tool.ts       # One file per tool
-    └── yamlRepair/         # YAML repair benchmark (see src/modules/yamlRepair/README.md)
-        ├── agent.ts
-        ├── fixtures/broken.yaml
-        └── *.tool.ts
+    │   ├── context.ts      # Context factory + state snapshot
+    │   ├── renderer/       # Floor-plan paint
+    │   └── *.tool.ts
+    ├── virtualWizard/      # Core plugin + legacy spawn CLI
+    └── yamlRepair/         # YAML repair benchmark (legacy CLI; see README)
 ```
 
 ---
@@ -408,8 +404,11 @@ Results will vary widely between models and quantizations. This repo is meant to
 
 | Command | Description |
 |---------|-------------|
-| `npm start [-- <command>]` | TUI split-view renderer (requires TTY, default) |
-| `npm run harness [-- args]` | Headless harness CLI (batch, REPL, or `--serve`) |
+| `npm start [-- <command>]` | Smart home Core host (TUI on TTY) |
+| `npm run smart-home [-- args]` | Alias for the smart home entrypoint |
+| `npm run harness [-- args]` | Same host; JSONL when not a TTY or with `--serve` |
+| `npm run core` | Core host with no module |
+| `npm run virtual-wizard` | Virtual wizard Core plugin |
 | `npm run yaml-repair [-- <command>]` | YAML repair split-view TUI (requires TTY, default) |
 | `npm run yaml-repair:harness [-- args]` | Headless YAML repair CLI (JSONL, REPL, batch, `--serve`) |
 | `npm run yaml-repair:batch` | Headless one-shot with default repair instruction |

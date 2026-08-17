@@ -1,14 +1,12 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { PassThrough } from 'node:stream';
 
-import { createSmartHomeAgent } from '../modules/smartHome/agent';
-import { setDeviceState } from '../modules/smartHome/devices';
 import { Harness } from '../harness/harness';
 import { Agent } from '../harness/agent.type';
 import type { HarnessConfig } from '../harness/harness.config.validate';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { parseHarnessCommandLine, readHarnessCommands } from './readHarnessCommands';
-import { resetEmitWriter, setEmitWriter, type HarnessEvent } from './jsonl';
+import { emit, resetEmitWriter, setEmitWriter, type ContextDeltaChange, type HarnessEvent } from './jsonl';
 import { runHarnessServeSession, runHarnessSession, emitHarnessStartup } from './sessionLoop';
 
 const testConfig: HarnessConfig = {
@@ -20,6 +18,22 @@ const testConfig: HarnessConfig = {
 
 function makeAgent(): Agent {
   return { prompt: 'test prompt', tools: [] };
+}
+
+const sampleInitChanges: ContextDeltaChange[] = [
+  { controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'ON' },
+];
+
+function makeContextInitAgent(onReset?: () => void): Agent {
+  return {
+    prompt: 'test prompt',
+    tools: [],
+    onSessionStart: () => emit({ type: 'context_init', changes: sampleInitChanges }),
+    onSessionReset: () => {
+      onReset?.();
+      emit({ type: 'context_init', changes: sampleInitChanges });
+    },
+  };
 }
 
 function makeHarnessWithRun(
@@ -41,13 +55,13 @@ describe('emitHarnessStartup', () => {
     resetEmitWriter();
   });
 
-  it('emits ready and context_init for smart home agents', () => {
+  it('emits ready and context_init when the agent has a session start hook', () => {
     const events: HarnessEvent[] = [];
     setEmitWriter((line) => {
       events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
     });
 
-    const harness = new Harness(createSmartHomeAgent(), {
+    const harness = new Harness(makeContextInitAgent(), {
       llmClient: { createChatCompletion: vi.fn() },
       config: testConfig,
     });
@@ -83,7 +97,7 @@ describe('emitHarnessStartup', () => {
     const createChatCompletion = vi.fn().mockResolvedValue({
       choices: [{ message: { role: 'assistant', content: 'done', refusal: null } }],
     });
-    const harness = new Harness(createSmartHomeAgent(), {
+    const harness = new Harness(makeContextInitAgent(), {
       llmClient: { createChatCompletion },
       config: testConfig,
     });
@@ -174,13 +188,16 @@ describe('runHarnessSession', () => {
     ]);
   });
 
-  it('emits context_init for smart home agents after ready', async () => {
+  it('emits context_init after ready when the agent has a session start hook', async () => {
     const events: HarnessEvent[] = [];
     setEmitWriter((line) => {
       events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
     });
 
-    const harness = new Harness(createSmartHomeAgent(), { llmClient: { createChatCompletion: vi.fn() }, config: testConfig });
+    const harness = new Harness(makeContextInitAgent(), {
+      llmClient: { createChatCompletion: vi.fn() },
+      config: testConfig,
+    });
 
     await runHarnessSession(harness, async () => null);
 
@@ -192,19 +209,22 @@ describe('runHarnessSession', () => {
     expect(events.at(-1)).toEqual({ type: 'session_end', turnCount: 0 });
   });
 
-  it('resets smart home state when /reset is entered in repl mode', async () => {
+  it('calls onSessionReset when /reset is entered in repl mode', async () => {
     const events: HarnessEvent[] = [];
     setEmitWriter((line) => {
       events.push(JSON.parse(line.trimEnd()) as HarnessEvent);
     });
 
-    const agent = createSmartHomeAgent();
-    setDeviceState(agent.context, { controlGroup: 'light', room: 'livingRoom', deviceId: '1' }, 'OFF');
-
+    let resetCount = 0;
     const createChatCompletion = vi.fn().mockResolvedValue({
       choices: [{ message: { role: 'assistant', content: 'done', refusal: null } }],
     });
-    const harness = new Harness(agent, { llmClient: { createChatCompletion }, config: testConfig });
+    const harness = new Harness(makeContextInitAgent(() => {
+      resetCount += 1;
+    }), {
+      llmClient: { createChatCompletion },
+      config: testConfig,
+    });
 
     let call = 0;
     await runHarnessSession(harness, async () => {
@@ -218,23 +238,10 @@ describe('runHarnessSession', () => {
       return null;
     });
 
+    expect(resetCount).toBe(1);
     expect(harness.getMessageHistory()).toEqual([]);
     expect(harness.getTurnCount()).toBe(0);
-
-    const contextInits = events.filter((event) => event.type === 'context_init');
-    expect(contextInits).toHaveLength(2);
-
-    const lastInit = contextInits[1];
-    expect(lastInit?.type).toBe('context_init');
-    if (lastInit?.type !== 'context_init') {
-      throw new Error('expected second context_init');
-    }
-
-    const light1 = lastInit.changes.find(
-      (change) =>
-        change.controlGroup === 'light' && change.room === 'livingRoom' && change.deviceId === '1',
-    );
-    expect(light1?.value).toBe('ON');
+    expect(events.filter((event) => event.type === 'context_init')).toHaveLength(2);
   });
 });
 
