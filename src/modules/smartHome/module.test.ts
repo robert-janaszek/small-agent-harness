@@ -5,6 +5,7 @@ import { DiffTerminal } from '../../cli/tui/diffTerminal';
 import type { ChatCompletionClient } from '../../client/llmClient.type';
 import { createEventBus } from '../../core/eventBus';
 import { Harness } from '../../core/harness';
+import { composeSystemPrompt, HARNESS_PROMPT } from '../../core/module';
 import type { CoreEvent } from '../../core/protocol';
 import { DefaultRenderer } from '../../core/tui/defaultRenderer';
 import type { HarnessConfig } from '../../harness/harness.config.validate';
@@ -65,10 +66,18 @@ function moduleStateEvents(events: CoreEvent[]) {
 }
 
 describe('createSmartHomeModule', () => {
-  it('keeps the autonomous smart home prompt', () => {
-    expect(SMART_HOME_PROMPT).toContain('There is no human-in-the-loop');
+  it('forbids asking the user because they cannot read assistant text', () => {
+    expect(SMART_HOME_PROMPT).toContain('Never ask the user a question');
+    expect(SMART_HOME_PROMPT).toContain('they cannot read assistant text');
     expect(SMART_HOME_PROMPT).toContain('Always verify that every command actually succeeded');
     expect(SMART_HOME_PROMPT).not.toContain('tool-calling harness');
+    expect(SMART_HOME_PROMPT).not.toContain('Ask only when something is still missing');
+
+    const composed = composeSystemPrompt(HARNESS_PROMPT, [createSmartHomeModule()]);
+    expect(composed).toContain('Never ask the user a question');
+    expect(composed).toContain('Module instructions override these defaults');
+    expect(composed).not.toContain('Ask only when something is still missing');
+    expect(composed).not.toContain('This is a conversation with a human');
   });
 
   it('emits a namespaced state snapshot on session start', () => {

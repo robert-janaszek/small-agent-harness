@@ -219,6 +219,13 @@ describe('core Harness', () => {
     ).toBe(`${HARNESS_PROMPT}\n\n# Module: echo\nUse the echo tool.`);
   });
 
+  it('leaves ask-the-user policy to modules instead of the base harness prompt', () => {
+    expect(HARNESS_PROMPT).toContain('whether you may ask the user questions');
+    expect(HARNESS_PROMPT).toContain('Module instructions override these defaults');
+    expect(HARNESS_PROMPT).not.toContain('Ask only when something is still missing');
+    expect(HARNESS_PROMPT).not.toContain('This is a conversation with a human');
+  });
+
   it('emits ready and module session-start events', () => {
     const events: CoreEvent[] = [];
     const bus = createEventBus();
