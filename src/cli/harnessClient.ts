@@ -9,7 +9,7 @@ export type HarnessSessionClientOptions = {
   extraArgs?: string[];
 };
 
-function resolveHarnessEntry(entry = 'src/cli/main.ts'): string {
+function resolveHarnessEntry(entry = 'src/cli/yamlRepair.ts'): string {
   return join(process.cwd(), entry);
 }
 

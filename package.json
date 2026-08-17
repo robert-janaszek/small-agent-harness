@@ -4,13 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx src/cli/main.ts",
+    "dev": "tsx src/modules/smartHome/main.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:system": "vitest run --config vitest.system.config.ts",
     "test:watch": "vitest",
     "build": "tsc",
-    "harness": "tsx src/cli/main.ts",
+    "harness": "tsx src/modules/smartHome/main.ts",
+    "smart-home": "tsx src/modules/smartHome/main.ts",
     "core": "tsx src/core/cli.ts",
     "yaml-repair": "tsx src/cli/yamlRepairRender.ts",
     "yaml-repair:harness": "tsx src/cli/yamlRepair.ts",
@@ -18,8 +19,8 @@
     "yaml-repair:human": "tsx src/cli/yamlRepair.ts --default --human",
     "virtual-wizard": "tsx src/modules/virtualWizard/main.ts",
     "virtual-wizard:harness": "tsx src/cli/virtualWizard.ts",
-    "start": "tsx src/cli/render.ts",
-    "render": "tsx src/cli/render.ts"
+    "start": "tsx src/modules/smartHome/main.ts",
+    "render": "tsx src/modules/smartHome/main.ts"
   },
   "keywords": [],
   "author": "",

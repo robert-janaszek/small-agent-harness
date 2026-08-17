@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { colors } from '../../../cli/tui/colors';
-import { applyContextDelta, createHomeState } from './homeState';
+import { setAcPower, setAcTemperature, setDeviceState } from '../devices';
+import { createHomeState } from './homeState';
 import { powerIndicator, renderHomePanel } from './homeFloorPlan';
 
 describe('powerIndicator', () => {
@@ -26,11 +27,9 @@ describe('renderHomePanel', () => {
     expect(panel).toContain('◉WV');
   });
 
-  it('updates only affected device after context delta', () => {
+  it('updates only affected device after a state change', () => {
     const state = createHomeState();
-    applyContextDelta(state, [
-      { controlGroup: 'light', room: 'livingRoom', deviceId: '1', value: 'OFF' },
-    ]);
+    setDeviceState(state, { controlGroup: 'light', room: 'livingRoom', deviceId: '1' }, 'OFF');
 
     const panel = renderHomePanel(52, 13, state).join('\n');
     expect(panel).toContain('○1');
@@ -39,9 +38,7 @@ describe('renderHomePanel', () => {
 
   it('shows closed valve with ⊗ when OFF', () => {
     const state = createHomeState();
-    applyContextDelta(state, [
-      { controlGroup: 'waterValve', room: 'bathroom', deviceId: '1', value: 'OFF' },
-    ]);
+    setDeviceState(state, { controlGroup: 'waterValve', room: 'bathroom', deviceId: '1' }, 'OFF');
 
     const panel = renderHomePanel(52, 13, state).join('\n');
     expect(panel).toContain('⊗WV');
@@ -49,14 +46,8 @@ describe('renderHomePanel', () => {
 
   it('updates AC temperature display', () => {
     const state = createHomeState();
-    applyContextDelta(state, [
-      {
-        controlGroup: 'ac',
-        room: 'livingRoom',
-        deviceId: '1',
-        value: { power: 'ON', targetTemperature: 24 },
-      },
-    ]);
+    setAcPower(state, { room: 'livingRoom', deviceId: '1' }, 'ON');
+    setAcTemperature(state, { room: 'livingRoom', deviceId: '1' }, 24);
 
     const panel = renderHomePanel(52, 13, state).join('\n');
     expect(panel).toContain('AC 24 ON');

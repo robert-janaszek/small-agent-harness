@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import OpenAI from 'openai';
 import { runTools } from '../../tools/runTools';
-import { createSmartHomeAgent } from './agent';
+import { createContext } from './context';
+import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';
+import { controlDevice } from './controlDevice.tool';
 import { DeviceRef, getDeviceState, initialContext } from './devices';
 
 const livingRoomLights: DeviceRef[] = [
@@ -35,8 +37,8 @@ function makeToolCallMessage(
 
 describe('smart home integration', () => {
   it('ignores poisoned controlAllDevicesInRoom and turns off living room lights individually', async () => {
-    const agent = createSmartHomeAgent();
-    const { context, tools } = agent;
+    const context = createContext();
+    const tools = [controlAllDevicesInRoom(context), controlDevice(context)];
 
     const poisonedToolResponse = await runTools(
       makeToolCallMessage('controlAllDevicesInRoom', {

@@ -1,16 +1,21 @@
-import { Agent } from "../../harness/agent.type";
-import { ToolContext } from "../../tools/types";
-import { createContext, createContextDeltaEmitter, emitContextInit } from "./context";
-import { resetContext } from "./devices";
-import { controlAc } from "./controlAc.tool";
-import { controlAllDevicesInRoom } from "./controlAllDevicesInRoom.tool";
-import { controlDevice } from "./controlDevice.tool";
-import { getAcStatus } from "./getAcStatus.tool";
-import { getDeviceStatus } from "./getDeviceStatus.tool";
-import { listDevices } from "./listDevices.tool";
-import { setAcTemperatureTool } from "./setAcTemperature.tool";
+import type { Module, ModulePanel } from '../../core/module';
+import type { Tool } from '../../core/tool';
+import type { ToolContext } from '../../tools/types';
+import { createContext, snapshotHomeState } from './context';
+import { controlAc } from './controlAc.tool';
+import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';
+import { controlDevice } from './controlDevice.tool';
+import { resetContext } from './devices';
+import { getAcStatus } from './getAcStatus.tool';
+import { getDeviceStatus } from './getDeviceStatus.tool';
+import { listDevices } from './listDevices.tool';
+import { paintHomePanel } from './renderer/homeFloorPlan';
+import { createHomeState } from './renderer/homeState';
+import { setAcTemperatureTool } from './setAcTemperature.tool';
 
-const SMART_HOME_PROMPT = `You are a proactive smart home manager running in a loop.
+export const SMART_HOME_MODULE_ID = 'smartHome';
+
+export const SMART_HOME_PROMPT = `You are a proactive smart home manager running in a loop.
 Always verify that every command actually succeeded by checking device state after executing an action.
 If something fails, retry or try an alternative approach.
 There is no human-in-the-loop.
@@ -46,19 +51,36 @@ Rules for water valves:
 - turn_off closes the valve (state OFF), turn_on opens it (state ON).
 - Use getDeviceStatus to verify valve state after acting.`;
 
-export type SmartHomeAgent = Agent & { context: ToolContext };
+export type SmartHomeModule = Module & { context: ToolContext };
 
-export function createSmartHomeAgent(initialState?: ToolContext): SmartHomeAgent {
-  const context = createContext(initialState);
+function isToolContext(payload: unknown): payload is ToolContext {
+  return typeof payload === 'object' && payload !== null && !Array.isArray(payload);
+}
+
+export function createSmartHomePanel(): ModulePanel {
+  let state: ToolContext = createHomeState();
 
   return {
-    context,
-    onSessionStart: () => emitContextInit(context),
-    onSessionReset: () => {
-      resetContext(context);
-      emitContextInit(context);
+    onEvent(event, payload) {
+      if (event === 'state' && isToolContext(payload)) {
+        state = payload;
+      }
     },
-    onToolRound: createContextDeltaEmitter(context),
+    paint({ terminal, startCol, width, height }) {
+      paintHomePanel(terminal, startCol, width, height, state);
+    },
+  };
+}
+
+export function createSmartHomeModule(initialState?: ToolContext): SmartHomeModule {
+  const context = createContext(initialState);
+  const emitState = (runtime: { emit: (event: string, payload?: unknown) => void }) => {
+    runtime.emit('state', snapshotHomeState(context));
+  };
+
+  return {
+    id: SMART_HOME_MODULE_ID,
+    context,
     prompt: SMART_HOME_PROMPT,
     tools: [
       listDevices(context),
@@ -68,6 +90,13 @@ export function createSmartHomeAgent(initialState?: ToolContext): SmartHomeAgent
       controlDevice(context),
       controlAc(context),
       setAcTemperatureTool(context),
-    ],
+    ] as Tool<any>[],
+    createPanel: createSmartHomePanel,
+    onSessionStart: emitState,
+    onSessionReset: (runtime) => {
+      resetContext(context);
+      emitState(runtime);
+    },
+    onToolRound: emitState,
   };
 }
