@@ -13,13 +13,45 @@ export type RunOptions = {
   defaultCommand?: string;
 };
 
-function parseArgv(argv: string[]): { mode: 'serve' | 'interactive'; command: string } {
-  const serveIndex = argv.indexOf('--serve');
-  if (serveIndex !== -1) {
-    return { mode: 'serve', command: '' };
+const HOST_FLAGS = new Set(['--serve', '--jsonl', '--help', '-h']);
+
+export type ParsedRunArgv = {
+  serve: boolean;
+  jsonl: boolean;
+  help: boolean;
+  command: string;
+};
+
+export type HostMode = 'tui' | 'jsonl-batch' | 'jsonl-serve';
+
+export function parseRunArgv(argv: string[]): ParsedRunArgv {
+  return {
+    serve: argv.includes('--serve'),
+    jsonl: argv.includes('--jsonl'),
+    help: argv.includes('--help') || argv.includes('-h'),
+    command: argv.filter((arg) => !HOST_FLAGS.has(arg)).join(' ').trim(),
+  };
+}
+
+export function resolveHostMode(
+  parsed: ParsedRunArgv,
+  options: { tty: boolean; defaultCommand?: string } = { tty: true },
+): { mode: HostMode; command: string } {
+  const command = parsed.command || options.defaultCommand || '';
+  const tty = options.tty ?? true;
+
+  if (parsed.serve) {
+    return { mode: 'jsonl-serve', command: '' };
   }
 
-  return { mode: 'interactive', command: argv.join(' ').trim() };
+  if (parsed.jsonl || !tty) {
+    if (!command) {
+      return { mode: 'jsonl-serve', command: '' };
+    }
+    return { mode: 'jsonl-batch', command };
+  }
+
+  return { mode: 'tui', command };
 }
 
 function isTty(): boolean {
@@ -99,23 +131,30 @@ async function runTuiSession(module: Module | undefined, command: string): Promi
 
 export async function run(options: RunOptions = {}): Promise<number> {
   const argv = options.argv ?? process.argv.slice(2);
+  const parsed = parseRunArgv(argv);
 
-  if (argv.includes('--help') || argv.includes('-h')) {
-    process.stderr.write('Usage: [-- <command> | --serve]\n');
+  if (parsed.help) {
+    process.stderr.write('Usage: [--jsonl] [--serve] [-- <command>]\n');
     return 0;
   }
 
   initLangfuseTracing();
 
   try {
-    const { mode, command } = parseArgv(argv);
-    const resolvedCommand = command || options.defaultCommand || '';
+    const { mode, command } = resolveHostMode(parsed, {
+      tty: isTty(),
+      defaultCommand: options.defaultCommand,
+    });
 
-    if (mode === 'serve' || !isTty()) {
-      return await runJsonlSession(options.module, resolvedCommand, mode === 'serve');
+    if (mode === 'jsonl-serve') {
+      return await runJsonlSession(options.module, '', true);
     }
 
-    return await runTuiSession(options.module, resolvedCommand);
+    if (mode === 'jsonl-batch') {
+      return await runJsonlSession(options.module, command, false);
+    }
+
+    return await runTuiSession(options.module, command);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     writeFatalError(message);
