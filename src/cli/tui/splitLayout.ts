@@ -7,15 +7,16 @@ export type SplitColumns = {
 };
 
 export function getSplitColumns(totalCols: number, ratio = 0.5): SplitColumns {
-  const leftWidth = Math.max(20, Math.floor(totalCols * ratio) - 1);
-  const dividerCol = leftWidth;
-  const rightWidth = Math.max(20, totalCols - leftWidth - 1);
+  const width = Math.max(1, totalCols);
+  const dividerCol = Math.min(width - 1, Math.max(0, Math.floor(width * ratio) - 1));
+  const leftWidth = dividerCol;
+  const rightWidth = Math.max(0, width - dividerCol - 1);
   return { leftWidth, dividerCol, rightWidth };
 }
 
 export function drawVerticalDivider(terminal: DiffTerminal, dividerCol: number): void {
   for (let row = 0; row < terminal.height; row++) {
-    terminal.setChar(row, dividerCol, '│');
+    terminal.setChar(row, dividerCol, '|');
   }
 }
 

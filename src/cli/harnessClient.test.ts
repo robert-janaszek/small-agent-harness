@@ -169,14 +169,14 @@ describe('HarnessSessionClient', () => {
 
   it('supports overriding the spawned harness entry and args', async () => {
     new HarnessSessionClient({
-      entry: 'src/cli/yamlRepair.ts',
+      entry: 'src/cli/virtualWizard.ts',
       extraArgs: ['--serve'],
     });
 
     expect(spawn).toHaveBeenCalledWith(
       expect.stringContaining('node_modules/.bin/tsx'),
       [
-        expect.stringContaining('src/cli/yamlRepair.ts'),
+        expect.stringContaining('src/cli/virtualWizard.ts'),
         '--serve',
       ],
       {

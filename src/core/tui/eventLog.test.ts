@@ -30,6 +30,23 @@ describe('formatEvent', () => {
     );
   });
 
+  it('skips module state snapshots and collapses multiline user commands', () => {
+    expect(
+      formatEvent({
+        type: 'module',
+        module: 'yamlRepair',
+        event: 'state',
+        payload: { filePath: '/tmp/yaml-repair-123/broken.work.yaml' },
+      }),
+    ).toBeNull();
+    expect(
+      formatEvent({
+        type: 'user_command',
+        command: 'Repair the YAML work file end-to-end:\n- Fix all syntax errors.',
+      }),
+    ).toBe('> Repair the YAML work file end-to-end: - Fix all syntax errors.');
+  });
+
   it('skips session chrome, tokens, and empty text', () => {
     expect(formatEvent({ type: 'ready', protocolVersion: 1 })).toBeNull();
     expect(formatEvent({ type: 'session_end', turnCount: 2 })).toBeNull();
@@ -63,5 +80,18 @@ describe('EventLog', () => {
 
     log.clear();
     expect(log.render(10, 40)).toEqual([]);
+  });
+
+  it('wraps long non-agent lines instead of overflowing the pane', () => {
+    const log = new EventLog();
+    log.append({
+      type: 'user_command',
+      command: 'Repair the YAML work file end-to-end and then verify yamlParse',
+    });
+
+    const lines = log.render(10, 20);
+    expect(lines.every((line) => line.length <= 20)).toBe(true);
+    expect(lines.join(' ')).toContain('Repair the YAML');
+    expect(lines.join(' ')).toContain('yamlParse');
   });
 });

@@ -1,8 +1,14 @@
+import { writeSync } from 'node:fs';
+
 import { firstGrapheme, graphemes } from './unicode';
 
 export type TrueColor = { r: number; g: number; b: number };
 
 export type CharCell = { ch: string; fg?: number; bg?: number; trueColorBg?: TrueColor };
+
+function writeStdoutSync(chunk: string): void {
+  writeSync(process.stdout.fd, chunk);
+}
 
 function emptyCell(): CharCell {
   return { ch: ' ' };
@@ -52,7 +58,7 @@ export class DiffTerminal {
   private write: (chunk: string) => void;
   private active = false;
 
-  constructor(rows: number, cols: number, write: (chunk: string) => void = process.stdout.write.bind(process.stdout)) {
+  constructor(rows: number, cols: number, write: (chunk: string) => void = writeStdoutSync) {
     this.rows = rows;
     this.cols = cols;
     this.buffer = createBuffer(rows, cols);
@@ -106,7 +112,7 @@ export class DiffTerminal {
 
   leave(): void {
     if (!this.active) return;
-    this.write('\x1b[?1049l\x1b[?25h');
+    this.write('\x1b[0m\x1b[?25h\x1b[?1049l');
     this.active = false;
     this.prev = null;
   }

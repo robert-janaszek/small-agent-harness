@@ -2,12 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import OpenAI from 'openai';
 
 import type { ChatCompletionClient } from '../../client/llmClient.type';
-import { resetEmitWriter, setEmitWriter } from '../../cli/jsonl';
-import { Harness } from '../../harness/harness';
+import { Harness } from '../../core/harness';
 import type { HarnessConfig } from '../../harness/harness.config.validate';
-import { createYamlRepairAgent } from './agent';
 import { createWorkFile, getFixturePath, type WorkFile } from './context';
 import { readFileText } from './fileOps';
+import { createYamlRepairModule } from './module';
 
 const testConfig: HarnessConfig = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',
@@ -52,13 +51,13 @@ describe('yamlRepair integration', () => {
   afterEach(() => {
     work?.dispose();
     work = undefined;
-    resetEmitWriter();
+    vi.restoreAllMocks();
   });
 
   it('repairs the work file through mocked tool calls until parse succeeds', async () => {
-    setEmitWriter(() => {});
     work = createWorkFile(getFixturePath());
-    const agent = createYamlRepairAgent(work.filePath);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const module = createYamlRepairModule(work.filePath);
 
     const createChatCompletion = vi
       .fn()
@@ -181,12 +180,15 @@ describe('yamlRepair integration', () => {
       );
 
     const llmClient: ChatCompletionClient = { createChatCompletion };
-    const harness = new Harness(agent, { llmClient, config: testConfig });
+    const harness = new Harness({ modules: [module], llmClient, config: testConfig });
+    harness.startSession();
     const result = await harness.run('Repair the YAML file');
 
     expect(result.content).toContain('parses successfully');
     expect(readFileText(work.filePath)).not.toMatch(/: __FILL_FROM_CONTEXT__/);
     expect(readFileText(work.filePath)).not.toContain('group lights');
     expect(readFileText(getFixturePath())).toContain('group lights');
+    expect(module.context.parseStatus.ok).toBe(true);
+    module.context.dispose();
   });
 });

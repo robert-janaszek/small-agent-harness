@@ -79,6 +79,35 @@ function formatErrorDetails(
   return `${details}\n\n… and ${remaining} more ${noun} not shown.`;
 }
 
+function recordParseStatus(
+  context: YamlRepairContext,
+  errors: NonNullable<ReturnType<typeof parseDocument>['errors']>,
+  lines: string[],
+  undoHint: string,
+): void {
+  context.lastParseErrorCount = errors.length;
+
+  if (errors.length === 0) {
+    context.parseStatus = {
+      errorCount: 0,
+      ok: true,
+      errors: [],
+      undoHint: null,
+    };
+    return;
+  }
+
+  const shown = errors.slice(0, MAX_ERRORS_SHOWN);
+  context.parseStatus = {
+    errorCount: errors.length,
+    ok: false,
+    errors: shown.map((error, index) =>
+      `${index + 1}. ${formatYamlError(error, lines)}`.replace(/\s+/g, ' ').trim(),
+    ),
+    undoHint: undoHint.trim() || null,
+  };
+}
+
 export const yamlParseTool = defineTool<Record<string, never>, YamlRepairContext>({
   name: 'yamlParse',
   description:
@@ -93,7 +122,7 @@ export const yamlParseTool = defineTool<Record<string, never>, YamlRepairContext
     const errors = doc.errors ?? [];
 
     const undoHint = maybeUndoRecommendation(context, errors.length);
-    context.lastParseErrorCount = errors.length;
+    recordParseStatus(context, errors, lines, undoHint);
 
     if (errors.length === 0) {
       // Still surface warnings lightly so the agent can decide, but success means parseable.

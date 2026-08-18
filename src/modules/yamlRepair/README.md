@@ -34,19 +34,20 @@ cp .env.sample .env
 
 ### Run the agent
 
-**TUI split-view** (default — same role as `npm start` for smart home):
+**TUI split-view** (default — same role as `npm start` for smart home). With no extra args the TUI waits for a user command:
 
 ```bash
 npm run yaml-repair
 ```
 
-Optional initial command:
+Optional initial command, or `--default` to start the canonical end-to-end repair:
 
 ```bash
 npm run yaml-repair -- call yamlParse only
+npm run yaml-repair -- --default
 ```
 
-**Headless CLI** (JSONL on stdout — same role as `npm run harness`):
+**Headless JSONL** (same role as `npm run harness` — waits on stdin when no command is given):
 
 ```bash
 npm run yaml-repair:harness
@@ -64,34 +65,23 @@ npm run yaml-repair:batch
 npm run yaml-repair:harness -- fix syntax errors only, skip placeholders
 ```
 
-**Serve mode** (JSONL on stdout, commands on stdin — for external renderers):
+**Serve mode** (JSONL on stdout, commands on stdin):
 
 ```bash
 npm run yaml-repair:harness -- --serve
 ```
 
-On startup the harness writes the **work file path to stderr** — a temp copy of the fixture so the source in the repo stays untouched. The file is **left on disk after exit** so you can inspect the repaired result (`cat`, diff, re-run `yamlParse` tools, etc.):
+On startup a **temp copy** of the fixture is created so the source in the repo stays untouched. The path is written to stderr immediately (before the TUI alt screen) and shown in the right panel:
 
 ```
 [yamlRepair] work file: /tmp/yaml-repair-XXXX/broken.work.yaml
 ```
 
-**Stdout contract:** newline-delimited JSON events (`ready`, `user_command`, `tool_call`, `tool_result`, `tokens`, `agent_response`, `session_end`, …). Same protocol as the smart-home harness.
+Headless JSONL also includes `filePath` on `{ type: 'module', module: 'yamlRepair', event: 'state' }`.
 
-**Human-readable trace** (dev/debug only):
+The file is **left on disk after exit** so you can inspect the repaired result (`cat`, diff, re-run `yamlParse` tools, etc.).
 
-```bash
-npm run yaml-repair:human
-# or: npm run yaml-repair:harness -- --default --human
-```
-
-Example human output:
-
-```
-→ yamlParse
-← yamlParse: 6 error(s)
-…
-```
+**Stdout contract:** Core JSONL events (`ready`, `module`, `user_command`, `tool_call`, `tool_result`, `tokens`, `agent_response`, `session_end`, …). YAML repair emits `{ type: 'module', module: 'yamlRepair', event: 'state', payload }` with `{ filePath, parseStatus }` — not the full work file.
 
 ### Unit tests (no LLM)
 
@@ -137,17 +127,21 @@ For comparison, the mocked integration test proves the **harness and tools** sup
 ```
 yamlRepair/
 ├── README.md           # this file
-├── agent.ts            # system prompt + tool wiring
-├── context.ts          # work file (temp copy of fixture)
+├── main.ts             # run({ module }) — pass --default for the canonical repair
+├── module.ts           # createYamlRepairModule() + parse-status panel
+├── defaultCommand.ts   # canonical end-to-end repair instruction
+├── context.ts          # work file (temp copy of fixture) + parse snapshot
 ├── fileOps.ts          # read / replace helpers
 ├── grep.tool.ts
 ├── read.tool.ts
 ├── replace.tool.ts
 ├── undo.tool.ts
 ├── yamlParse.tool.ts
+├── renderer/
+│   └── parseStatusPanel.ts
 ├── fixtures/
 │   └── broken.yaml     # ~6.7k lines, intentional defects
 └── *.test.ts
 ```
 
-Entry point: `src/cli/yamlRepairRender.ts` (`npm run yaml-repair`). Headless harness: `src/cli/yamlRepair.ts` (`npm run yaml-repair:harness`).
+Entry point: `src/modules/yamlRepair/main.ts` (`npm run yaml-repair`). JSONL: `npm run yaml-repair:harness`.

@@ -124,7 +124,6 @@ export class DefaultRenderer {
     this.inputLine.close();
     this.unsubscribe?.();
     this.unsubscribe = null;
-    this.redraw();
     return this.exitCode;
   }
 
@@ -198,8 +197,10 @@ export class DefaultRenderer {
     }
 
     this.interrupted = true;
+    this.sessionEnded = true;
     this.commandQueue = [];
     this.currentAbort?.abort();
+    await this.currentTurn?.catch(() => undefined);
     this.harness.endSession();
     this.settleSession();
   }
@@ -256,7 +257,9 @@ export class DefaultRenderer {
     this.currentTurn = null;
     this.currentAbort = null;
     this.turnActive = false;
-    this.redraw();
+    if (!this.interrupted) {
+      this.redraw();
+    }
   }
 
   private async executeTurn(command: string, signal: AbortSignal): Promise<void> {
@@ -337,7 +340,7 @@ export class DefaultRenderer {
   }
 
   private pulseStatusBar(): void {
-    if (!this.turnActive) {
+    if (!this.turnActive || this.interrupted) {
       return;
     }
 
@@ -346,6 +349,9 @@ export class DefaultRenderer {
   }
 
   private redraw(): void {
+    if (this.interrupted) {
+      return;
+    }
     const split = getSplitColumns(this.terminal.width);
     const queueLength = this.commandQueue.length;
     const inputState = this.inputLine.getState();

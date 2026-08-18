@@ -90,4 +90,23 @@ describe('DiffTerminal', () => {
     expect(rendered).toContain('ł');
     expect(rendered).toContain('ć');
   });
+
+  it('enters and leaves the alternate screen synchronously', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(2, 4, (chunk) => output.push(chunk));
+
+    terminal.enter();
+    expect(output.join('')).toContain('\x1b[?1049h');
+    expect(output.join('')).toContain('\x1b[?25l');
+
+    output.length = 0;
+    terminal.leave();
+    expect(output.join('')).toContain('\x1b[?1049l');
+    expect(output.join('')).toContain('\x1b[?25h');
+    expect(output.join('')).toContain('\x1b[0m');
+
+    output.length = 0;
+    terminal.leave();
+    expect(output.join('')).toBe('');
+  });
 });

@@ -1,16 +1,17 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createYamlRepairAgent } from './agent';
-import { createWorkFile, getFixturePath, HISTORY_MAX_SIZE } from './context';
+import { createWorkFile, getFixturePath, HISTORY_MAX_SIZE, resetContext } from './context';
+import { createYamlRepairModule, type YamlRepairModule } from './module';
 import { countOccurrences, formatNumberedLines, getLines, readFileText, replaceExact } from './fileOps';
 import { READ_MAX_LIMIT } from './schemas';
 
 type TempYaml = { path: string; dispose: () => void };
 
 const disposables: Array<{ dispose: () => void }> = [];
+let stderrSpy: ReturnType<typeof vi.spyOn> | undefined;
 
 function track<T extends { dispose: () => void }>(value: T): T {
   disposables.push(value);
@@ -29,10 +30,21 @@ function tempYaml(contents: string): TempYaml {
   });
 }
 
+function moduleFor(filePath: string): YamlRepairModule {
+  if (!stderrSpy) {
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  }
+  const module = createYamlRepairModule(filePath);
+  track(module.context);
+  return module;
+}
+
 afterEach(() => {
   while (disposables.length > 0) {
     disposables.pop()?.dispose();
   }
+  stderrSpy?.mockRestore();
+  stderrSpy = undefined;
 });
 
 describe('yamlRepair fileOps', () => {
@@ -71,8 +83,8 @@ describe('yamlRepair fileOps', () => {
 describe('yamlRepair tools', () => {
   it('read returns numbered lines and rejects oversized windows via schema max', async () => {
     const file = tempYaml(['a', 'b', 'c', 'd', 'e'].join('\n') + '\n');
-    const agent = createYamlRepairAgent(file.path);
-    const read = agent.tools.find((tool) => tool.function.name === 'read')!;
+    const module = moduleFor(file.path);
+    const read = module.tools!.find((tool) => tool.function.name === 'read')!;
 
     const result = await read.call({ offset: 2, limit: 2 });
     expect(result).toContain('Showing lines 2-3 of 5');
@@ -84,16 +96,16 @@ describe('yamlRepair tools', () => {
 
   it('read reports when offset is past EOF', async () => {
     const file = tempYaml('only\n');
-    const agent = createYamlRepairAgent(file.path);
-    const read = agent.tools.find((tool) => tool.function.name === 'read')!;
+    const module = moduleFor(file.path);
+    const read = module.tools!.find((tool) => tool.function.name === 'read')!;
     const result = await read.call({ offset: 5, limit: 10 });
     expect(result).toContain('past the end of the file');
   });
 
   it('grep returns matches with surrounding context in prose', async () => {
     const file = tempYaml(['alpha', 'beta target', 'gamma'].join('\n') + '\n');
-    const agent = createYamlRepairAgent(file.path);
-    const grep = agent.tools.find((tool) => tool.function.name === 'grep')!;
+    const module = moduleFor(file.path);
+    const grep = module.tools!.find((tool) => tool.function.name === 'grep')!;
 
     const result = await grep.call({ pattern: 'target' });
     expect(result).toContain('Found 1 match');
@@ -104,8 +116,8 @@ describe('yamlRepair tools', () => {
 
   it('grep only mentions truncation when more matches exist', async () => {
     const file = tempYaml(['a', 'a', 'a'].join('\n') + '\n');
-    const agent = createYamlRepairAgent(file.path);
-    const grep = agent.tools.find((tool) => tool.function.name === 'grep')!;
+    const module = moduleFor(file.path);
+    const grep = module.tools!.find((tool) => tool.function.name === 'grep')!;
 
     const exactCap = await grep.call({ pattern: 'a', maxMatches: 3 });
     expect(exactCap).toContain('Found 3 match');
@@ -118,8 +130,8 @@ describe('yamlRepair tools', () => {
 
   it('replace applies a unique edit and refuses ambiguous matches', async () => {
     const file = tempYaml('one\ntwo\none\n');
-    const agent = createYamlRepairAgent(file.path);
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+    const module = moduleFor(file.path);
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
 
     const ambiguous = await replace.call({ old_string: 'one', new_string: '1' });
     expect(ambiguous).toContain('Found 2 matches');
@@ -134,69 +146,69 @@ describe('yamlRepair tools', () => {
   it('undo restores the file to the state before the last successful replace', async () => {
     const original = 'alpha\nbeta\ngamma\n';
     const file = tempYaml(original);
-    const agent = createYamlRepairAgent(file.path);
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
-    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+    const module = moduleFor(file.path);
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
+    const undo = module.tools!.find((tool) => tool.function.name === 'undo')!;
 
     await replace.call({ old_string: 'beta', new_string: 'BETA' });
     expect(readFileText(file.path)).toBe('alpha\nBETA\ngamma\n');
-    expect(agent.context.history.length()).toBe(1);
+    expect(module.context.history.length()).toBe(1);
 
     const restored = await undo.call({});
     expect(restored).toContain('Restored previous version (0 edits remaining in history)');
     expect(readFileText(file.path)).toBe(original);
-    expect(agent.context.history.length()).toBe(0);
+    expect(module.context.history.length()).toBe(0);
   });
 
   it('undo on an empty history leaves the file unchanged', async () => {
     const original = 'unchanged\n';
     const file = tempYaml(original);
-    const agent = createYamlRepairAgent(file.path);
-    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+    const module = moduleFor(file.path);
+    const undo = module.tools!.find((tool) => tool.function.name === 'undo')!;
 
     const result = await undo.call({});
     expect(result).toBe('Nothing to undo.');
     expect(readFileText(file.path)).toBe(original);
-    expect(agent.context.history.length()).toBe(0);
+    expect(module.context.history.length()).toBe(0);
   });
 
   it('undo steps back through multiple successful replaces', async () => {
     const original = 'one\ntwo\nthree\n';
     const file = tempYaml(original);
-    const agent = createYamlRepairAgent(file.path);
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
-    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+    const module = moduleFor(file.path);
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
+    const undo = module.tools!.find((tool) => tool.function.name === 'undo')!;
 
     await replace.call({ old_string: 'one', new_string: 'ONE' });
     await replace.call({ old_string: 'two', new_string: 'TWO' });
     expect(readFileText(file.path)).toBe('ONE\nTWO\nthree\n');
-    expect(agent.context.history.length()).toBe(2);
+    expect(module.context.history.length()).toBe(2);
 
     await undo.call({});
     expect(readFileText(file.path)).toBe('ONE\ntwo\nthree\n');
-    expect(agent.context.history.length()).toBe(1);
+    expect(module.context.history.length()).toBe(1);
 
     await undo.call({});
     expect(readFileText(file.path)).toBe(original);
-    expect(agent.context.history.length()).toBe(0);
+    expect(module.context.history.length()).toBe(0);
   });
 
   it('failed replace does not push a snapshot', async () => {
     const original = 'one\ntwo\none\n';
     const file = tempYaml(original);
-    const agent = createYamlRepairAgent(file.path);
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+    const module = moduleFor(file.path);
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
 
     await replace.call({ old_string: 'one', new_string: '1' });
-    expect(agent.context.history.length()).toBe(0);
+    expect(module.context.history.length()).toBe(0);
     expect(readFileText(file.path)).toBe(original);
   });
 
   it('history drops the oldest snapshot when max size is exceeded', async () => {
     const file = tempYaml('v0\n');
-    const agent = createYamlRepairAgent(file.path);
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
-    const undo = agent.tools.find((tool) => tool.function.name === 'undo')!;
+    const module = moduleFor(file.path);
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
+    const undo = module.tools!.find((tool) => tool.function.name === 'undo')!;
 
     for (let i = 0; i < HISTORY_MAX_SIZE + 1; i += 1) {
       await replace.call({
@@ -205,26 +217,27 @@ describe('yamlRepair tools', () => {
       });
     }
 
-    expect(agent.context.history.length()).toBe(HISTORY_MAX_SIZE);
+    expect(module.context.history.length()).toBe(HISTORY_MAX_SIZE);
     expect(readFileText(file.path)).toBe(`v${HISTORY_MAX_SIZE + 1}\n`);
 
     for (let i = 0; i < HISTORY_MAX_SIZE; i += 1) {
       await undo.call({});
     }
     expect(readFileText(file.path)).toBe('v1\n');
-    expect(agent.context.history.length()).toBe(0);
+    expect(module.context.history.length()).toBe(0);
     expect(await undo.call({})).toBe('Nothing to undo.');
   });
 
   it('yamlParse recommends undo when errors increase after a replace', async () => {
     const file = tempYaml('valid:\n  key: value\n');
-    const agent = createYamlRepairAgent(file.path);
-    const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+    const module = moduleFor(file.path);
+    const yamlParse = module.tools!.find((tool) => tool.function.name === 'yamlParse')!;
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
 
     const before = await yamlParse.call({});
     expect(before).toContain('parsed successfully');
     expect(before).not.toContain('call undo');
+    expect(module.context.parseStatus).toMatchObject({ errorCount: 0, ok: true, undoHint: null });
 
     await replace.call({ old_string: 'valid:', new_string: 'valid' });
     const after = await yamlParse.call({});
@@ -232,13 +245,15 @@ describe('yamlRepair tools', () => {
     expect(after).toContain('Errors increased from 0 to');
     expect(after).toContain('Do not reverse the edit with replace');
     expect(after).toContain('call undo first');
+    expect(module.context.parseStatus.ok).toBe(false);
+    expect(module.context.parseStatus.undoHint).toContain('Errors increased from 0 to');
   });
 
   it('yamlParse does not recommend undo when errors decrease or stay the same', async () => {
     const file = tempYaml('        group lights\n        name: x\n');
-    const agent = createYamlRepairAgent(file.path);
-    const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
+    const module = moduleFor(file.path);
+    const yamlParse = module.tools!.find((tool) => tool.function.name === 'yamlParse')!;
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
 
     const before = await yamlParse.call({});
     expect(before).toContain('failed to parse');
@@ -255,10 +270,10 @@ describe('yamlRepair tools', () => {
 
   it('yamlParse reports fixture errors in prose and succeeds after fixes', async () => {
     const work = track(createWorkFile(getFixturePath()));
-    const agent = createYamlRepairAgent(work.filePath);
-    const yamlParse = agent.tools.find((tool) => tool.function.name === 'yamlParse')!;
-    const replace = agent.tools.find((tool) => tool.function.name === 'replace')!;
-    const grep = agent.tools.find((tool) => tool.function.name === 'grep')!;
+    const module = moduleFor(work.filePath);
+    const yamlParse = module.tools!.find((tool) => tool.function.name === 'yamlParse')!;
+    const replace = module.tools!.find((tool) => tool.function.name === 'replace')!;
+    const grep = module.tools!.find((tool) => tool.function.name === 'grep')!;
 
     const before = await yamlParse.call({});
     expect(before).toContain('failed to parse');
@@ -324,5 +339,31 @@ describe('yamlRepair tools', () => {
     work.dispose();
     expect(existsSync(work.filePath)).toBe(false);
     expect(existsSync(dir)).toBe(false);
+  });
+
+  it('resetContext restores the file to its contents from context creation', () => {
+    const file = tempYaml('original content\n');
+    const module = moduleFor(file.path);
+    writeFileSync(file.path, 'edited content\n');
+    module.context.history.push('snapshot');
+    module.context.lastParseErrorCount = 12;
+    module.context.parseStatus = {
+      errorCount: 12,
+      ok: false,
+      errors: ['1. bad'],
+      undoHint: 'undo',
+    };
+
+    resetContext(module.context);
+
+    expect(readFileSync(file.path, 'utf8')).toBe('original content\n');
+    expect(module.context.history.length()).toBe(0);
+    expect(module.context.lastParseErrorCount).toBeNull();
+    expect(module.context.parseStatus).toEqual({
+      errorCount: null,
+      ok: false,
+      errors: [],
+      undoHint: null,
+    });
   });
 });

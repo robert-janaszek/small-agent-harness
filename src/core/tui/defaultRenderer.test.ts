@@ -163,6 +163,39 @@ describe('DefaultRenderer', () => {
     expect(events.some((event) => event.type === 'error' && event.message === 'Cancelled.')).toBe(false);
   });
 
+  it('does not paint after /exit cancels an in-flight turn', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    let started!: () => void;
+    const startedPromise = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const createChatCompletion = vi.fn().mockImplementation((_params, options?: { signal?: AbortSignal }) => {
+      started();
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        });
+      });
+    });
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const first = renderer.handleInput('slow');
+    await startedPromise;
+    output.length = 0;
+    await renderer.handleInput('/exit');
+    await first;
+
+    expect(output.join('')).toBe('');
+  });
+
   it('does not flash a pending-task banner when submitting while idle', async () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
