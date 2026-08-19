@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Harness, type HarnessRunResult } from '../core/harness';
-import { createSmartHomeModule, type SmartHomeModule } from '../modules/smartHome/module';
-import { getAcState, getDeviceState, listDeviceEntries } from '../modules/smartHome/devices';
 
-import { getHarnessConfig, getOpenaiModelsUrl } from './harness.config';
+import { getHarnessConfig, getOpenaiModelsUrl } from '../../core/config';
+import { Harness, type HarnessRunResult } from '../../core/harness';
+import { getAcState, getDeviceState, listDeviceEntries } from './devices';
+import { createSmartHomeModule, type SmartHomeModule } from './module';
 
 async function isLlmApiAvailable(): Promise<boolean> {
   try {

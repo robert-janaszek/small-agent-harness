@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import OpenAI from 'openai';
 
-import { DiffTerminal } from '../../cli/tui/diffTerminal';
+import { DiffTerminal } from '../../core/tui/diffTerminal';
 import type { ChatCompletionClient } from '../../client/llmClient.type';
 import { createEventBus } from '../../core/eventBus';
 import { Harness } from '../../core/harness';
 import type { CoreEvent } from '../../core/protocol';
 import { parseRunArgv, resolveHostMode } from '../../core/run';
 import { DefaultRenderer } from '../../core/tui/defaultRenderer';
-import type { HarnessConfig } from '../../harness/harness.config.validate';
+import type { HarnessConfig } from '../../core/config.validate';
 import {
   createVirtualWizardModule,
   createVirtualWizardPanel,

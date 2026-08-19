@@ -1,50 +1,71 @@
 import { describe, it, expect } from 'vitest';
+import { z } from 'zod';
 
-import type { YamlRepairContext } from '../../modules/yamlRepair/context';
-import { grepTool } from '../../modules/yamlRepair/grep.tool';
-import { readTool } from '../../modules/yamlRepair/read.tool';
-import { replaceTool } from '../../modules/yamlRepair/replace.tool';
-import { undoTool } from '../../modules/yamlRepair/undo.tool';
-import { yamlParseTool } from '../../modules/yamlRepair/yamlParse.tool';
-import { createContext as createHomeContext } from '../../modules/smartHome/context';
-import { controlAc } from '../../modules/smartHome/controlAc.tool';
-import { controlAllDevicesInRoom } from '../../modules/smartHome/controlAllDevicesInRoom.tool';
-import { controlDevice } from '../../modules/smartHome/controlDevice.tool';
-import { getAcStatus } from '../../modules/smartHome/getAcStatus.tool';
-import { getDeviceStatus } from '../../modules/smartHome/getDeviceStatus.tool';
-import { listDevices } from '../../modules/smartHome/listDevices.tool';
-import { setAcTemperatureTool } from '../../modules/smartHome/setAcTemperature.tool';
-import { createContext as createWizardContext } from '../../modules/virtualWizard/context';
-import { nextStepTool } from '../../modules/virtualWizard/nextStep.tool';
-import { previousStepTool } from '../../modules/virtualWizard/previousStep.tool';
-import { resetWizardTool } from '../../modules/virtualWizard/resetWizard.tool';
-import { validateCurrentStepTool } from '../../modules/virtualWizard/validateCurrentStep.tool';
+import { createTool, quoteActivityTarget } from '../tool';
 import { formatToolActivity, indexToolActivity } from './toolActivity';
 
-const yamlContext = {} as YamlRepairContext;
-const homeContext = createHomeContext();
-const wizardContext = createWizardContext();
+const grep = createTool({
+  name: 'grep',
+  description: 'grep',
+  argsSchema: z.object({ pattern: z.string() }),
+  activity: {
+    present: 'grepping',
+    past: 'grepped',
+    target: (args) => quoteActivityTarget(args.pattern),
+  },
+  call: async () => 'ok',
+});
 
-const tools = [
-  grepTool(yamlContext),
-  readTool(yamlContext),
-  replaceTool(yamlContext),
-  undoTool(yamlContext),
-  yamlParseTool(yamlContext),
-  listDevices(homeContext),
-  getDeviceStatus(homeContext),
-  controlDevice(homeContext),
-  controlAllDevicesInRoom(homeContext),
-  controlAc(homeContext),
-  getAcStatus(homeContext),
-  setAcTemperatureTool(homeContext),
-  validateCurrentStepTool(wizardContext),
-  nextStepTool(wizardContext),
-  previousStepTool(wizardContext),
-  resetWizardTool(wizardContext),
-];
+const controlDevice = createTool({
+  name: 'controlDevice',
+  description: 'control',
+  argsSchema: z.object({
+    controlGroup: z.string(),
+    room: z.string(),
+    deviceId: z.string(),
+    action: z.enum(['turn_on', 'turn_off']),
+  }),
+  activity: {
+    present: (args) => (args.action === 'turn_off' ? 'turning off' : 'turning on'),
+    past: (args) => (args.action === 'turn_off' ? 'turned off' : 'turned on'),
+    target: (args) => `${args.controlGroup} ${args.deviceId} in ${args.room}`,
+  },
+  call: async () => 'ok',
+});
 
-const activities = indexToolActivity(tools);
+const undo = createTool({
+  name: 'undo',
+  description: 'undo',
+  argsSchema: z.object({}),
+  activity: {
+    present: 'undoing',
+    past: 'undid',
+  },
+  call: async () => 'ok',
+});
+
+const fragile = createTool({
+  name: 'fragile',
+  description: 'fragile',
+  argsSchema: z.unknown(),
+  activity: {
+    present: () => {
+      throw new Error('bad args');
+    },
+    past: () => {
+      throw new Error('bad args');
+    },
+    target: (args) => {
+      if (args === null || typeof args !== 'object') {
+        throw new Error('bad args');
+      }
+      return 'ok';
+    },
+  },
+  call: async () => 'ok',
+});
+
+const activities = indexToolActivity([grep, controlDevice, undo, fragile]);
 
 function format(name: string, args: unknown, status: 'running' | 'done' | 'failed'): string {
   return formatToolActivity(name, args, status, activities.get(name));
@@ -57,78 +78,37 @@ describe('formatToolActivity', () => {
     expect(formatToolActivity('echo', { text: 'hi' }, 'failed')).toBe('failed echo');
   });
 
-  it.each([
-    ['grep', { pattern: 'TODO' }, 'grepping "TODO"', 'grepped "TODO"'],
-    ['read', { offset: 12, limit: 8 }, 'reading lines 12-19', 'read lines 12-19'],
-    ['replace', { old_string: 'foo: bar' }, 'replacing "foo: bar"', 'replaced "foo: bar"'],
-    ['undo', {}, 'undoing', 'undid'],
-    ['yamlParse', {}, 'parsing YAML', 'parsed YAML'],
-    ['listDevices', {}, 'listing devices', 'listed devices'],
-    [
-      'listDevices',
-      { stateFilter: 'ON', controlGroup: 'light', room: 'livingRoom' },
-      'listing ON light in livingRoom',
-      'listed ON light in livingRoom',
-    ],
-    [
-      'getDeviceStatus',
-      { controlGroup: 'light', room: 'livingRoom', deviceId: '1' },
-      'getting status of light 1 in livingRoom',
-      'got status of light 1 in livingRoom',
-    ],
-    [
-      'controlDevice',
-      { controlGroup: 'light', room: 'kitchen', deviceId: '2', action: 'turn_on' },
-      'turning on light 2 in kitchen',
-      'turned on light 2 in kitchen',
-    ],
-    [
-      'controlDevice',
-      { controlGroup: 'TV', room: 'livingRoom', deviceId: '1', action: 'turn_off' },
-      'turning off TV 1 in livingRoom',
-      'turned off TV 1 in livingRoom',
-    ],
-    [
-      'controlAllDevicesInRoom',
-      { controlGroup: 'light', room: 'kitchen', action: 'turn_off' },
-      'turning off light in kitchen',
-      'turned off light in kitchen',
-    ],
-    [
-      'controlAc',
-      { room: 'bedroom', deviceId: '1', action: 'turn_on' },
-      'turning on AC 1 in bedroom',
-      'turned on AC 1 in bedroom',
-    ],
-    [
-      'getAcStatus',
-      { room: 'livingRoom', deviceId: '1' },
-      'getting AC status of AC 1 in livingRoom',
-      'got AC status of AC 1 in livingRoom',
-    ],
-    [
-      'setAcTemperature',
-      { room: 'livingRoom', deviceId: '1', temperature: 22 },
-      'setting AC 1 in livingRoom to 22°C',
-      'set AC 1 in livingRoom to 22°C',
-    ],
-    [
-      'validateCurrentStep',
-      { name: 'Ada', email: 'a@b.c', plan: 'pro' },
-      'validating name=Ada email=a@b.c plan=pro',
-      'validated name=Ada email=a@b.c plan=pro',
-    ],
-    ['nextStep', {}, 'advancing', 'advanced'],
-    ['previousStep', {}, 'going back', 'went back'],
-    ['resetWizard', {}, 'resetting wizard', 'reset wizard'],
-  ] as const)('%s present/past with target', (name, args, running, done) => {
-    expect(format(name, args, 'running')).toBe(running);
-    expect(format(name, args, 'done')).toBe(done);
+  it('indexes tools by function name', () => {
+    expect(activities.get('grep')).toBe(grep.activity);
+    expect(activities.get('missing')).toBeUndefined();
+  });
+
+  it('combines static verbs with a target', () => {
+    expect(format('grep', { pattern: 'TODO' }, 'running')).toBe('grepping "TODO"');
+    expect(format('grep', { pattern: 'TODO' }, 'done')).toBe('grepped "TODO"');
+    expect(format('undo', {}, 'running')).toBe('undoing');
+    expect(format('undo', {}, 'done')).toBe('undid');
+  });
+
+  it('resolves function verbs from args', () => {
+    expect(
+      format(
+        'controlDevice',
+        { controlGroup: 'light', room: 'kitchen', deviceId: '2', action: 'turn_on' },
+        'running',
+      ),
+    ).toBe('turning on light 2 in kitchen');
+    expect(
+      format(
+        'controlDevice',
+        { controlGroup: 'TV', room: 'livingRoom', deviceId: '1', action: 'turn_off' },
+        'done',
+      ),
+    ).toBe('turned off TV 1 in livingRoom');
   });
 
   it('uses failed to <name> with the same target', () => {
     expect(format('grep', { pattern: 'TODO' }, 'failed')).toBe('failed to grep "TODO"');
-    expect(format('replace', { old_string: 'foo: bar' }, 'failed')).toBe('failed to replace "foo: bar"');
     expect(
       format(
         'controlDevice',
@@ -141,14 +121,10 @@ describe('formatToolActivity', () => {
   it('truncates long quoted targets and keeps the quotes', () => {
     const pattern = 'a'.repeat(40);
     expect(format('grep', { pattern }, 'running')).toBe(`grepping "${'a'.repeat(31)}…"`);
-    expect(format('replace', { old_string: pattern }, 'done')).toBe(
-      `replaced "${'a'.repeat(31)}…"`,
-    );
   });
 
   it('falls back to calling/called when an activity formatter throws', () => {
-    expect(format('grep', null, 'running')).toBe('calling grep');
-    expect(format('grep', { pattern: 1 }, 'done')).toBe('called grep');
-    expect(format('validateCurrentStep', null, 'running')).toBe('calling validateCurrentStep');
+    expect(format('fragile', null, 'running')).toBe('calling fragile');
+    expect(format('fragile', { pattern: 1 }, 'done')).toBe('called fragile');
   });
 });

@@ -1,6 +1,6 @@
 import type { Module, ModulePanel } from '../../core/module';
 import type { Tool } from '../../core/tool';
-import { acStateSchema, type ToolContext } from '../../tools/types';
+import { acStateSchema, type ToolContext } from './types';
 import { createContext, snapshotHomeState } from './context';
 import { controlAc } from './controlAc.tool';
 import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';

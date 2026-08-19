@@ -1,5 +1,5 @@
-import type { DiffTerminal } from '../../../cli/tui/diffTerminal';
-import { colors } from '../../../cli/tui/colors';
+import { colors } from '../../../core/tui/colors';
+import type { DiffTerminal } from '../../../core/tui/diffTerminal';
 import type { WizardStateSnapshot } from '../context';
 
 export const STEPS_PANEL_MIN_WIDTH = 24;

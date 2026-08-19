@@ -84,6 +84,18 @@ export function zodToFunctionParameters(schema: z.ZodTypeAny): Record<string, un
   return parameters;
 }
 
+export type ToolFactory<TArgs = unknown, TContext = unknown> = (
+  context: TContext,
+) => Tool<TArgs>;
+
+type ContextToolDefinition<TArgs, TContext> = {
+  name: string;
+  description: string;
+  argsSchema: z.ZodType<TArgs>;
+  activity: ToolActivity<TArgs>;
+  call: (context: TContext, args: TArgs, options?: ToolCallOptions) => Promise<string> | string;
+};
+
 export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
   const execute = async (args: T, options?: ToolCallOptions) =>
     settleToolCall(() => definition.call(args, options));
@@ -100,4 +112,17 @@ export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
     execute,
     call: async (args, options) => (await execute(args, options)).content,
   };
+}
+
+export function defineTool<TArgs, TContext>(
+  definition: ContextToolDefinition<TArgs, TContext>,
+): ToolFactory<TArgs, TContext> {
+  return (context) =>
+    createTool({
+      name: definition.name,
+      description: definition.description,
+      argsSchema: definition.argsSchema,
+      activity: definition.activity,
+      call: (args, options) => definition.call(context, args, options),
+    });
 }

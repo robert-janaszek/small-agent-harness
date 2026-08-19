@@ -1,4 +1,4 @@
-import type { DiffTerminal } from '../cli/tui/diffTerminal';
+import type { DiffTerminal } from './tui/diffTerminal';
 import type { EmitFn } from './protocol';
 import type { Tool } from './tool';
 

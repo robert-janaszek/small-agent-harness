@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 
 import type { ChatCompletionClient } from '../../client/llmClient.type';
 import { Harness } from '../../core/harness';
-import type { HarnessConfig } from '../../harness/harness.config.validate';
+import type { HarnessConfig } from '../../core/config.validate';
 import { createWorkFile, getFixturePath, type WorkFile } from './context';
 import { readFileText } from './fileOps';
 import { createYamlRepairModule } from './module';

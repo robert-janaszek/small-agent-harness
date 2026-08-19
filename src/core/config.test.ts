@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readHarnessConfigFromEnv, validateHarnessConfig } from './harness.config.validate';
+import { readHarnessConfigFromEnv, validateHarnessConfig } from './config.validate';
 
 const validInput = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',

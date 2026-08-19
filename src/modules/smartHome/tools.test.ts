@@ -10,6 +10,7 @@ import { setAcTemperatureTool } from './setAcTemperature.tool';
 import { getAcStatus } from './getAcStatus.tool';
 import { getDeviceState, getAcState, initialContext, resetContext } from './devices';
 import { runTools } from '../../core/runTools';
+import { formatToolActivity, indexToolActivity } from '../../core/tui/toolActivity';
 
 const context = createContext();
 
@@ -327,5 +328,70 @@ describe('controlAllDevicesInRoom', () => {
 
   it('has required parameters', () => {
     expect(tool.function.parameters?.required).toEqual(['controlGroup', 'room', 'action']);
+  });
+});
+
+describe('smartHome tool activity', () => {
+  const activities = indexToolActivity([
+    listDevices(context),
+    getDeviceStatus(context),
+    controlDevice(context),
+    controlAllDevicesInRoom(context),
+    controlAc(context),
+    getAcStatus(context),
+    setAcTemperatureTool(context),
+  ]);
+
+  function format(name: string, args: unknown, status: 'running' | 'done' | 'failed'): string {
+    return formatToolActivity(name, args, status, activities.get(name));
+  }
+
+  it.each([
+    ['listDevices', {}, 'listing devices', 'listed devices'],
+    [
+      'listDevices',
+      { stateFilter: 'ON', controlGroup: 'light', room: 'livingRoom' },
+      'listing ON light in livingRoom',
+      'listed ON light in livingRoom',
+    ],
+    [
+      'getDeviceStatus',
+      { controlGroup: 'light', room: 'livingRoom', deviceId: '1' },
+      'getting status of light 1 in livingRoom',
+      'got status of light 1 in livingRoom',
+    ],
+    [
+      'controlDevice',
+      { controlGroup: 'light', room: 'kitchen', deviceId: '2', action: 'turn_on' },
+      'turning on light 2 in kitchen',
+      'turned on light 2 in kitchen',
+    ],
+    [
+      'controlAllDevicesInRoom',
+      { controlGroup: 'light', room: 'kitchen', action: 'turn_off' },
+      'turning off light in kitchen',
+      'turned off light in kitchen',
+    ],
+    [
+      'controlAc',
+      { room: 'bedroom', deviceId: '1', action: 'turn_on' },
+      'turning on AC 1 in bedroom',
+      'turned on AC 1 in bedroom',
+    ],
+    [
+      'getAcStatus',
+      { room: 'livingRoom', deviceId: '1' },
+      'getting AC status of AC 1 in livingRoom',
+      'got AC status of AC 1 in livingRoom',
+    ],
+    [
+      'setAcTemperature',
+      { room: 'livingRoom', deviceId: '1', temperature: 22 },
+      'setting AC 1 in livingRoom to 22°C',
+      'set AC 1 in livingRoom to 22°C',
+    ],
+  ] as const)('%s present/past', (name, args, running, done) => {
+    expect(format(name, args, 'running')).toBe(running);
+    expect(format(name, args, 'done')).toBe(done);
   });
 });

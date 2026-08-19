@@ -1,12 +1,12 @@
-import { DiffTerminal } from '../../cli/tui/diffTerminal';
-import { colors } from '../../cli/tui/colors';
+import { colors } from './colors';
+import { DiffTerminal } from './diffTerminal';
 import {
   paintCommandPalette,
   paintInputLine,
   paintQueueBanner,
   TerminalInputLine,
-} from '../../cli/tui/inputPrompt';
-import { drawVerticalDivider, getSplitColumns } from '../../cli/tui/splitLayout';
+} from './inputPrompt';
+import { drawVerticalDivider, getSplitColumns } from './splitLayout';
 import type { EventBus } from '../eventBus';
 import type { Harness } from '../harness';
 import type { ModulePanel } from '../module';

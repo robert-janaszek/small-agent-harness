@@ -1,4 +1,4 @@
-import { defineTool, quoteActivityTarget, toolFailure } from '../../tools/defineTool';
+import { defineTool, quoteActivityTarget, toolFailure } from '../../core/tool';
 import type { YamlRepairContext } from './context';
 import { readFileText, replaceExact, writeFileText } from './fileOps';
 import { replaceArgsSchema } from './schemas';

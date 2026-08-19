@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import OpenAI from 'openai';
 
-import { DiffTerminal } from '../../cli/tui/diffTerminal';
+import { DiffTerminal } from '../../core/tui/diffTerminal';
 import type { ChatCompletionClient } from '../../client/llmClient.type';
 import { createEventBus } from '../../core/eventBus';
 import { Harness } from '../../core/harness';
 import { composeSystemPrompt, HARNESS_PROMPT } from '../../core/module';
 import type { CoreEvent } from '../../core/protocol';
 import { DefaultRenderer } from '../../core/tui/defaultRenderer';
-import type { HarnessConfig } from '../../harness/harness.config.validate';
+import type { HarnessConfig } from '../../core/config.validate';
 import { getFixturePath } from './context';
 import {
   createYamlRepairModule,

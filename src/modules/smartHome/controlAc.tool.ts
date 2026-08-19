@@ -1,6 +1,7 @@
-import { defineTool, toolFailure } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../core/tool';
 import { formatAcLabel, setAcPower } from './devices';
 import { controlAcArgsSchema } from './schemas';
+import type { ToolContext } from './types';
 
 export const controlAc = defineTool({
   name: 'controlAc',
@@ -11,7 +12,7 @@ export const controlAc = defineTool({
     past: (args) => (args.action === 'turn_off' ? 'turned off' : 'turned on'),
     target: (args) => `AC ${args.deviceId} in ${args.room}`,
   },
-  call(context, args) {
+  call(context: ToolContext, args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     const power = args.action === 'turn_on' ? 'ON' : 'OFF';
     if (!setAcPower(context, ref, power)) {

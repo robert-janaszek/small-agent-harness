@@ -1,4 +1,4 @@
-import { defineTool, toolFailure } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../core/tool';
 import { validateCurrentStep, type WizardContext } from './context';
 import { validateCurrentStepArgsSchema, type ValidateCurrentStepArgs } from './schemas';
 

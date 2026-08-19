@@ -1,4 +1,4 @@
-import { defineTool, toolFailure } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../core/tool';
 import type { YamlRepairContext } from './context';
 import { writeFileText } from './fileOps';
 import { undoArgsSchema } from './schemas';

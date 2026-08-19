@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool } from '../../core/tool';
 import { resetWizard, type WizardContext } from './context';
 import { emptyArgsSchema } from './schemas';
 

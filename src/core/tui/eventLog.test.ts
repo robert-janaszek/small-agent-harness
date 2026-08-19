@@ -1,9 +1,23 @@
 import { describe, it, expect } from 'vitest';
+import { z } from 'zod';
 
+import { createTool, quoteActivityTarget } from '../tool';
 import { EventLog, formatEvent } from './eventLog';
 import { indexToolActivity } from './toolActivity';
-import type { YamlRepairContext } from '../../modules/yamlRepair/context';
-import { grepTool } from '../../modules/yamlRepair/grep.tool';
+
+const grep = createTool({
+  name: 'grep',
+  description: 'grep',
+  argsSchema: z.object({ pattern: z.string() }),
+  activity: {
+    present: 'grepping',
+    past: 'grepped',
+    target: (args) => quoteActivityTarget(args.pattern),
+  },
+  call: async () => 'ok',
+});
+
+const grepActivity = indexToolActivity([grep]);
 
 describe('formatEvent', () => {
   it('formats core conversation events', () => {
@@ -24,7 +38,7 @@ describe('formatEvent', () => {
     expect(
       formatEvent(
         { type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '2' },
-        indexToolActivity([grepTool({} as YamlRepairContext)]),
+        indexToolActivity([grep]),
       ),
     ).toBe('grepping "TODO"');
     expect(formatEvent({ type: 'tool_result', name: 'echo', content: 'echo:hi', toolCallId: '1' })).toBeNull();
@@ -103,7 +117,7 @@ describe('EventLog', () => {
   });
 
   it('updates the same tool line from present to past without a result preview', () => {
-    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    const log = new EventLog(grepActivity);
     log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
     log.append({ type: 'user_command', command: 'keep me' });
 
@@ -127,7 +141,7 @@ describe('EventLog', () => {
   });
 
   it('marks a matching tool line as failed instead of past-tense success', () => {
-    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    const log = new EventLog(grepActivity);
     log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
     log.append({
       type: 'tool_result',
@@ -141,7 +155,7 @@ describe('EventLog', () => {
   });
 
   it('renders a fallback line when stored tool args cannot be formatted', () => {
-    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    const log = new EventLog(grepActivity);
     log.append({ type: 'tool_call', name: 'grep', args: null, toolCallId: '1' });
 
     expect(log.render(10, 40)).toEqual(['calling grep']);

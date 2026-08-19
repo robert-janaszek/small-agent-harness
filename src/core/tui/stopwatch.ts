@@ -1,4 +1,4 @@
-import { colors } from '../../cli/tui/colors';
+import { colors } from './colors';
 
 export const STOPWATCH_TIME_WIDTH = 5;
 export const STOPWATCH_WIDTH = 1 + STOPWATCH_TIME_WIDTH;
