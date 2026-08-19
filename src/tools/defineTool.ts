@@ -1,15 +1,16 @@
 import { z } from 'zod';
 
+import { settleToolCall, type ToolCallOptions } from '../core/tool';
 import { Tool, ToolActivity, ToolContext, ToolFactory } from './types';
 
-export { quoteActivityTarget } from '../core/tool';
+export { quoteActivityTarget, toolFailure } from '../core/tool';
 
 type ToolDefinition<T> = {
   name: string;
   description: string;
   argsSchema: z.ZodType<T>;
   activity: ToolActivity<T>;
-  call: (args: T) => Promise<string> | string;
+  call: (args: T, options?: ToolCallOptions) => Promise<string> | string;
 };
 
 type ContextToolDefinition<TArgs, TContext> = {
@@ -17,7 +18,7 @@ type ContextToolDefinition<TArgs, TContext> = {
   description: string;
   argsSchema: z.ZodType<TArgs>;
   activity: ToolActivity<TArgs>;
-  call: (context: TContext, args: TArgs) => Promise<string> | string;
+  call: (context: TContext, args: TArgs, options?: ToolCallOptions) => Promise<string> | string;
 };
 
 export function zodToFunctionParameters(schema: z.ZodTypeAny): Record<string, unknown> {
@@ -26,6 +27,9 @@ export function zodToFunctionParameters(schema: z.ZodTypeAny): Record<string, un
 }
 
 export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
+  const execute = async (args: T, options?: ToolCallOptions) =>
+    settleToolCall(() => definition.call(args, options));
+
   return {
     type: 'function',
     function: {
@@ -35,7 +39,8 @@ export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
     },
     argsSchema: definition.argsSchema,
     activity: definition.activity,
-    call: async (args) => definition.call(args),
+    execute,
+    call: async (args, options) => (await execute(args, options)).content,
   };
 }
 
@@ -48,6 +53,6 @@ export function defineTool<TArgs, TContext = ToolContext>(
       description: definition.description,
       argsSchema: definition.argsSchema,
       activity: definition.activity,
-      call: (args) => definition.call(context, args),
+      call: (args, options) => definition.call(context, args, options),
     });
 }

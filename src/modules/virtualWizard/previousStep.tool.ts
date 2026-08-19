@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../tools/defineTool';
 import { goToPreviousStep, type WizardContext } from './context';
 import { emptyArgsSchema } from './schemas';
 
@@ -11,6 +11,7 @@ export const previousStepTool = defineTool<Record<string, never>, WizardContext>
     past: 'went back',
   },
   call(context) {
-    return goToPreviousStep(context);
+    const result = goToPreviousStep(context);
+    return result.startsWith('Moved back') ? result : toolFailure(result);
   },
 });

@@ -24,7 +24,7 @@ export type CoreEvent =
   | { type: 'user_command'; command: string }
   | { type: 'assistant_message'; content: string }
   | { type: 'tool_call'; name: string; args: unknown; toolCallId: string }
-  | { type: 'tool_result'; name: string; content: string; toolCallId: string }
+  | { type: 'tool_result'; name: string; content: string; toolCallId: string; failed?: true }
   | { type: 'tokens'; iteration: number; usage: TokenUsage }
   | { type: 'agent_response'; content: string; iterations: number; tokenUsage: TokenUsage }
   | { type: 'session_end'; turnCount: number }

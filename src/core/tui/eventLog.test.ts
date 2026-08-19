@@ -126,6 +126,20 @@ describe('EventLog', () => {
     expect(log.render(10, 40)).toEqual(['called echo']);
   });
 
+  it('marks a matching tool line as failed instead of past-tense success', () => {
+    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
+    log.append({
+      type: 'tool_result',
+      name: 'grep',
+      content: 'Could not compile pattern: bad',
+      toolCallId: '1',
+      failed: true,
+    });
+
+    expect(log.render(10, 40)).toEqual(['failed to grep "TODO"']);
+  });
+
   it('renders a fallback line when stored tool args cannot be formatted', () => {
     const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
     log.append({ type: 'tool_call', name: 'grep', args: null, toolCallId: '1' });

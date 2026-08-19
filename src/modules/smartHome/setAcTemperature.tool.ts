@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../tools/defineTool';
 import {
   formatAcLabel,
   getAcState,
@@ -20,7 +20,7 @@ export const setAcTemperatureTool = defineTool({
   call(context, args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     if (!getAcState(context, ref)) {
-      return `AC unit ${formatAcLabel(ref)} does not exist`;
+      return toolFailure(`AC unit ${formatAcLabel(ref)} does not exist`);
     }
 
     setAcTemperature(context, ref, args.temperature);

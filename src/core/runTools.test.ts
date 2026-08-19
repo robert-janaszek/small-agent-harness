@@ -3,7 +3,8 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 
 import { runTools, toAssistantHistoryMessage } from './runTools';
-import { createTool } from './tool';
+import { createTool, toolFailure } from './tool';
+import { delay } from './delay';
 
 function makeToolCallMessage(
   toolName: string,
@@ -199,5 +200,48 @@ describe('runTools', () => {
       'call:echo:{"text":"hi"}',
       'result:echo:echo:hi',
     ]);
+  });
+
+  it('reports ToolFailure results as failed without changing LLM content', async () => {
+    const flags: Array<boolean | undefined> = [];
+    const tool = createTool({
+      name: 'replace',
+      description: 'replace',
+      argsSchema: z.object({ old_string: z.string() }),
+      activity: { present: 'replacing', past: 'replaced' },
+      call: () => toolFailure('No exact match for old_string was found in the file.'),
+    });
+
+    const response = await runTools(
+      makeToolCallMessage('replace', JSON.stringify({ old_string: 'foo' })),
+      [tool],
+      {
+        onToolResult: (_name, _content, _id, failed) => flags.push(failed),
+      },
+    );
+
+    expect(response[0].content).toBe('No exact match for old_string was found in the file.');
+    expect(flags).toEqual([true]);
+  });
+
+  it('rethrows abort errors from in-flight tools', async () => {
+    const controller = new AbortController();
+    const tool = createTool({
+      name: 'slow',
+      description: 'slow',
+      argsSchema: z.object({}),
+      activity: { present: 'waiting', past: 'waited' },
+      call: async (_args, options) => {
+        await delay(5_000, options?.signal);
+        return 'done';
+      },
+    });
+
+    const pending = runTools(makeToolCallMessage('slow', '{}'), [tool], {
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

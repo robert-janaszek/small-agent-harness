@@ -171,18 +171,15 @@ type ToolLogEntry = {
   name: string;
   args: unknown;
   done: boolean;
+  failed: boolean;
 };
 
 type LogEntry = TextLogEntry | ToolLogEntry;
 
 function formatLogEntry(entry: LogEntry, activities: ReadonlyMap<string, ToolActivity>): string {
   if (entry.kind === 'tool') {
-    return formatToolActivity(
-      entry.name,
-      entry.args,
-      entry.done ? 'done' : 'running',
-      activities.get(entry.name),
-    );
+    const status = !entry.done ? 'running' : entry.failed ? 'failed' : 'done';
+    return formatToolActivity(entry.name, entry.args, status, activities.get(entry.name));
   }
   return entry.line;
 }
@@ -200,6 +197,7 @@ export class EventLog {
         name: event.name,
         args: event.args,
         done: false,
+        failed: false,
       });
       return;
     }
@@ -210,6 +208,7 @@ export class EventLog {
       );
       if (entry) {
         entry.done = true;
+        entry.failed = event.failed === true;
       }
       return;
     }

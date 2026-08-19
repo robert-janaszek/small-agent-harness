@@ -146,11 +146,18 @@ export class Harness {
               options?.signal?.throwIfAborted();
 
               const toolResponse = await runTools(responseMessage, this.agent.tools, {
+                signal: options?.signal,
                 onAssistantMessage: (content) => emit({ type: 'assistant_message', content }),
                 onToolCall: (name, args, toolCallId) =>
                   emit({ type: 'tool_call', name, args, toolCallId }),
-                onToolResult: (name, content, toolCallId) =>
-                  emit({ type: 'tool_result', name, content, toolCallId }),
+                onToolResult: (name, content, toolCallId, failed) =>
+                  emit({
+                    type: 'tool_result',
+                    name,
+                    content,
+                    toolCallId,
+                    ...(failed ? { failed: true as const } : {}),
+                  }),
               });
               this.messageHistory.push(...toolResponse);
 

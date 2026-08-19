@@ -1,4 +1,4 @@
-import { defineTool, quoteActivityTarget } from '../../tools/defineTool';
+import { defineTool, quoteActivityTarget, toolFailure } from '../../tools/defineTool';
 import type { YamlRepairContext } from './context';
 import { getLines } from './fileOps';
 import { grepArgsSchema } from './schemas';
@@ -31,7 +31,7 @@ export const grepTool = defineTool<
       regex = new RegExp(args.pattern, args.caseInsensitive ? 'i' : undefined);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Invalid regular expression';
-      return `Could not compile pattern: ${message}`;
+      return toolFailure(`Could not compile pattern: ${message}`);
     }
 
     // Collect one extra match so we know whether the result was truncated.

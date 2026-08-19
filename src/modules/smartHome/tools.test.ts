@@ -314,6 +314,17 @@ describe('controlAllDevicesInRoom', () => {
     expect(settled).toBe(true);
   });
 
+  it('aborts the delay when the signal is aborted', async () => {
+    const controller = new AbortController();
+    const pending = tool.call(
+      { controlGroup: 'light', room: 'livingRoom', action: 'turn_off' },
+      { signal: controller.signal },
+    );
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('has required parameters', () => {
     expect(tool.function.parameters?.required).toEqual(['controlGroup', 'room', 'action']);
   });

@@ -46,14 +46,15 @@ const tools = [
 
 const activities = indexToolActivity(tools);
 
-function format(name: string, args: unknown, status: 'running' | 'done'): string {
+function format(name: string, args: unknown, status: 'running' | 'done' | 'failed'): string {
   return formatToolActivity(name, args, status, activities.get(name));
 }
 
 describe('formatToolActivity', () => {
-  it('uses calling/called when the tool has no activity', () => {
+  it('uses calling/called/failed when the tool has no activity', () => {
     expect(formatToolActivity('echo', { text: 'hi' }, 'running')).toBe('calling echo');
     expect(formatToolActivity('echo', { text: 'hi' }, 'done')).toBe('called echo');
+    expect(formatToolActivity('echo', { text: 'hi' }, 'failed')).toBe('failed echo');
   });
 
   it.each([
@@ -123,6 +124,18 @@ describe('formatToolActivity', () => {
   ] as const)('%s present/past with target', (name, args, running, done) => {
     expect(format(name, args, 'running')).toBe(running);
     expect(format(name, args, 'done')).toBe(done);
+  });
+
+  it('uses failed to <name> with the same target', () => {
+    expect(format('grep', { pattern: 'TODO' }, 'failed')).toBe('failed to grep "TODO"');
+    expect(format('replace', { old_string: 'foo: bar' }, 'failed')).toBe('failed to replace "foo: bar"');
+    expect(
+      format(
+        'controlDevice',
+        { controlGroup: 'light', room: 'kitchen', deviceId: '2', action: 'turn_on' },
+        'failed',
+      ),
+    ).toBe('failed to controlDevice light 2 in kitchen');
   });
 
   it('truncates long quoted targets and keeps the quotes', () => {

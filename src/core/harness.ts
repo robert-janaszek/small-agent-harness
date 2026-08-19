@@ -185,11 +185,18 @@ export class Harness {
               options?.signal?.throwIfAborted();
 
               const toolResponse = await runTools(responseMessage, this.tools, {
+                signal: options?.signal,
                 onAssistantMessage: (content) => this.bus.emit({ type: 'assistant_message', content }),
                 onToolCall: (name, args, toolCallId) =>
                   this.bus.emit({ type: 'tool_call', name, args, toolCallId }),
-                onToolResult: (name, content, toolCallId) =>
-                  this.bus.emit({ type: 'tool_result', name, content, toolCallId }),
+                onToolResult: (name, content, toolCallId, failed) =>
+                  this.bus.emit({
+                    type: 'tool_result',
+                    name,
+                    content,
+                    toolCallId,
+                    ...(failed ? { failed: true as const } : {}),
+                  }),
               });
               this.messageHistory.push(...toolResponse);
               this.forEachModule('onToolRound');

@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../tools/defineTool';
 import type { YamlRepairContext } from './context';
 import { formatNumberedLines, getLines } from './fileOps';
 import { READ_MAX_LIMIT, readArgsSchema } from './schemas';
@@ -20,7 +20,9 @@ export const readTool = defineTool<
   },
   call(context, args) {
     if (args.limit > READ_MAX_LIMIT) {
-      return `Cannot read ${args.limit} lines at once. The maximum limit is ${READ_MAX_LIMIT}. Use a smaller window.`;
+      return toolFailure(
+        `Cannot read ${args.limit} lines at once. The maximum limit is ${READ_MAX_LIMIT}. Use a smaller window.`,
+      );
     }
 
     const lines = getLines(context.filePath);
@@ -29,7 +31,7 @@ export const readTool = defineTool<
     }
 
     if (args.offset > lines.length) {
-      return `offset ${args.offset} is past the end of the file (${lines.length} lines).`;
+      return toolFailure(`offset ${args.offset} is past the end of the file (${lines.length} lines).`);
     }
 
     const startIndex = args.offset - 1;

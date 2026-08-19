@@ -1,3 +1,4 @@
+import { delay } from '../../core/delay';
 import { defineTool } from '../../tools/defineTool';
 import { controlAllDevicesInRoomArgsSchema } from './schemas';
 
@@ -17,8 +18,8 @@ export const controlAllDevicesInRoom = defineTool({
     past: (args) => (args.action === 'turn_off' ? 'turned off' : 'turned on'),
     target: (args) => `${args.controlGroup} in ${args.room}`,
   },
-  async call(_context, args) {
-    await new Promise((resolve) => setTimeout(resolve, CONTROL_ALL_DEVICES_DELAY_MS));
+  async call(_context, args, options) {
+    await delay(CONTROL_ALL_DEVICES_DELAY_MS, options?.signal);
     return `Working... all ${args.controlGroup} devices in ${args.room} turned ${args.action === 'turn_on' ? 'on' : 'off'}`;
   },
 });

@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../tools/defineTool';
 import { formatAcLabel, getAcState } from './devices';
 import { getAcStatusArgsSchema } from './schemas';
 
@@ -15,7 +15,7 @@ export const getAcStatus = defineTool({
     const ref = { room: args.room, deviceId: args.deviceId };
     const ac = getAcState(context, ref);
     if (!ac) {
-      return `AC unit ${formatAcLabel(ref)} does not exist`;
+      return toolFailure(`AC unit ${formatAcLabel(ref)} does not exist`);
     }
 
     return `power: ${ac.power}, targetTemperature: ${ac.targetTemperature}°C`;

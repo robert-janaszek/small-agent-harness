@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../tools/defineTool';
 import { validateCurrentStep, type WizardContext } from './context';
 import { validateCurrentStepArgsSchema, type ValidateCurrentStepArgs } from './schemas';
 
@@ -29,6 +29,7 @@ export const validateCurrentStepTool = defineTool<ValidateCurrentStepArgs, Wizar
     if (args.plan !== undefined) {
       incoming.plan = args.plan;
     }
-    return validateCurrentStep(context, incoming);
+    const result = validateCurrentStep(context, incoming);
+    return result.startsWith('Validated') ? result : toolFailure(result);
   },
 });

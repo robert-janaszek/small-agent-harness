@@ -39,7 +39,7 @@ export type HarnessEvent =
   | { type: 'user_command'; command: string }
   | { type: 'assistant_message'; content: string }
   | { type: 'tool_call'; name: string; args: unknown; toolCallId: string }
-  | { type: 'tool_result'; name: string; content: string; toolCallId: string }
+  | { type: 'tool_result'; name: string; content: string; toolCallId: string; failed?: true }
   | { type: 'tokens'; iteration: number; usage: TokenUsage }
   | { type: 'context_init'; changes: ContextDeltaChange[] }
   | { type: 'context_delta'; changes: ContextDeltaChange[] }

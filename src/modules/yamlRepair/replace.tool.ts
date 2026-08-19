@@ -1,4 +1,4 @@
-import { defineTool, quoteActivityTarget } from '../../tools/defineTool';
+import { defineTool, quoteActivityTarget, toolFailure } from '../../tools/defineTool';
 import type { YamlRepairContext } from './context';
 import { readFileText, replaceExact, writeFileText } from './fileOps';
 import { replaceArgsSchema } from './schemas';
@@ -33,7 +33,7 @@ export const replaceTool = defineTool<
     );
 
     if (!result.ok) {
-      return result.reason;
+      return toolFailure(result.reason);
     }
 
     context.history.push(content);
