@@ -9,6 +9,10 @@ export const undoTool = defineTool<Record<string, never>, YamlRepairContext>({
     'Reverts the work file to the state before the last successful replace. ' +
     'Call yamlParse after undo to verify the restored content.',
   argsSchema: undoArgsSchema,
+  activity: {
+    present: 'undoing',
+    past: 'undid',
+  },
   call(context) {
     const previous = context.history.peek();
     if (previous === undefined) {

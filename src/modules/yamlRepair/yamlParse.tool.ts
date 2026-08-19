@@ -115,6 +115,10 @@ export const yamlParseTool = defineTool<Record<string, never>, YamlRepairContext
     'On failure, returns up to five parser errors with the exact offending line text from the file, plus a count of any remaining errors. ' +
     'Call this after edits to confirm the file is repaired.',
   argsSchema: yamlParseArgsSchema,
+  activity: {
+    present: 'parsing YAML',
+    past: 'parsed YAML',
+  },
   call(context) {
     const text = readFileText(context.filePath);
     const lines = getLines(context.filePath);

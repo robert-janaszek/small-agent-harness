@@ -7,6 +7,11 @@ export const getDeviceStatus = defineTool({
   name: 'getDeviceStatus',
   description: 'Gets the current state of a selected smart home device.',
   argsSchema: getDeviceStatusArgsSchema,
+  activity: {
+    present: 'getting status of',
+    past: 'got status of',
+    target: (args) => `${args.controlGroup} ${args.deviceId} in ${args.room}`,
+  },
   async call(context, args) {
     if (isAcControlGroup(args.controlGroup, context)) {
       return `Error: Use getAcStatus for AC units instead of getDeviceStatus`;

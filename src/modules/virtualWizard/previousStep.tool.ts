@@ -6,6 +6,10 @@ export const previousStepTool = defineTool<Record<string, never>, WizardContext>
   name: 'previousStep',
   description: 'Go back to the previous wizard step. Fails if already on the first step.',
   argsSchema: emptyArgsSchema,
+  activity: {
+    present: 'going back',
+    past: 'went back',
+  },
   call(context) {
     return goToPreviousStep(context);
   },

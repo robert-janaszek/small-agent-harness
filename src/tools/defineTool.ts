@@ -1,11 +1,14 @@
 import { z } from 'zod';
 
-import { Tool, ToolContext, ToolFactory } from './types';
+import { Tool, ToolActivity, ToolContext, ToolFactory } from './types';
+
+export { quoteActivityTarget } from '../core/tool';
 
 type ToolDefinition<T> = {
   name: string;
   description: string;
   argsSchema: z.ZodType<T>;
+  activity: ToolActivity<T>;
   call: (args: T) => Promise<string> | string;
 };
 
@@ -13,6 +16,7 @@ type ContextToolDefinition<TArgs, TContext> = {
   name: string;
   description: string;
   argsSchema: z.ZodType<TArgs>;
+  activity: ToolActivity<TArgs>;
   call: (context: TContext, args: TArgs) => Promise<string> | string;
 };
 
@@ -30,6 +34,7 @@ export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
       parameters: zodToFunctionParameters(definition.argsSchema),
     },
     argsSchema: definition.argsSchema,
+    activity: definition.activity,
     call: async (args) => definition.call(args),
   };
 }
@@ -42,6 +47,7 @@ export function defineTool<TArgs, TContext = ToolContext>(
       name: definition.name,
       description: definition.description,
       argsSchema: definition.argsSchema,
+      activity: definition.activity,
       call: (args) => definition.call(context, args),
     });
 }

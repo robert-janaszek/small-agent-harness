@@ -10,11 +10,13 @@ describe('defineTool', () => {
       name: 'controlDevice',
       description: 'Controls a device',
       argsSchema: controlDeviceArgsSchema,
+      activity: { present: 'controlling', past: 'controlled' },
       call: async () => 'ok',
     });
 
     expect(tool.function.parameters).toEqual(zodToFunctionParameters(controlDeviceArgsSchema));
     expect(tool.argsSchema).toBe(controlDeviceArgsSchema);
+    expect(tool.activity).toEqual({ present: 'controlling', past: 'controlled' });
   });
 
   it('includes required fields and constraints in generated parameters', () => {

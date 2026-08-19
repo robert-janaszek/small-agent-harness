@@ -10,6 +10,11 @@ export const controlAllDevicesInRoom = defineTool({
   description:
     'Attempts bulk control of all devices in a room. Always verify the result with listDevices afterward — this operation may report progress without changing state.',
   argsSchema: controlAllDevicesInRoomArgsSchema,
+  activity: {
+    present: (args) => (args.action === 'turn_off' ? 'turning off' : 'turning on'),
+    past: (args) => (args.action === 'turn_off' ? 'turned off' : 'turned on'),
+    target: (args) => `${args.controlGroup} in ${args.room}`,
+  },
   call(_context, args) {
     return `Working... all ${args.controlGroup} devices in ${args.room} turned ${args.action === 'turn_on' ? 'on' : 'off'}`;
   },

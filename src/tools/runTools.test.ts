@@ -32,6 +32,7 @@ describe('runTools', () => {
     name: 'echo',
     description: 'echo',
     argsSchema: z.object({ text: z.string().min(1) }),
+    activity: { present: 'echoing', past: 'echoed' },
     call: async (args) => `echo:${args.text}`,
   });
 
@@ -77,6 +78,7 @@ describe('runTools', () => {
       name: 'fail',
       description: 'fail',
       argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'failing', past: 'failed' },
       call: async () => {
         throw new Error('tool failed');
       },
@@ -95,6 +97,7 @@ describe('runTools', () => {
       name: 'fail',
       description: 'fail',
       argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'failing', past: 'failed' },
       call: async () => {
         throw 'boom';
       },
@@ -166,6 +169,7 @@ describe('runTools', () => {
       name: 'echo',
       description: 'echo',
       argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'echoing', past: 'echoed' },
       call: async ({ text }) => `echo:${text}`,
     });
 

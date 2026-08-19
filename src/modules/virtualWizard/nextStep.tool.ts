@@ -8,6 +8,10 @@ export const nextStepTool = defineTool<Record<string, never>, WizardContext>({
     'Advance to the next wizard step. Fails if the current step is not validated. ' +
     'Call validateCurrentStep first.',
   argsSchema: emptyArgsSchema,
+  activity: {
+    present: 'advancing',
+    past: 'advanced',
+  },
   call(context) {
     return goToNextStep(context);
   },

@@ -13,6 +13,11 @@ export const readTool = defineTool<
     `offset is 1-based. limit must be between 1 and ${READ_MAX_LIMIT}. ` +
     `Never attempt to read the whole file; use grep to locate regions, then read small windows.`,
   argsSchema: readArgsSchema,
+  activity: {
+    present: 'reading',
+    past: 'read',
+    target: (args) => `lines ${args.offset}-${args.offset + args.limit - 1}`,
+  },
   call(context, args) {
     if (args.limit > READ_MAX_LIMIT) {
       return `Cannot read ${args.limit} lines at once. The maximum limit is ${READ_MAX_LIMIT}. Use a smaller window.`;

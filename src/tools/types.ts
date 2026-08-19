@@ -13,8 +13,17 @@ export type DeviceState = Record<string, DeviceValue>;
 export type RoomState = Record<string, DeviceState>;
 export type ToolContext = Record<string, RoomState>;
 
+export type ToolActivityVerb<T = unknown> = string | ((args: T) => string);
+
+export type ToolActivity<T = unknown> = {
+  present: ToolActivityVerb<T>;
+  past: ToolActivityVerb<T>;
+  target?: (args: T) => string | null;
+};
+
 export interface Tool<T = unknown> extends ChatCompletionFunctionTool {
   argsSchema: z.ZodType<T>;
+  activity: ToolActivity<T>;
   call: (args: T) => Promise<string>;
 }
 

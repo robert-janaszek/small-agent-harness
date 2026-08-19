@@ -81,6 +81,10 @@ export class Harness {
     this.committedTurnCount = null;
   }
 
+  public getTools(): readonly Tool<any>[] {
+    return this.tools;
+  }
+
   public getMessageHistory(): readonly ChatCompletionMessageParam[] {
     return this.messageHistory;
   }

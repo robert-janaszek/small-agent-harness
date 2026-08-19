@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool, quoteActivityTarget } from '../../tools/defineTool';
 import type { YamlRepairContext } from './context';
 import { readFileText, replaceExact, writeFileText } from './fileOps';
 import { replaceArgsSchema } from './schemas';
@@ -18,6 +18,11 @@ export const replaceTool = defineTool<
     'Prefer the smallest unique broken substring — omit line-leading whitespace when that substring alone is unique. ' +
     'Do not replace whole lines when only a few characters need changing. After editing, call yamlParse to verify.',
   argsSchema: replaceArgsSchema,
+  activity: {
+    present: 'replacing',
+    past: 'replaced',
+    target: (args) => quoteActivityTarget(args.old_string),
+  },
   call(context, args) {
     const content = readFileText(context.filePath);
     const result = replaceExact(
