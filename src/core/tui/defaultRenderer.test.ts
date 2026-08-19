@@ -1,10 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
+import { z } from 'zod';
 
 import { DiffTerminal } from './diffTerminal';
 import { createEventBus } from '../eventBus';
 import { Harness } from '../harness';
 import type { HarnessConfig } from '../config.validate';
-import type { ModulePanel, PanelPaintContext } from '../module';
+import type { Module, ModulePanel, PanelPaintContext } from '../module';
+import { createTool } from '../tool';
 import { DefaultRenderer, paintNoModulePanel } from './defaultRenderer';
 import { getBottomLayout } from './layout';
 
@@ -214,6 +216,232 @@ describe('DefaultRenderer', () => {
     await renderer.handleInput('hello');
 
     expect(visibleText(output.join(''))).not.toContain('pending');
+  });
+
+  it('streams assistant text into a single agent line', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    const createChatCompletion = vi.fn().mockImplementation(
+      async (
+        _params,
+        options?: { onTextDelta?: (delta: string) => void },
+      ) => {
+        options?.onTextDelta?.('Hel');
+        options?.onTextDelta?.('lo');
+        return {
+          choices: [{ message: { role: 'assistant', content: 'Hello', refusal: null } }],
+        };
+      },
+    );
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    await renderer.handleInput('hi');
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const text = visibleText(output.join(''));
+    expect(text).toContain('agent: Hello');
+    expect(text.match(/agent: Hello/g)).toHaveLength(1);
+  });
+
+  it('repaints immediately when streamed text is cancelled for a tool call', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+
+    let afterDelta!: () => void;
+    const afterDeltaPromise = new Promise<void>((resolve) => {
+      afterDelta = resolve;
+    });
+    let runCancel!: () => void;
+    const cancelGate = new Promise<void>((resolve) => {
+      runCancel = resolve;
+    });
+    let afterCancel!: () => void;
+    const afterCancelPromise = new Promise<void>((resolve) => {
+      afterCancel = resolve;
+    });
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const createChatCompletion = vi.fn().mockImplementation(
+      async (
+        _params,
+        options?: { onTextDelta?: (delta: string) => void; onTextDeltaCancel?: () => void },
+      ) => {
+        options?.onTextDelta?.('thinking');
+        afterDelta();
+        await cancelGate;
+        options?.onTextDeltaCancel?.();
+        afterCancel();
+        await blocked;
+        return {
+          choices: [{ message: { role: 'assistant', content: 'done', refusal: null } }],
+        };
+      },
+    );
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const turn = renderer.handleInput('hi');
+    await afterDeltaPromise;
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+    expect(visibleText(output.join(''))).toContain('agent: thinking');
+
+    output.length = 0;
+    runCancel();
+    await afterCancelPromise;
+
+    expect(output.join('').length).toBeGreaterThan(0);
+    expect(visibleText(output.join(''))).not.toContain('thinking');
+
+    release();
+    await turn;
+  });
+
+  it('drops the streaming leftover when a tool call starts', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    const echoTool = createTool({
+      name: 'echo',
+      description: 'echo',
+      argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'echoing', past: 'echoed' },
+      call: async (args) => `echo:${args.text}`,
+    });
+    const echoModule: Module = { id: 'echo', tools: [echoTool] };
+
+    let afterDelta!: () => void;
+    const afterDeltaPromise = new Promise<void>((resolve) => {
+      afterDelta = resolve;
+    });
+    let continueFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      continueFirst = resolve;
+    });
+    let secondStarted!: () => void;
+    const secondStartedPromise = new Promise<void>((resolve) => {
+      secondStarted = resolve;
+    });
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const createChatCompletion = vi
+      .fn()
+      .mockImplementationOnce(
+        async (
+          _params,
+          options?: { onTextDelta?: (delta: string) => void; onTextDeltaCancel?: () => void },
+        ) => {
+          options?.onTextDelta?.('thinking');
+          afterDelta();
+          await firstGate;
+          options?.onTextDeltaCancel?.();
+          return {
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  refusal: null,
+                  tool_calls: [
+                    {
+                      id: 'call_1',
+                      type: 'function',
+                      function: { name: 'echo', arguments: JSON.stringify({ text: 'hi' }) },
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+        },
+      )
+      .mockImplementationOnce(async () => {
+        secondStarted();
+        await blocked;
+        return { choices: [{ message: { role: 'assistant', content: 'done', refusal: null } }] };
+      });
+
+    const harness = new Harness({
+      modules: [echoModule],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const turn = renderer.handleInput('hi');
+    await afterDeltaPromise;
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+    expect(visibleText(output.join(''))).toContain('agent: thinking');
+
+    continueFirst();
+    await secondStartedPromise;
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+    const text = visibleText(output.join(''));
+    expect(text).not.toContain('thinking');
+    expect(text).toContain('echoed');
+
+    release();
+    await turn;
+  });
+
+  it('drops the streaming preview when the LLM call fails', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    const createChatCompletion = vi.fn().mockImplementation(
+      async (_params, options?: { onTextDelta?: (delta: string) => void }) => {
+        options?.onTextDelta?.('partial');
+        throw new Error('LLM exploded');
+      },
+    );
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    await renderer.handleInput('hi');
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const text = visibleText(output.join(''));
+    expect(text).not.toContain('agent: partial');
+    expect(text).toContain('ERROR: LLM exploded');
   });
 
   it('shows the pending banner only when a turn is already running', async () => {

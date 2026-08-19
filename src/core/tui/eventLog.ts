@@ -67,6 +67,20 @@ function wrapParagraph(text: string, maxWidth: number): string[] {
   return wrapped.length > 0 ? wrapped : [''];
 }
 
+function trimEdgeEmptyParagraphs(paragraphs: string[]): string[] {
+  let start = 0;
+  let end = paragraphs.length;
+
+  while (start < end && paragraphs[start]!.trim().length === 0) {
+    start += 1;
+  }
+  while (end > start && paragraphs[end - 1]!.trim().length === 0) {
+    end -= 1;
+  }
+
+  return paragraphs.slice(start, end);
+}
+
 export function wrapAgentLine(line: string, width: number): string[] {
   let prefix: string;
   let content: string;
@@ -81,6 +95,10 @@ export function wrapAgentLine(line: string, width: number): string[] {
     return [truncate(line, width)];
   }
 
+  if (content.trim().length === 0) {
+    return [];
+  }
+
   if (width <= 0) {
     return [];
   }
@@ -90,7 +108,7 @@ export function wrapAgentLine(line: string, width: number): string[] {
   }
 
   const indent = ' '.repeat(prefix.length);
-  const paragraphs = content.split('\n');
+  const paragraphs = trimEdgeEmptyParagraphs(content.split('\n'));
   const result: string[] = [];
 
   for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
@@ -102,10 +120,6 @@ export function wrapAgentLine(line: string, width: number): string[] {
       const segmentPrefix = lineIndex === 0 && paragraphIndex === 0 && result.length === 0 ? prefix : indent;
       result.push(truncate(`${segmentPrefix}${segment}`, width));
     }
-  }
-
-  if (result.length === 0) {
-    return [truncate(prefix.trimEnd(), width)];
   }
 
   return result.length > MAX_WRAPPED_AGENT_LINES ? result.slice(0, MAX_WRAPPED_AGENT_LINES) : result;
@@ -163,6 +177,7 @@ export function formatEvent(
 type TextLogEntry = {
   kind: 'text';
   line: string;
+  streaming?: boolean;
 };
 
 type ToolLogEntry = {
@@ -190,6 +205,24 @@ export class EventLog {
   constructor(private readonly activities: ReadonlyMap<string, ToolActivity> = new Map()) {}
 
   append(event: CoreEvent): void {
+    if (event.type === 'agent_response') {
+      const last = this.entries.at(-1);
+      if (last?.kind === 'text' && last.streaming) {
+        const line = formatEvent(event, this.activities);
+        last.streaming = false;
+        if (line === null) {
+          this.entries.pop();
+        } else {
+          last.line = line;
+        }
+        return;
+      }
+    }
+
+    if (event.type === 'assistant_message' || event.type === 'tool_call' || event.type === 'error') {
+      this.cancelStreaming();
+    }
+
     if (event.type === 'tool_call') {
       this.entries.push({
         kind: 'tool',
@@ -218,6 +251,31 @@ export class EventLog {
       return;
     }
     this.entries.push({ kind: 'text', line });
+  }
+
+  appendDelta(delta: string): void {
+    if (delta.length === 0) {
+      return;
+    }
+
+    const last = this.entries.at(-1);
+    if (last?.kind === 'text' && last.streaming) {
+      last.line += delta;
+      return;
+    }
+
+    if (delta.trim().length === 0) {
+      return;
+    }
+
+    this.entries.push({ kind: 'text', line: `${AGENT_PREFIX}${delta}`, streaming: true });
+  }
+
+  cancelStreaming(): void {
+    const last = this.entries.at(-1);
+    if (last?.kind === 'text' && last.streaming) {
+      this.entries.pop();
+    }
   }
 
   clear(): void {

@@ -95,6 +95,26 @@ describe('core Harness', () => {
     expect(events.map((event) => event.type)).toEqual(['user_command', 'tokens', 'agent_response']);
   });
 
+  it('forwards text-delta callbacks to the LLM client only when provided', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: assistantMessage('ok') }],
+    });
+    const { harness } = createTestHarness({ createChatCompletion });
+    const onTextDelta = vi.fn();
+    const onTextDeltaCancel = vi.fn();
+
+    await harness.run('hello', { onTextDelta, onTextDeltaCancel });
+
+    expect(createChatCompletion).toHaveBeenCalledWith(
+      expect.anything(),
+      { signal: undefined, onTextDelta, onTextDeltaCancel },
+    );
+
+    createChatCompletion.mockClear();
+    await harness.run('again');
+    expect(createChatCompletion).toHaveBeenCalledWith(expect.anything(), { signal: undefined });
+  });
+
   it('accumulates message history across multiple runs', async () => {
     const createChatCompletion = vi
       .fn()

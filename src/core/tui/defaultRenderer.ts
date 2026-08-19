@@ -73,6 +73,7 @@ export class DefaultRenderer {
   private turnStartedAt: number | null = null;
   private elapsedMs = 0;
   private exitCode = 0;
+  private streamDirty = false;
 
   constructor(
     terminal: DiffTerminal,
@@ -170,6 +171,7 @@ export class DefaultRenderer {
   private async handleInterrupt(): Promise<void> {
     if (this.turnActive) {
       this.commandQueue = [];
+      this.eventLog.cancelStreaming();
       this.currentAbort?.abort();
       this.redraw();
       return;
@@ -266,9 +268,20 @@ export class DefaultRenderer {
 
   private async executeTurn(command: string, signal: AbortSignal): Promise<void> {
     try {
-      await this.harness.run(command, { signal });
+      await this.harness.run(command, {
+        signal,
+        onTextDelta: (delta) => {
+          this.eventLog.appendDelta(delta);
+          this.streamDirty = true;
+        },
+        onTextDeltaCancel: () => {
+          this.eventLog.cancelStreaming();
+          this.redraw();
+        },
+      });
     } catch (error: unknown) {
       if (isAbortError(error)) {
+        this.eventLog.cancelStreaming();
         if (!this.interrupted && !this.sessionEnded) {
           this.harness.emitError('Cancelled.');
         }
@@ -279,6 +292,7 @@ export class DefaultRenderer {
         return;
       }
 
+      this.eventLog.cancelStreaming();
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.harness.emitError(message);
     }
@@ -346,6 +360,11 @@ export class DefaultRenderer {
       return;
     }
 
+    if (this.streamDirty) {
+      this.redraw();
+      return;
+    }
+
     this.paintStatusBarOnTerminal();
     this.terminal.flush();
   }
@@ -354,6 +373,7 @@ export class DefaultRenderer {
     if (this.interrupted) {
       return;
     }
+    this.streamDirty = false;
     const split = getSplitColumns(this.terminal.width);
     const queueLength = this.commandQueue.length;
     const inputState = this.inputLine.getState();
