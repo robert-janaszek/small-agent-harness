@@ -271,7 +271,7 @@ npm run harness -s -- turn off all lights in the living room 2>/dev/null | jq -c
 - **stdout** — JSONL events only (dotenv load is silent)
 - **stderr** — debug; never parse as protocol
 
-yamlRepair is a Core plugin (`npm run yaml-repair`). virtualWizard still has a **legacy** JSONL CLI (`context_init` / `wizard_state`) used by its spawn renderer (`npm run virtual-wizard:harness`).
+yamlRepair is a Core plugin (`npm run yaml-repair`). virtualWizard is the same (`npm run virtual-wizard`); `npm run virtual-wizard:harness` is JSONL (`--jsonl`).
 
 ---
 
@@ -316,7 +316,7 @@ Any language can implement a client by spawning `npm run harness -- --serve` wit
 On a TTY, `npm start` runs Core `DefaultRenderer` in-process (no spawn):
 
 - **Left panel** — event log (`tool_call`, `tool_result`, tokens, agent response, …)
-- **Right panel** — module panel (`smartHome` floor plan, `yamlRepair` parse status); updates on `module` / `state`
+- **Right panel** — module panel (`smartHome` floor plan, `yamlRepair` parse status, `virtualWizard` steps); updates on `module` / `state`
 - **Diff rendering** — only changed terminal cells are rewritten (no full-screen clear)
 - **Multi-turn** — after each `agent_response`, enter another command; `/exit` ends the session
 
@@ -334,6 +334,8 @@ npm start
 | `npm run harness -- --serve` | JSONL stdin/stdout session |
 | `npm start -- --jsonl <command>` | Same one-shot JSONL from the TUI entrypoint |
 | `npm run smart-home` | Alias for `npm start` |
+| `npm run virtual-wizard` | Virtual wizard Core host (TUI on TTY) |
+| `npm run yaml-repair` | YAML repair Core host (TUI on TTY) |
 | `npm run core` | Host with no module (placeholder panel) |
 
 ---
@@ -365,19 +367,13 @@ src/
 │   ├── module.ts           # Module + ModulePanel contract
 │   ├── protocol.ts         # Core JSONL events
 │   └── tui/                # Default split-view renderer
-├── harness/                # Shared config + legacy Agent loop
-│   ├── harness.ts
-│   ├── agent.type.ts
+├── harness/                # Shared config + env loading
 │   ├── harness.config.*
 │   └── loadEnv.ts
-├── cli/                    # Legacy JSONL CLI (virtualWizard spawn)
-│   ├── jsonl.ts
-│   ├── sessionLoop.ts
-│   ├── harnessClient.ts
+├── cli/                    # Shared TUI primitives used by Core
 │   └── tui/                # diff terminal + split layout
-├── tools/                  # Tool framework
+├── tools/                  # Tool factory (`defineTool`)
 │   ├── defineTool.ts
-│   ├── runTools.ts
 │   ├── types.ts
 │   └── validation.ts
 └── modules/
@@ -389,7 +385,12 @@ src/
     │   ├── context.ts      # Context factory + state snapshot
     │   ├── renderer/       # Floor-plan paint
     │   └── *.tool.ts
-    ├── virtualWizard/      # Core plugin + legacy spawn CLI
+    ├── virtualWizard/      # Onboarding wizard (Core plugin)
+    │   ├── main.ts         # run({ module })
+    │   ├── module.ts       # createVirtualWizardModule() + steps panel
+    │   ├── context.ts      # Wizard state + snapshot
+    │   ├── renderer/       # Steps-panel paint
+    │   └── *.tool.ts
     └── yamlRepair/         # YAML repair benchmark (Core plugin)
         ├── main.ts         # run({ module }) — --default starts the canonical repair
         ├── module.ts       # createYamlRepairModule() + parse-status panel
@@ -423,6 +424,7 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run harness [-- args]` | Smart home JSONL (`--jsonl`; one-shot or `--serve`) |
 | `npm run core` | Core host with no module |
 | `npm run virtual-wizard` | Virtual wizard Core plugin |
+| `npm run virtual-wizard:harness [-- args]` | Virtual wizard JSONL (`--jsonl`; one-shot or `--serve`) |
 | `npm run yaml-repair [-- <command>]` | YAML repair Core host (TUI on TTY; waits for a command) |
 | `npm run yaml-repair -- --default` | YAML repair TUI with the canonical repair instruction |
 | `npm run yaml-repair:harness [-- args]` | YAML repair JSONL (`--jsonl`; one-shot or `--serve`) |

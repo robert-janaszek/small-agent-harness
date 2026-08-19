@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { createVirtualWizardAgent } from './agent';
 import {
   createContext,
   goToNextStep,
@@ -8,6 +7,7 @@ import {
   resetWizard,
   validateCurrentStep,
 } from './context';
+import { createVirtualWizardModule } from './module';
 
 describe('virtualWizard navigation', () => {
   it('refuses nextStep until the current step is validated', () => {
@@ -91,14 +91,14 @@ describe('virtualWizard navigation', () => {
 
 describe('virtualWizard tools', () => {
   it('wires next, previous, validate, and reset tools against shared context', async () => {
-    const agent = createVirtualWizardAgent();
-    const byName = Object.fromEntries(agent.tools.map((tool) => [tool.function.name, tool]));
+    const module = createVirtualWizardModule();
+    const byName = Object.fromEntries((module.tools ?? []).map((tool) => [tool.function.name, tool]));
 
     expect(await byName.nextStep!.call({})).toContain('not validated');
     expect(await byName.validateCurrentStep!.call({})).toContain('Validated "Welcome"');
     expect(await byName.nextStep!.call({})).toContain('Moved forward');
     expect(await byName.previousStep!.call({})).toContain('Moved back');
     expect(await byName.resetWizard!.call({})).toContain('Wizard reset');
-    expect(agent.context.currentIndex).toBe(0);
+    expect(module.context.currentIndex).toBe(0);
   });
 });

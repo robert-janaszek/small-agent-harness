@@ -6,13 +6,16 @@ import type { ChatCompletionClient } from '../../client/llmClient.type';
 import { createEventBus } from '../../core/eventBus';
 import { Harness } from '../../core/harness';
 import type { CoreEvent } from '../../core/protocol';
+import { parseRunArgv, resolveHostMode } from '../../core/run';
 import { DefaultRenderer } from '../../core/tui/defaultRenderer';
 import type { HarnessConfig } from '../../harness/harness.config.validate';
 import {
   createVirtualWizardModule,
   createVirtualWizardPanel,
+  resolveVirtualWizardDefaultCommand,
   VIRTUAL_WIZARD_MODULE_ID,
   VIRTUAL_WIZARD_PROMPT,
+  VIRTUAL_WIZARD_START_COMMAND,
 } from './module';
 
 const testConfig: HarnessConfig = {
@@ -62,6 +65,33 @@ function moduleStateEvents(events: CoreEvent[]) {
       event.type === 'module' && event.module === VIRTUAL_WIZARD_MODULE_ID && event.event === 'state',
   );
 }
+
+describe('resolveVirtualWizardDefaultCommand', () => {
+  it('auto-starts the TUI and keeps JSONL host open without a command', () => {
+    expect(resolveVirtualWizardDefaultCommand([])).toBe(VIRTUAL_WIZARD_START_COMMAND);
+    expect(resolveVirtualWizardDefaultCommand(['--jsonl'])).toBeUndefined();
+    expect(resolveVirtualWizardDefaultCommand(['--jsonl', '--default'])).toBe(VIRTUAL_WIZARD_START_COMMAND);
+
+    expect(
+      resolveHostMode(parseRunArgv([]), {
+        tty: true,
+        defaultCommand: resolveVirtualWizardDefaultCommand([]),
+      }),
+    ).toEqual({ mode: 'tui', command: VIRTUAL_WIZARD_START_COMMAND });
+    expect(
+      resolveHostMode(parseRunArgv(['--jsonl']), {
+        tty: true,
+        defaultCommand: resolveVirtualWizardDefaultCommand(['--jsonl']),
+      }),
+    ).toEqual({ mode: 'jsonl-serve', command: '' });
+    expect(
+      resolveHostMode(parseRunArgv(['--jsonl', '--default']), {
+        tty: true,
+        defaultCommand: resolveVirtualWizardDefaultCommand(['--jsonl', '--default']),
+      }),
+    ).toEqual({ mode: 'jsonl-batch', command: VIRTUAL_WIZARD_START_COMMAND });
+  });
+});
 
 describe('createVirtualWizardModule', () => {
   it('asks for missing answers but invents values when the user says to', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import OpenAI from 'openai';
-import { runTools } from '../../tools/runTools';
+import { runTools } from '../../core/runTools';
 import { createContext } from './context';
 import { controlAllDevicesInRoom, CONTROL_ALL_DEVICES_DELAY_MS } from './controlAllDevicesInRoom.tool';
 import { controlDevice } from './controlDevice.tool';

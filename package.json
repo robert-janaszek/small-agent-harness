@@ -17,7 +17,7 @@
     "yaml-repair:harness": "tsx src/modules/yamlRepair/main.ts --jsonl",
     "yaml-repair:batch": "tsx src/modules/yamlRepair/main.ts --jsonl --default",
     "virtual-wizard": "tsx src/modules/virtualWizard/main.ts",
-    "virtual-wizard:harness": "tsx src/cli/virtualWizard.ts",
+    "virtual-wizard:harness": "tsx src/modules/virtualWizard/main.ts --jsonl",
     "start": "tsx src/modules/smartHome/main.ts",
     "render": "tsx src/modules/smartHome/main.ts"
   },
