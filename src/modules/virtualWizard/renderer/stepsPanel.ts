@@ -1,6 +1,6 @@
-import type { WizardStatePayload } from '../../../cli/jsonl';
 import type { DiffTerminal } from '../../../cli/tui/diffTerminal';
 import { colors } from '../../../cli/tui/colors';
+import type { WizardStateSnapshot } from '../context';
 
 export const STEPS_PANEL_MIN_WIDTH = 24;
 
@@ -21,7 +21,7 @@ export type StepLine = {
   kind: StepLineKind;
 };
 
-export function renderStepLines(state: WizardStatePayload, maxLines: number, width: number): StepLine[] {
+export function renderStepLines(state: WizardStateSnapshot, maxLines: number, width: number): StepLine[] {
   if (maxLines <= 0 || width <= 0) {
     return [];
   }
@@ -65,7 +65,7 @@ export function paintStepsPanel(
   startCol: number,
   width: number,
   maxRows: number,
-  state: WizardStatePayload,
+  state: WizardStateSnapshot,
 ): void {
   const lines = renderStepLines(state, maxRows, width);
 

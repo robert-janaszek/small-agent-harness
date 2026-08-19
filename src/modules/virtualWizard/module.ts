@@ -4,6 +4,7 @@ import {
   createContext,
   resetContext,
   snapshotWizardState,
+  type WizardContext,
   type WizardStateSnapshot,
 } from './context';
 import { nextStepTool } from './nextStep.tool';
@@ -15,6 +16,13 @@ import { validateCurrentStepTool } from './validateCurrentStep.tool';
 export const VIRTUAL_WIZARD_MODULE_ID = 'virtualWizard';
 
 export const VIRTUAL_WIZARD_START_COMMAND = 'Start the onboarding wizard.';
+
+export function resolveVirtualWizardDefaultCommand(argv: string[]): string | undefined {
+  if (argv.includes('--jsonl') && !argv.includes('--default')) {
+    return undefined;
+  }
+  return VIRTUAL_WIZARD_START_COMMAND;
+}
 
 export const VIRTUAL_WIZARD_PROMPT = `Gather what you need from the user and fill the onboarding wizard with tools.
 
@@ -57,7 +65,9 @@ export function createVirtualWizardPanel(): ModulePanel {
   };
 }
 
-export function createVirtualWizardModule(): Module {
+export type VirtualWizardModule = Module & { context: WizardContext };
+
+export function createVirtualWizardModule(): VirtualWizardModule {
   const context = createContext();
   const emitState = (runtime: { emit: (event: string, payload?: unknown) => void }) => {
     runtime.emit('state', snapshotWizardState(context));
@@ -65,6 +75,7 @@ export function createVirtualWizardModule(): Module {
 
   return {
     id: VIRTUAL_WIZARD_MODULE_ID,
+    context,
     prompt: VIRTUAL_WIZARD_PROMPT,
     tools: [
       validateCurrentStepTool(context),

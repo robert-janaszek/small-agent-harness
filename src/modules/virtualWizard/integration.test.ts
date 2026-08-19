@@ -2,10 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import OpenAI from 'openai';
 
 import type { ChatCompletionClient } from '../../client/llmClient.type';
-import { resetEmitWriter, setEmitWriter, type HarnessEvent } from '../../cli/jsonl';
-import { Harness } from '../../harness/harness';
+import { createEventBus } from '../../core/eventBus';
+import { Harness } from '../../core/harness';
+import type { CoreEvent } from '../../core/protocol';
 import type { HarnessConfig } from '../../harness/harness.config.validate';
-import { createVirtualWizardAgent } from './agent';
+import { createVirtualWizardModule, VIRTUAL_WIZARD_MODULE_ID } from './module';
 
 const testConfig: HarnessConfig = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',
@@ -46,14 +47,11 @@ function completion(message: OpenAI.Chat.Completions.ChatCompletionMessage) {
 
 describe('virtualWizard integration', () => {
   afterEach(() => {
-    resetEmitWriter();
+    vi.restoreAllMocks();
   });
 
   it('walks the wizard through mocked tool calls until complete', async () => {
-    const events: HarnessEvent[] = [];
-    setEmitWriter((line) => events.push(JSON.parse(line.trimEnd()) as HarnessEvent));
-
-    const agent = createVirtualWizardAgent();
+    const module = createVirtualWizardModule();
     const createChatCompletion = vi
       .fn()
       .mockResolvedValueOnce(completion(assistantToolCall('validateCurrentStep', {}, 'c1')))
@@ -73,33 +71,43 @@ describe('virtualWizard integration', () => {
       .mockResolvedValueOnce(completion(assistantToolCall('validateCurrentStep', {}, 'c7')))
       .mockResolvedValueOnce(completion(assistantMessage('All wizard steps are done.')));
 
+    const events: CoreEvent[] = [];
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
     const llmClient: ChatCompletionClient = { createChatCompletion };
-    const harness = new Harness(agent, { llmClient, config: testConfig });
-    harness.emitSessionStart();
+    const harness = new Harness({ modules: [module], llmClient, config: testConfig, bus });
+    harness.startSession();
 
     const result = await harness.run('Complete the wizard.');
 
     expect(result.content).toBe('All wizard steps are done.');
-    expect(agent.context.currentIndex).toBe(3);
-    expect(agent.context.steps.every((step) => step.validated)).toBe(true);
-    expect(events.some((event) => event.type === 'wizard_state')).toBe(true);
-    expect(events.some((event) => event.type === 'context_init')).toBe(true);
+    expect(module.context.currentIndex).toBe(3);
+    expect(module.context.steps.every((step) => step.validated)).toBe(true);
+
+    const stateEvents = events.filter(
+      (event): event is Extract<CoreEvent, { type: 'module' }> =>
+        event.type === 'module' && event.module === VIRTUAL_WIZARD_MODULE_ID && event.event === 'state',
+    );
+    expect(stateEvents.length).toBeGreaterThan(1);
+    expect(stateEvents.at(-1)?.payload).toMatchObject({
+      currentIndex: 3,
+      steps: expect.arrayContaining([expect.objectContaining({ title: 'Confirm', validated: true })]),
+    });
   });
 
   it('blocks nextStep in a mocked turn when validation was skipped', async () => {
-    setEmitWriter(() => {});
-    const agent = createVirtualWizardAgent();
+    const module = createVirtualWizardModule();
     const createChatCompletion = vi
       .fn()
       .mockResolvedValueOnce(completion(assistantToolCall('nextStep', {}, 'c1')))
       .mockResolvedValueOnce(completion(assistantMessage('I could not advance yet.')));
 
     const llmClient: ChatCompletionClient = { createChatCompletion };
-    const harness = new Harness(agent, { llmClient, config: testConfig });
+    const harness = new Harness({ modules: [module], llmClient, config: testConfig });
 
     await harness.run('Go to the next step.');
 
-    expect(agent.context.currentIndex).toBe(0);
-    expect(agent.context.steps[0]?.validated).toBe(false);
+    expect(module.context.currentIndex).toBe(0);
+    expect(module.context.steps[0]?.validated).toBe(false);
   });
 });

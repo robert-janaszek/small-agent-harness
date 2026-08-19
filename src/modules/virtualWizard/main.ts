@@ -1,9 +1,11 @@
 import { run } from '../../core/run';
-import { createVirtualWizardModule, VIRTUAL_WIZARD_START_COMMAND } from './module';
+import { createVirtualWizardModule, resolveVirtualWizardDefaultCommand } from './module';
+
+const argv = process.argv.slice(2);
 
 const exitCode = await run({
   module: createVirtualWizardModule(),
-  argv: process.argv.slice(2),
-  defaultCommand: VIRTUAL_WIZARD_START_COMMAND,
+  argv,
+  defaultCommand: resolveVirtualWizardDefaultCommand(argv),
 });
 process.exit(exitCode);
