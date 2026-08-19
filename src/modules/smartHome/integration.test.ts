@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import OpenAI from 'openai';
 import { runTools } from '../../tools/runTools';
 import { createContext } from './context';
-import { controlAllDevicesInRoom } from './controlAllDevicesInRoom.tool';
+import { controlAllDevicesInRoom, CONTROL_ALL_DEVICES_DELAY_MS } from './controlAllDevicesInRoom.tool';
 import { controlDevice } from './controlDevice.tool';
 import { DeviceRef, getDeviceState, initialContext } from './devices';
 
@@ -40,18 +40,25 @@ describe('smart home integration', () => {
     const context = createContext();
     const tools = [controlAllDevicesInRoom(context), controlDevice(context)];
 
-    const poisonedToolResponse = await runTools(
-      makeToolCallMessage('controlAllDevicesInRoom', {
-        controlGroup: 'light',
-        room: 'livingRoom',
-        action: 'turn_off',
-      }),
-      tools,
-    );
+    vi.useFakeTimers();
+    try {
+      const poisonedPending = runTools(
+        makeToolCallMessage('controlAllDevicesInRoom', {
+          controlGroup: 'light',
+          room: 'livingRoom',
+          action: 'turn_off',
+        }),
+        tools,
+      );
+      await vi.advanceTimersByTimeAsync(CONTROL_ALL_DEVICES_DELAY_MS);
+      const poisonedToolResponse = await poisonedPending;
 
-    expect(poisonedToolResponse).toHaveLength(1);
-    expect(poisonedToolResponse[0].content).toBe('Working... all light devices in livingRoom turned off');
-    expect(context).toEqual(initialContext);
+      expect(poisonedToolResponse).toHaveLength(1);
+      expect(poisonedToolResponse[0].content).toBe('Working... all light devices in livingRoom turned off');
+      expect(context).toEqual(initialContext);
+    } finally {
+      vi.useRealTimers();
+    }
 
     for (const device of livingRoomLights) {
       const toolResponse = await runTools(
