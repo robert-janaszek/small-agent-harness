@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,11 +14,26 @@ export type EditHistory = {
   clear: () => void;
 };
 
+export type ParseStatusState = {
+  errorCount: number | null;
+  ok: boolean;
+  errors: string[];
+  undoHint: string | null;
+};
+
+export type YamlRepairStateSnapshot = {
+  filePath: string;
+  parseStatus: ParseStatusState;
+};
+
 export type YamlRepairContext = {
   filePath: string;
   history: EditHistory;
+  parseStatus: ParseStatusState;
   /** Error count from the previous yamlParse call, or null before the first parse. */
   lastParseErrorCount: number | null;
+  /** File contents captured when the context was created; used by reset. */
+  initialContent: string;
   /** Remove the temp work directory when this context owns one; otherwise a no-op. */
   dispose: () => void;
 };
@@ -36,6 +51,31 @@ const FIXTURE_PATH = join(
 
 export function getFixturePath(): string {
   return FIXTURE_PATH;
+}
+
+export function createParseStatusState(): ParseStatusState {
+  return {
+    errorCount: null,
+    ok: false,
+    errors: [],
+    undoHint: null,
+  };
+}
+
+export function snapshotYamlRepairState(context: YamlRepairContext): YamlRepairStateSnapshot {
+  return {
+    filePath: context.filePath,
+    parseStatus: {
+      errorCount: context.parseStatus.errorCount,
+      ok: context.parseStatus.ok,
+      errors: [...context.parseStatus.errors],
+      undoHint: context.parseStatus.undoHint,
+    },
+  };
+}
+
+export function logWorkFilePath(context: YamlRepairContext): void {
+  process.stderr.write(`[yamlRepair] work file: ${context.filePath}\n`);
 }
 
 function createHistoryStack(): EditHistory {
@@ -76,11 +116,12 @@ export function createWorkFile(sourcePath: string = FIXTURE_PATH): WorkFile {
   };
 }
 
-/** Restore the work file from the fixture and clear edit/parse tracking state. */
-export function resetContext(context: YamlRepairContext, sourcePath: string = FIXTURE_PATH): void {
-  copyFileSync(sourcePath, context.filePath);
+/** Restore the work file to the contents captured when the context was created. */
+export function resetContext(context: YamlRepairContext): void {
+  writeFileSync(context.filePath, context.initialContent, 'utf8');
   context.history.clear();
   context.lastParseErrorCount = null;
+  context.parseStatus = createParseStatusState();
 }
 
 export function createContext(filePath?: string): YamlRepairContext {
@@ -90,7 +131,9 @@ export function createContext(filePath?: string): YamlRepairContext {
     return {
       filePath,
       history,
+      parseStatus: createParseStatusState(),
       lastParseErrorCount: null,
+      initialContent: readFileSync(filePath, 'utf8'),
       dispose: () => {
         history.clear();
       },
@@ -101,7 +144,9 @@ export function createContext(filePath?: string): YamlRepairContext {
   return {
     filePath: work.filePath,
     history,
+    parseStatus: createParseStatusState(),
     lastParseErrorCount: null,
+    initialContent: readFileSync(work.filePath, 'utf8'),
     dispose: () => {
       history.clear();
       work.dispose();

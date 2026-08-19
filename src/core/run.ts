@@ -13,23 +13,41 @@ export type RunOptions = {
   defaultCommand?: string;
 };
 
-const HOST_FLAGS = new Set(['--serve', '--jsonl', '--help', '-h']);
+const HOST_FLAGS = new Set(['--serve', '--jsonl', '--help', '-h', '--default']);
 
 export type ParsedRunArgv = {
   serve: boolean;
   jsonl: boolean;
   help: boolean;
+  useDefault: boolean;
   command: string;
 };
 
 export type HostMode = 'tui' | 'jsonl-batch' | 'jsonl-serve';
 
 export function parseRunArgv(argv: string[]): ParsedRunArgv {
+  const unknown = argv.filter((arg) => arg.startsWith('-') && !HOST_FLAGS.has(arg));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown flag: ${unknown[0]}`);
+  }
+
+  const command = argv.filter((arg) => !HOST_FLAGS.has(arg)).join(' ').trim();
+  const useDefault = argv.includes('--default');
+
+  if (useDefault && command.length > 0) {
+    throw new Error('`--default` cannot be combined with a custom command.');
+  }
+
+  if (useDefault && argv.includes('--serve')) {
+    throw new Error('`--serve` cannot be combined with `--default`.');
+  }
+
   return {
     serve: argv.includes('--serve'),
     jsonl: argv.includes('--jsonl'),
     help: argv.includes('--help') || argv.includes('-h'),
-    command: argv.filter((arg) => !HOST_FLAGS.has(arg)).join(' ').trim(),
+    useDefault,
+    command,
   };
 }
 
@@ -37,6 +55,10 @@ export function resolveHostMode(
   parsed: ParsedRunArgv,
   options: { tty: boolean; defaultCommand?: string } = { tty: true },
 ): { mode: HostMode; command: string } {
+  if (parsed.useDefault && !options.defaultCommand) {
+    throw new Error('`--default` is not available for this module.');
+  }
+
   const command = parsed.command || options.defaultCommand || '';
   const tty = options.tty ?? true;
 
@@ -80,7 +102,11 @@ async function runJsonlSession(module: Module | undefined, command: string, head
   }
 
   harness.startSession();
-  await harness.run(command);
+  try {
+    await harness.run(command);
+  } finally {
+    harness.endSession();
+  }
   return 0;
 }
 
@@ -123,6 +149,7 @@ async function runTuiSession(module: Module | undefined, command: string): Promi
   process.stdout.on('resize', onResize);
   process.on('SIGINT', onSigint);
   process.on('SIGTERM', onSigterm);
+  process.on('exit', leave);
 
   try {
     return await renderer.run();
@@ -130,16 +157,25 @@ async function runTuiSession(module: Module | undefined, command: string): Promi
     process.stdout.off('resize', onResize);
     process.off('SIGINT', onSigint);
     process.off('SIGTERM', onSigterm);
+    process.off('exit', leave);
     leave();
   }
 }
 
 export async function run(options: RunOptions = {}): Promise<number> {
   const argv = options.argv ?? process.argv.slice(2);
-  const parsed = parseRunArgv(argv);
+
+  let parsed: ParsedRunArgv;
+  try {
+    parsed = parseRunArgv(argv);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    writeFatalError(message);
+    return 1;
+  }
 
   if (parsed.help) {
-    process.stderr.write('Usage: [--jsonl] [--serve] [-- <command>]\n');
+    process.stderr.write('Usage: [--jsonl] [--serve] [--default] [-- <command>]\n');
     return 0;
   }
 

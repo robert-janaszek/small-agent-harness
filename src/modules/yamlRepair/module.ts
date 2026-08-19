@@ -1,13 +1,24 @@
-import { Agent } from '../../harness/agent.type';
-import { createContext, resetContext, type YamlRepairContext } from './context';
+import type { Module, ModulePanel } from '../../core/module';
+import type { Tool } from '../../core/tool';
+import {
+  createContext,
+  createParseStatusState,
+  logWorkFilePath,
+  resetContext,
+  snapshotYamlRepairState,
+  type YamlRepairContext,
+  type YamlRepairStateSnapshot,
+} from './context';
 import { grepTool } from './grep.tool';
-import { emitYamlRepairContextInit, emitYamlRepairSessionStart } from './protocol';
 import { readTool } from './read.tool';
+import { paintParseStatusPanel } from './renderer/parseStatusPanel';
 import { replaceTool } from './replace.tool';
 import { undoTool } from './undo.tool';
 import { yamlParseTool } from './yamlParse.tool';
 
-const YAML_REPAIR_PROMPT = `You are a YAML repair agent.
+export const YAML_REPAIR_MODULE_ID = 'yamlRepair';
+
+export const YAML_REPAIR_PROMPT = `You are a YAML repair agent.
 Your only job is to repair the work file until yamlParse succeeds, filling any __FILL_FROM_CONTEXT__ placeholders from surrounding context and defaults.
 
 Rules:
@@ -43,18 +54,55 @@ YAML heuristics:
 - Before replace, use read (limit 1–3) or grep to find the shortest unique old_string.
 - grep searches file contents only. Do not grep parser error messages.`;
 
-export type YamlRepairAgent = Agent & { context: YamlRepairContext };
+export type YamlRepairModule = Module & { context: YamlRepairContext };
 
-export function createYamlRepairAgent(filePath?: string): YamlRepairAgent {
-  const context = createContext(filePath);
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function isYamlRepairStateSnapshot(payload: unknown): payload is YamlRepairStateSnapshot {
+  if (!isPlainObject(payload) || typeof payload.filePath !== 'string' || !isPlainObject(payload.parseStatus)) {
+    return false;
+  }
+
+  const status = payload.parseStatus;
+  return (
+    (status.errorCount === null || typeof status.errorCount === 'number') &&
+    typeof status.ok === 'boolean' &&
+    Array.isArray(status.errors) &&
+    status.errors.every((item) => typeof item === 'string') &&
+    (status.undoHint === null || typeof status.undoHint === 'string')
+  );
+}
+
+export function createYamlRepairPanel(): ModulePanel {
+  let state: YamlRepairStateSnapshot = {
+    filePath: '',
+    parseStatus: createParseStatusState(),
+  };
 
   return {
-    context,
-    onSessionStart: () => emitYamlRepairSessionStart(context),
-    onSessionReset: () => {
-      resetContext(context);
-      emitYamlRepairContextInit();
+    onEvent(event, payload) {
+      if (event === 'state' && isYamlRepairStateSnapshot(payload)) {
+        state = payload;
+      }
     },
+    paint({ terminal, startCol, width, height }) {
+      paintParseStatusPanel(terminal, startCol, width, height, state);
+    },
+  };
+}
+
+export function createYamlRepairModule(filePath?: string): YamlRepairModule {
+  const context = createContext(filePath);
+  logWorkFilePath(context);
+  const emitState = (runtime: { emit: (event: string, payload?: unknown) => void }) => {
+    runtime.emit('state', snapshotYamlRepairState(context));
+  };
+
+  return {
+    id: YAML_REPAIR_MODULE_ID,
+    context,
     prompt: YAML_REPAIR_PROMPT,
     tools: [
       readTool(context),
@@ -62,6 +110,13 @@ export function createYamlRepairAgent(filePath?: string): YamlRepairAgent {
       replaceTool(context),
       undoTool(context),
       yamlParseTool(context),
-    ],
+    ] as Tool<any>[],
+    createPanel: createYamlRepairPanel,
+    onSessionStart: emitState,
+    onSessionReset: (runtime) => {
+      resetContext(context);
+      emitState(runtime);
+    },
+    onToolRound: emitState,
   };
 }

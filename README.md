@@ -135,7 +135,7 @@ Each `harness.run` turn becomes an agent trace that includes:
 ## Architecture
 
 ```text
-modules/smartHome/main.ts
+modules/smartHome/main.ts  (or yamlRepair/main.ts)
   └── core/run({ module })
         ├── EventBus
         ├── Harness({ modules })
@@ -144,7 +144,7 @@ modules/smartHome/main.ts
         │     ├── agent loop (system prompt + history + tools)
         │     └── runTools()
         └── DefaultRenderer (TTY) or JSONL stdout (non-TTY / --jsonl / --serve)
-              └── module.createPanel()  → ASCII floor plan
+              └── module.createPanel()  → floor plan / parse status
 ```
 
 ### Core concepts
@@ -239,6 +239,8 @@ The Core host writes **one JSON object per line** to stdout. Each object has a `
 
 Smart home emits `{ type: 'module', module: 'smartHome', event: 'state', payload }` with a full `ToolContext` snapshot (lights, AC, valves). Binary devices use `"ON"` / `"OFF"`; AC values are `{ power, targetTemperature }`.
 
+YAML repair emits `{ type: 'module', module: 'yamlRepair', event: 'state', payload }` with `{ filePath, parseStatus }` (`errorCount`, `ok`, `errors`, `undoHint`). The work file itself is not streamed — only compact parse status for the right panel.
+
 Example lines:
 
 ```json
@@ -269,7 +271,7 @@ npm run harness -s -- turn off all lights in the living room 2>/dev/null | jq -c
 - **stdout** — JSONL events only (dotenv load is silent)
 - **stderr** — debug; never parse as protocol
 
-yamlRepair and virtualWizard still have a **legacy** JSONL CLI (`context_init` / `context_delta` / `wizard_state`) used by their spawn renderers (`npm run yaml-repair`, `npm run virtual-wizard:harness`).
+yamlRepair is a Core plugin (`npm run yaml-repair`). virtualWizard still has a **legacy** JSONL CLI (`context_init` / `wizard_state`) used by its spawn renderer (`npm run virtual-wizard:harness`).
 
 ---
 
@@ -314,7 +316,7 @@ Any language can implement a client by spawning `npm run harness -- --serve` wit
 On a TTY, `npm start` runs Core `DefaultRenderer` in-process (no spawn):
 
 - **Left panel** — event log (`tool_call`, `tool_result`, tokens, agent response, …)
-- **Right panel** — ASCII floor-plan of the home; updates on `module` / `state`
+- **Right panel** — module panel (`smartHome` floor plan, `yamlRepair` parse status); updates on `module` / `state`
 - **Diff rendering** — only changed terminal cells are rewritten (no full-screen clear)
 - **Multi-turn** — after each `agent_response`, enter another command; `/exit` ends the session
 
@@ -368,7 +370,7 @@ src/
 │   ├── agent.type.ts
 │   ├── harness.config.*
 │   └── loadEnv.ts
-├── cli/                    # Legacy JSONL CLI (yamlRepair, virtualWizard)
+├── cli/                    # Legacy JSONL CLI (virtualWizard spawn)
 │   ├── jsonl.ts
 │   ├── sessionLoop.ts
 │   ├── harnessClient.ts
@@ -388,7 +390,12 @@ src/
     │   ├── renderer/       # Floor-plan paint
     │   └── *.tool.ts
     ├── virtualWizard/      # Core plugin + legacy spawn CLI
-    └── yamlRepair/         # YAML repair benchmark (legacy CLI; see README)
+    └── yamlRepair/         # YAML repair benchmark (Core plugin)
+        ├── main.ts         # run({ module }) — --default starts the canonical repair
+        ├── module.ts       # createYamlRepairModule() + parse-status panel
+        ├── context.ts      # temp work file + parse snapshot
+        ├── renderer/       # Parse-status paint
+        └── *.tool.ts
 ```
 
 ---
@@ -416,11 +423,11 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run harness [-- args]` | Smart home JSONL (`--jsonl`; one-shot or `--serve`) |
 | `npm run core` | Core host with no module |
 | `npm run virtual-wizard` | Virtual wizard Core plugin |
-| `npm run yaml-repair [-- <command>]` | YAML repair split-view TUI (requires TTY, default) |
-| `npm run yaml-repair:harness [-- args]` | Headless YAML repair CLI (JSONL, REPL, batch, `--serve`) |
-| `npm run yaml-repair:batch` | Headless one-shot with default repair instruction |
-| `npm run yaml-repair:harness -- --serve` | JSONL stdin/stdout session (for external renderers) |
-| `npm run yaml-repair:human` | Headless batch with human-readable trace (dev) |
+| `npm run yaml-repair [-- <command>]` | YAML repair Core host (TUI on TTY; waits for a command) |
+| `npm run yaml-repair -- --default` | YAML repair TUI with the canonical repair instruction |
+| `npm run yaml-repair:harness [-- args]` | YAML repair JSONL (`--jsonl`; one-shot or `--serve`) |
+| `npm run yaml-repair:batch` | One-shot JSONL with the default repair instruction |
+| `npm run yaml-repair:harness -- --serve` | JSONL stdin/stdout session |
 | `npm run dev` | Same as `npm start` |
 | `npm test` | Unit tests (no LLM) |
 | `npm run test:coverage` | Unit tests with V8 coverage report |

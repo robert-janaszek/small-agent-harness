@@ -113,6 +113,18 @@ function isAgentLine(line: string): boolean {
   return line.startsWith(AGENT_PREFIX) || line.startsWith(ASSISTANT_PREFIX);
 }
 
+export function wrapPlainLine(line: string, width: number): string[] {
+  if (width <= 0) {
+    return [];
+  }
+
+  const result: string[] = [];
+  for (const paragraph of line.split('\n')) {
+    result.push(...wrapParagraph(paragraph, width).map((segment) => truncate(segment, width)));
+  }
+  return result.length > 0 ? result : [''];
+}
+
 export function formatEvent(event: CoreEvent): string | null {
   switch (event.type) {
     case 'ready':
@@ -120,7 +132,7 @@ export function formatEvent(event: CoreEvent): string | null {
     case 'tokens':
       return null;
     case 'user_command':
-      return `> ${event.command}`;
+      return `> ${event.command.replace(/\s+/g, ' ').trim()}`;
     case 'assistant_message':
       return event.content.trim().length === 0 ? null : `assistant: ${event.content}`;
     case 'tool_call':
@@ -132,6 +144,9 @@ export function formatEvent(event: CoreEvent): string | null {
     case 'error':
       return `ERROR: ${event.message}`;
     case 'module': {
+      if (event.event === 'state') {
+        return null;
+      }
       if (event.payload === undefined) {
         return `module.${event.module} ${event.event}`;
       }
@@ -161,7 +176,7 @@ export class EventLog {
     }
 
     const wrappedLines = this.lines.flatMap((line) =>
-      isAgentLine(line) ? wrapAgentLine(line, width) : [truncate(line, width)],
+      isAgentLine(line) ? wrapAgentLine(line, width) : wrapPlainLine(line, width),
     );
 
     return wrappedLines.slice(-maxLines);
