@@ -125,4 +125,11 @@ describe('EventLog', () => {
 
     expect(log.render(10, 40)).toEqual(['called echo']);
   });
+
+  it('renders a fallback line when stored tool args cannot be formatted', () => {
+    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    log.append({ type: 'tool_call', name: 'grep', args: null, toolCallId: '1' });
+
+    expect(log.render(10, 40)).toEqual(['calling grep']);
+  });
 });

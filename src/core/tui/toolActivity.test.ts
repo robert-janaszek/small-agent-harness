@@ -132,4 +132,10 @@ describe('formatToolActivity', () => {
       `replaced "${'a'.repeat(31)}…"`,
     );
   });
+
+  it('falls back to calling/called when an activity formatter throws', () => {
+    expect(format('grep', null, 'running')).toBe('calling grep');
+    expect(format('grep', { pattern: 1 }, 'done')).toBe('called grep');
+    expect(format('validateCurrentStep', null, 'running')).toBe('calling validateCurrentStep');
+  });
 });

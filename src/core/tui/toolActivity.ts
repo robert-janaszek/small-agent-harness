@@ -18,11 +18,16 @@ export function formatToolActivity(
   status: ToolActivityStatus,
   activity?: ToolActivity,
 ): string {
+  const fallback = status === 'running' ? `calling ${name}` : `called ${name}`;
   if (!activity) {
-    return status === 'running' ? `calling ${name}` : `called ${name}`;
+    return fallback;
   }
 
-  const verb = resolveVerb(status === 'running' ? activity.present : activity.past, args);
-  const target = activity.target?.(args);
-  return target ? `${verb} ${target}` : verb;
+  try {
+    const verb = resolveVerb(status === 'running' ? activity.present : activity.past, args);
+    const target = activity.target?.(args);
+    return target ? `${verb} ${target}` : verb;
+  } catch {
+    return fallback;
+  }
 }
