@@ -1,5 +1,5 @@
-import type { DiffTerminal } from '../../cli/tui/diffTerminal';
-import { colors } from '../../cli/tui/colors';
+import { colors } from './colors';
+import type { DiffTerminal } from './diffTerminal';
 
 export const ACTIVITY_SPINNER_WIDTH = 3;
 export const STATUS_BAR_GAP = 1;

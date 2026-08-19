@@ -5,7 +5,7 @@ import type { ChatCompletionClient } from '../../client/llmClient.type';
 import { createEventBus } from '../../core/eventBus';
 import { Harness } from '../../core/harness';
 import type { CoreEvent } from '../../core/protocol';
-import type { HarnessConfig } from '../../harness/harness.config.validate';
+import type { HarnessConfig } from '../../core/config.validate';
 import { createVirtualWizardModule, VIRTUAL_WIZARD_MODULE_ID } from './module';
 
 const testConfig: HarnessConfig = {

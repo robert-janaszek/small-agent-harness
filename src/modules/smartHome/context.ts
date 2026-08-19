@@ -1,4 +1,4 @@
-import { ToolContext } from '../../tools/types';
+import { ToolContext } from './types';
 import { initialContext } from './devices';
 
 export function createContext(initialState?: ToolContext): ToolContext {

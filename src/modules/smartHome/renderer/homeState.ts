@@ -1,4 +1,4 @@
-import { AcState, ToolContext } from '../../../tools/types';
+import { AcState, ToolContext } from '../types';
 import { initialContext } from '../devices';
 
 export function createHomeState(): ToolContext {

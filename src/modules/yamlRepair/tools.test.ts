@@ -3,10 +3,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createWorkFile, getFixturePath, HISTORY_MAX_SIZE, resetContext } from './context';
+import { createWorkFile, getFixturePath, HISTORY_MAX_SIZE, resetContext, type YamlRepairContext } from './context';
+import { grepTool } from './grep.tool';
+import { readTool } from './read.tool';
+import { replaceTool } from './replace.tool';
+import { undoTool } from './undo.tool';
+import { yamlParseTool } from './yamlParse.tool';
 import { createYamlRepairModule, type YamlRepairModule } from './module';
 import { countOccurrences, formatNumberedLines, getLines, readFileText, replaceExact } from './fileOps';
 import { READ_MAX_LIMIT } from './schemas';
+import { formatToolActivity, indexToolActivity } from '../../core/tui/toolActivity';
 
 type TempYaml = { path: string; dispose: () => void };
 
@@ -365,5 +371,36 @@ describe('yamlRepair tools', () => {
       errors: [],
       undoHint: null,
     });
+  });
+});
+
+describe('yamlRepair tool activity', () => {
+  const dummy = {} as YamlRepairContext;
+  const activities = indexToolActivity([
+    grepTool(dummy),
+    readTool(dummy),
+    replaceTool(dummy),
+    undoTool(dummy),
+    yamlParseTool(dummy),
+  ]);
+
+  function format(name: string, args: unknown, status: 'running' | 'done' | 'failed'): string {
+    return formatToolActivity(name, args, status, activities.get(name));
+  }
+
+  it.each([
+    ['grep', { pattern: 'TODO' }, 'grepping "TODO"', 'grepped "TODO"'],
+    ['read', { offset: 12, limit: 8 }, 'reading lines 12-19', 'read lines 12-19'],
+    ['replace', { old_string: 'foo: bar' }, 'replacing "foo: bar"', 'replaced "foo: bar"'],
+    ['undo', {}, 'undoing', 'undid'],
+    ['yamlParse', {}, 'parsing YAML', 'parsed YAML'],
+  ] as const)('%s present/past', (name, args, running, done) => {
+    expect(format(name, args, 'running')).toBe(running);
+    expect(format(name, args, 'done')).toBe(done);
+  });
+
+  it('truncates long quoted targets', () => {
+    const pattern = 'a'.repeat(40);
+    expect(format('grep', { pattern }, 'running')).toBe(`grepping "${'a'.repeat(31)}…"`);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { colors } from '../../../cli/tui/colors';
+import { colors } from '../../../core/tui/colors';
 import { setAcPower, setAcTemperature, setDeviceState } from '../devices';
 import { createHomeState } from './homeState';
 import { powerIndicator, renderHomePanel } from './homeFloorPlan';

@@ -1,6 +1,6 @@
-import type { DiffTerminal } from '../../../cli/tui/diffTerminal';
-import { colors } from '../../../cli/tui/colors';
-import { AcState, ToolContext } from '../../../tools/types';
+import { colors } from '../../../core/tui/colors';
+import type { DiffTerminal } from '../../../core/tui/diffTerminal';
+import { AcState, ToolContext } from '../types';
 import { getDevicePower, isAcState } from '../devices';
 import { FLOOR_PLAN_HEIGHT, FLOOR_PLAN_TEMPLATE } from './homeFloorPlan.template';
 import { getDeviceValue } from './homeState';

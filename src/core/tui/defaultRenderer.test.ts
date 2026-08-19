@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { DiffTerminal } from '../../cli/tui/diffTerminal';
+import { DiffTerminal } from './diffTerminal';
 import { createEventBus } from '../eventBus';
 import { Harness } from '../harness';
-import type { HarnessConfig } from '../../harness/harness.config.validate';
+import type { HarnessConfig } from '../config.validate';
 import type { ModulePanel, PanelPaintContext } from '../module';
 import { DefaultRenderer, paintNoModulePanel } from './defaultRenderer';
 import { getBottomLayout } from './layout';

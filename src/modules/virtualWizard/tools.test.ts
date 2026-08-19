@@ -8,6 +8,7 @@ import {
   validateCurrentStep,
 } from './context';
 import { createVirtualWizardModule } from './module';
+import { formatToolActivity, indexToolActivity } from '../../core/tui/toolActivity';
 
 describe('virtualWizard navigation', () => {
   it('refuses nextStep until the current step is validated', () => {
@@ -100,5 +101,28 @@ describe('virtualWizard tools', () => {
     expect(await byName.previousStep!.call({})).toContain('Moved back');
     expect(await byName.resetWizard!.call({})).toContain('Wizard reset');
     expect(module.context.currentIndex).toBe(0);
+  });
+});
+
+describe('virtualWizard tool activity', () => {
+  const activities = indexToolActivity(createVirtualWizardModule().tools ?? []);
+
+  function format(name: string, args: unknown, status: 'running' | 'done' | 'failed'): string {
+    return formatToolActivity(name, args, status, activities.get(name));
+  }
+
+  it.each([
+    [
+      'validateCurrentStep',
+      { name: 'Ada', email: 'a@b.c', plan: 'pro' },
+      'validating name=Ada email=a@b.c plan=pro',
+      'validated name=Ada email=a@b.c plan=pro',
+    ],
+    ['nextStep', {}, 'advancing', 'advanced'],
+    ['previousStep', {}, 'going back', 'went back'],
+    ['resetWizard', {}, 'resetting wizard', 'reset wizard'],
+  ] as const)('%s present/past', (name, args, running, done) => {
+    expect(format(name, args, 'running')).toBe(running);
+    expect(format(name, args, 'done')).toBe(done);
   });
 });

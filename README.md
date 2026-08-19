@@ -364,22 +364,17 @@ src/
 ├── core/                   # Host: run(), Harness, EventBus, DefaultRenderer
 │   ├── run.ts
 │   ├── harness.ts
+│   ├── config.ts           # Env + harness config
+│   ├── tool.ts             # Tool, createTool, defineTool
 │   ├── module.ts           # Module + ModulePanel contract
 │   ├── protocol.ts         # Core JSONL events
-│   └── tui/                # Default split-view renderer
-├── harness/                # Shared config + env loading
-│   ├── harness.config.*
-│   └── loadEnv.ts
-├── cli/                    # Shared TUI primitives used by Core
-│   └── tui/                # diff terminal + split layout
-├── tools/                  # Tool factory (`defineTool`)
-│   ├── defineTool.ts
-│   ├── types.ts
-│   └── validation.ts
+│   └── tui/                # Diff terminal, palette, split layout, DefaultRenderer
+├── observability/          # Optional Langfuse tracing
 └── modules/
     ├── smartHome/          # Imaginary smart home integration (Core plugin)
     │   ├── main.ts         # run({ module })
     │   ├── module.ts       # createSmartHomeModule() + floor-plan panel
+    │   ├── types.ts        # Device/AC state shapes
     │   ├── devices.ts      # In-memory state + helpers
     │   ├── schemas.ts      # Zod argument schemas
     │   ├── context.ts      # Context factory + state snapshot

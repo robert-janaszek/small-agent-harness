@@ -4,7 +4,7 @@ import { LangfuseSpanProcessor } from '@langfuse/otel';
 import { propagateAttributes, startActiveObservation } from '@langfuse/tracing';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 
-import { loadEnv } from '../harness/loadEnv';
+import { loadEnv } from '../core/loadEnv';
 
 export type ObservationHandle = {
   update: (attributes: { input?: unknown; output?: unknown; metadata?: Record<string, unknown> }) => void;

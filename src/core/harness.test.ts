@@ -8,7 +8,7 @@ import { createEventBus } from './eventBus';
 import { composeSystemPrompt, HARNESS_PROMPT, type Module } from './module';
 import type { CoreEvent } from './protocol';
 import { createTool } from './tool';
-import type { HarnessConfig } from '../harness/harness.config.validate';
+import type { HarnessConfig } from './config.validate';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 
 const testConfig: HarnessConfig = {

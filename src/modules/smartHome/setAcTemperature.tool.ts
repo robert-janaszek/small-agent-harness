@@ -1,4 +1,4 @@
-import { defineTool, toolFailure } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../core/tool';
 import {
   formatAcLabel,
   getAcState,
@@ -7,6 +7,7 @@ import {
   setAcTemperature,
 } from './devices';
 import { setAcTemperatureArgsSchema } from './schemas';
+import type { ToolContext } from './types';
 
 export const setAcTemperatureTool = defineTool({
   name: 'setAcTemperature',
@@ -17,7 +18,7 @@ export const setAcTemperatureTool = defineTool({
     past: 'set',
     target: (args) => `AC ${args.deviceId} in ${args.room} to ${args.temperature}°C`,
   },
-  call(context, args) {
+  call(context: ToolContext, args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     if (!getAcState(context, ref)) {
       return toolFailure(`AC unit ${formatAcLabel(ref)} does not exist`);

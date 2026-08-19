@@ -1,4 +1,4 @@
-import { DiffTerminal } from '../cli/tui/diffTerminal';
+import { DiffTerminal } from './tui/diffTerminal';
 import { flushLangfuse, initLangfuseTracing } from '../observability/langfuse';
 import { createEventBus } from './eventBus';
 import { Harness } from './harness';

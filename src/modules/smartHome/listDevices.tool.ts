@@ -1,6 +1,7 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool } from '../../core/tool';
 import { listDeviceEntries } from './devices';
 import { listDevicesArgsSchema } from './schemas';
+import type { ToolContext } from './types';
 
 export const listDevices = defineTool({
   name: 'listDevices',
@@ -16,7 +17,7 @@ export const listDevices = defineTool({
       return args.room ? `${withState} in ${args.room}` : withState;
     },
   },
-  call(context, args) {
+  call(context: ToolContext, args) {
     return JSON.stringify({ devices: listDeviceEntries(context, args) });
   },
 });

@@ -1,4 +1,4 @@
-import type { DiffTerminal } from '../../cli/tui/diffTerminal';
+import type { DiffTerminal } from './diffTerminal';
 import {
   ACTIVITY_SPINNER_WIDTH,
   activityFrame,

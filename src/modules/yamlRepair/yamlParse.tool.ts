@@ -1,6 +1,6 @@
 import { parseDocument } from 'yaml';
 
-import { defineTool } from '../../tools/defineTool';
+import { defineTool } from '../../core/tool';
 import type { YamlRepairContext } from './context';
 import { getLines, readFileText } from './fileOps';
 import { yamlParseArgsSchema } from './schemas';

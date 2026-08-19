@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { createEventBus } from './eventBus';
 import { Harness } from './harness';
-import type { HarnessConfig } from '../harness/harness.config.validate';
+import type { HarnessConfig } from './config.validate';
 import type { CoreEvent } from './protocol';
 import { runServeSession } from './session';
 

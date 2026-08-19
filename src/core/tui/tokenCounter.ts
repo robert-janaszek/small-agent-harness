@@ -1,4 +1,4 @@
-import { colors } from '../../cli/tui/colors';
+import { colors } from './colors';
 import type { TokenUsage } from '../protocol';
 
 export type TokenCounterState = {

@@ -3,8 +3,8 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 import { createOpenAiClient } from '../client/createOpenAiClient';
 import type { ChatCompletionClient } from '../client/llmClient.type';
-import { getHarnessConfig } from '../harness/harness.config';
-import type { HarnessConfig } from '../harness/harness.config.validate';
+import { getHarnessConfig } from './config';
+import type { HarnessConfig } from './config.validate';
 import { createLangfuseSessionId, withAgentObservation } from '../observability/langfuse';
 import {
   assertUniqueModuleIds,

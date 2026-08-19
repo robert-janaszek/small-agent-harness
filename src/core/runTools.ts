@@ -1,9 +1,9 @@
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { z } from 'zod';
 
 import { withToolObservation } from '../observability/langfuse';
 import { Tool } from './tool';
+import { formatZodError } from './zod';
 
 type ChatCompletionMessage = OpenAI.Chat.Completions.ChatCompletionMessage;
 type ChatCompletionMessageToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
@@ -14,10 +14,6 @@ export type ToolRunnerHooks = {
   onToolResult?: (name: string, content: string, toolCallId: string, failed?: boolean) => void;
   signal?: AbortSignal;
 };
-
-export function formatZodError(error: z.ZodError, title: string): string {
-  return `${title}:\n- ${error.issues.map((issue) => issue.message).join('\n- ')}`;
-}
 
 export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
   return responseMessage.tool_calls && responseMessage.tool_calls.length > 0;

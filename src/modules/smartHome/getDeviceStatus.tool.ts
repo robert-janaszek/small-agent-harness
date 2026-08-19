@@ -1,7 +1,8 @@
-import { defineTool, toolFailure } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../core/tool';
 import { listDevices } from './listDevices.tool';
 import { formatDeviceLabel, getDeviceState, isAcControlGroup } from './devices';
 import { getDeviceStatusArgsSchema } from './schemas';
+import type { ToolContext } from './types';
 
 export const getDeviceStatus = defineTool({
   name: 'getDeviceStatus',
@@ -12,7 +13,7 @@ export const getDeviceStatus = defineTool({
     past: 'got status of',
     target: (args) => `${args.controlGroup} ${args.deviceId} in ${args.room}`,
   },
-  async call(context, args) {
+  async call(context: ToolContext, args) {
     if (isAcControlGroup(args.controlGroup, context)) {
       return toolFailure('Error: Use getAcStatus for AC units instead of getDeviceStatus');
     }

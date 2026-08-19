@@ -1,8 +1,8 @@
 import { loadEnv } from './loadEnv';
-import { readHarnessConfigFromEnv, validateHarnessConfig, type HarnessConfig } from './harness.config.validate';
+import { readHarnessConfigFromEnv, validateHarnessConfig, type HarnessConfig } from './config.validate';
 
-export type { HarnessConfig, HarnessConfigInput } from './harness.config.validate';
-export { readHarnessConfigFromEnv, validateHarnessConfig } from './harness.config.validate';
+export type { HarnessConfig, HarnessConfigInput } from './config.validate';
+export { readHarnessConfigFromEnv, validateHarnessConfig } from './config.validate';
 
 let cachedConfig: HarnessConfig | undefined;
 

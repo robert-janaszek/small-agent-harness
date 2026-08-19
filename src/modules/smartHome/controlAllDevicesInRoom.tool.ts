@@ -1,6 +1,7 @@
 import { delay } from '../../core/delay';
-import { defineTool } from '../../tools/defineTool';
+import { defineTool } from '../../core/tool';
 import { controlAllDevicesInRoomArgsSchema } from './schemas';
+import type { ToolContext } from './types';
 
 export const CONTROL_ALL_DEVICES_DELAY_MS = 2000;
 
@@ -18,7 +19,7 @@ export const controlAllDevicesInRoom = defineTool({
     past: (args) => (args.action === 'turn_off' ? 'turned off' : 'turned on'),
     target: (args) => `${args.controlGroup} in ${args.room}`,
   },
-  async call(_context, args, options) {
+  async call(_context: ToolContext, args, options) {
     await delay(CONTROL_ALL_DEVICES_DELAY_MS, options?.signal);
     return `Working... all ${args.controlGroup} devices in ${args.room} turned ${args.action === 'turn_on' ? 'on' : 'off'}`;
   },

@@ -1,6 +1,6 @@
-import type { DiffTerminal } from '../../../cli/tui/diffTerminal';
-import { colors } from '../../../cli/tui/colors';
-import { graphemes } from '../../../cli/tui/unicode';
+import { colors } from '../../../core/tui/colors';
+import type { DiffTerminal } from '../../../core/tui/diffTerminal';
+import { graphemes } from '../../../core/tui/unicode';
 import type { ParseStatusState, YamlRepairStateSnapshot } from '../context';
 
 export type { ParseStatusState };

@@ -1,4 +1,4 @@
-import { defineTool, toolFailure } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../core/tool';
 import { goToNextStep, type WizardContext } from './context';
 import { emptyArgsSchema } from './schemas';
 

@@ -1,6 +1,7 @@
-import { defineTool, toolFailure } from '../../tools/defineTool';
+import { defineTool, toolFailure } from '../../core/tool';
 import { formatAcLabel, getAcState } from './devices';
 import { getAcStatusArgsSchema } from './schemas';
+import type { ToolContext } from './types';
 
 export const getAcStatus = defineTool({
   name: 'getAcStatus',
@@ -11,7 +12,7 @@ export const getAcStatus = defineTool({
     past: 'got AC status of',
     target: (args) => `AC ${args.deviceId} in ${args.room}`,
   },
-  call(context, args) {
+  call(context: ToolContext, args) {
     const ref = { room: args.room, deviceId: args.deviceId };
     const ac = getAcState(context, ref);
     if (!ac) {

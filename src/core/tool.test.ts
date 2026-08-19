@@ -1,21 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
-import { createTool, toolFailure, zodToFunctionParameters } from './defineTool';
-import { controlDeviceArgsSchema } from '../modules/smartHome/schemas';
+import { createTool, defineTool, toolFailure, zodToFunctionParameters } from './tool';
 
-describe('defineTool', () => {
+const argsSchema = z.object({
+  controlGroup: z.string().min(1),
+  room: z.string().min(1),
+  deviceId: z.string().min(1),
+  action: z.enum(['turn_on', 'turn_off']),
+});
+
+describe('createTool', () => {
   it('generates function.parameters from the Zod schema', () => {
     const tool = createTool({
       name: 'controlDevice',
       description: 'Controls a device',
-      argsSchema: controlDeviceArgsSchema,
+      argsSchema,
       activity: { present: 'controlling', past: 'controlled' },
       call: async () => 'ok',
     });
 
-    expect(tool.function.parameters).toEqual(zodToFunctionParameters(controlDeviceArgsSchema));
-    expect(tool.argsSchema).toBe(controlDeviceArgsSchema);
+    expect(tool.function.parameters).toEqual(zodToFunctionParameters(argsSchema));
+    expect(tool.argsSchema).toBe(argsSchema);
     expect(tool.activity).toEqual({ present: 'controlling', past: 'controlled' });
   });
 
@@ -33,9 +39,7 @@ describe('defineTool', () => {
   });
 
   it('includes required fields and constraints in generated parameters', () => {
-    const parameters = zodToFunctionParameters(controlDeviceArgsSchema);
-
-    expect(parameters).toMatchObject({
+    expect(zodToFunctionParameters(argsSchema)).toMatchObject({
       type: 'object',
       required: ['controlGroup', 'room', 'deviceId', 'action'],
       properties: {
@@ -45,7 +49,7 @@ describe('defineTool', () => {
     });
   });
 
-  it('generates temperature bounds for setAcTemperature schema', () => {
+  it('generates temperature bounds for numeric schemas', () => {
     const schema = z.object({
       temperature: z.coerce.number().min(16).max(30),
     });
@@ -55,5 +59,20 @@ describe('defineTool', () => {
         temperature: { type: 'number', minimum: 16, maximum: 30 },
       },
     });
+  });
+});
+
+describe('defineTool', () => {
+  it('binds context into the created tool', async () => {
+    const factory = defineTool({
+      name: 'echoContext',
+      description: 'echo',
+      argsSchema: z.object({ suffix: z.string() }),
+      activity: { present: 'echoing', past: 'echoed' },
+      call: (context: { prefix: string }, args) => `${context.prefix}:${args.suffix}`,
+    });
+
+    const tool = factory({ prefix: 'hello' });
+    await expect(tool.call({ suffix: 'world' })).resolves.toBe('hello:world');
   });
 });
