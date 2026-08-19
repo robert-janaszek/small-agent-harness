@@ -219,7 +219,7 @@ export class EventLog {
       }
     }
 
-    if (event.type === 'assistant_message' || event.type === 'tool_call') {
+    if (event.type === 'assistant_message' || event.type === 'tool_call' || event.type === 'error') {
       this.cancelStreaming();
     }
 

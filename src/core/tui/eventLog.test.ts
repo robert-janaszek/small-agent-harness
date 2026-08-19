@@ -251,6 +251,15 @@ describe('EventLog', () => {
     expect(log.render(10, 40)).toEqual(['assistant: thinking']);
   });
 
+  it('drops the streaming preview when an error arrives', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hi' });
+    log.appendDelta('partial');
+    log.append({ type: 'error', message: 'LLM exploded' });
+
+    expect(log.render(10, 40)).toEqual(['> hi', 'ERROR: LLM exploded']);
+  });
+
   it('cancelStreaming removes an in-progress agent line', () => {
     const log = new EventLog();
     log.append({ type: 'user_command', command: 'hi' });

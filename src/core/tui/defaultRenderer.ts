@@ -276,7 +276,7 @@ export class DefaultRenderer {
         },
         onTextDeltaCancel: () => {
           this.eventLog.cancelStreaming();
-          this.streamDirty = true;
+          this.redraw();
         },
       });
     } catch (error: unknown) {
@@ -292,6 +292,7 @@ export class DefaultRenderer {
         return;
       }
 
+      this.eventLog.cancelStreaming();
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.harness.emitError(message);
     }
