@@ -15,6 +15,7 @@ import { EventLog } from './eventLog';
 import { getBottomLayout } from './layout';
 import { paintStatusBar } from './statusBar';
 import type { TokenCounterState } from './tokenCounter';
+import { indexToolActivity } from './toolActivity';
 
 const NO_MODULE_LABEL = 'no module';
 const ACTIVITY_INTERVAL_MS = 120;
@@ -55,7 +56,7 @@ export class DefaultRenderer {
   private initialCommand: string | null;
   private panel: ModulePanel | null;
   private panelModuleId: string | null;
-  private eventLog = new EventLog();
+  private eventLog: EventLog;
   private inputLine: TerminalInputLine;
   private commandQueue: string[] = [];
   private dispatching = false;
@@ -85,6 +86,7 @@ export class DefaultRenderer {
     this.initialCommand = options.initialCommand ?? null;
     this.panel = options.panel ?? null;
     this.panelModuleId = options.panelModuleId ?? null;
+    this.eventLog = new EventLog(indexToolActivity(harness.getTools()));
     this.inputLine = new TerminalInputLine(() => {
       this.redraw();
     });

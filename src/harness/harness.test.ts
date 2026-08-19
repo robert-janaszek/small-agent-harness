@@ -163,6 +163,7 @@ describe('Harness', () => {
       name: 'echo',
       description: 'echo',
       argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'echoing', past: 'echoed' },
       call: async (args) => `echo:${args.text}`,
     });
 
@@ -262,6 +263,7 @@ describe('Harness', () => {
       name: 'echo',
       description: 'echo',
       argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'echoing', past: 'echoed' },
       call: async (args) => `echo:${args.text}`,
     });
 

@@ -7,6 +7,10 @@ export const resetWizardTool = defineTool<Record<string, never>, WizardContext>(
   description:
     'Reset the wizard to the first step and clear all validation and answers.',
   argsSchema: emptyArgsSchema,
+  activity: {
+    present: 'resetting wizard',
+    past: 'reset wizard',
+  },
   call(context) {
     return resetWizard(context);
   },

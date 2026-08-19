@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
 import { EventLog, formatEvent } from './eventLog';
+import { indexToolActivity } from './toolActivity';
+import type { YamlRepairContext } from '../../modules/yamlRepair/context';
+import { grepTool } from '../../modules/yamlRepair/grep.tool';
 
 describe('formatEvent', () => {
   it('formats core conversation events', () => {
@@ -14,13 +17,17 @@ describe('formatEvent', () => {
     expect(formatEvent({ type: 'error', message: 'boom' })).toBe('ERROR: boom');
   });
 
-  it('formats tool calls and results', () => {
+  it('formats running tool calls and skips result previews', () => {
     expect(formatEvent({ type: 'tool_call', name: 'echo', args: { text: 'hi' }, toolCallId: '1' })).toBe(
-      'call echo({"text":"hi"})',
+      'calling echo',
     );
-    expect(formatEvent({ type: 'tool_result', name: 'echo', content: 'echo:hi', toolCallId: '1' })).toBe(
-      '  echo: echo:hi',
-    );
+    expect(
+      formatEvent(
+        { type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '2' },
+        indexToolActivity([grepTool({} as YamlRepairContext)]),
+      ),
+    ).toBe('grepping "TODO"');
+    expect(formatEvent({ type: 'tool_result', name: 'echo', content: 'echo:hi', toolCallId: '1' })).toBeNull();
   });
 
   it('formats module envelopes', () => {
@@ -93,5 +100,50 @@ describe('EventLog', () => {
     expect(lines.every((line) => line.length <= 20)).toBe(true);
     expect(lines.join(' ')).toContain('Repair the YAML');
     expect(lines.join(' ')).toContain('yamlParse');
+  });
+
+  it('updates the same tool line from present to past without a result preview', () => {
+    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
+    log.append({ type: 'user_command', command: 'keep me' });
+
+    expect(log.render(10, 40)).toEqual(['grepping "TODO"', '> keep me']);
+
+    log.append({ type: 'tool_result', name: 'grep', content: 'Found 1 match', toolCallId: '1' });
+
+    expect(log.render(10, 40)).toEqual(['grepped "TODO"', '> keep me']);
+  });
+
+  it('uses calling/called for unmapped tools and ignores unmatched results', () => {
+    const log = new EventLog();
+    log.append({ type: 'tool_call', name: 'echo', args: { text: 'hi' }, toolCallId: '1' });
+    log.append({ type: 'tool_result', name: 'echo', content: 'echo:hi', toolCallId: 'missing' });
+
+    expect(log.render(10, 40)).toEqual(['calling echo']);
+
+    log.append({ type: 'tool_result', name: 'echo', content: 'echo:hi', toolCallId: '1' });
+
+    expect(log.render(10, 40)).toEqual(['called echo']);
+  });
+
+  it('marks a matching tool line as failed instead of past-tense success', () => {
+    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
+    log.append({
+      type: 'tool_result',
+      name: 'grep',
+      content: 'Could not compile pattern: bad',
+      toolCallId: '1',
+      failed: true,
+    });
+
+    expect(log.render(10, 40)).toEqual(['failed to grep "TODO"']);
+  });
+
+  it('renders a fallback line when stored tool args cannot be formatted', () => {
+    const log = new EventLog(indexToolActivity([grepTool({} as YamlRepairContext)]));
+    log.append({ type: 'tool_call', name: 'grep', args: null, toolCallId: '1' });
+
+    expect(log.render(10, 40)).toEqual(['calling grep']);
   });
 });

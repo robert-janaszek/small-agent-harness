@@ -11,7 +11,8 @@ type ChatCompletionMessageToolCall = OpenAI.Chat.Completions.ChatCompletionMessa
 export type ToolRunnerHooks = {
   onAssistantMessage?: (content: string) => void;
   onToolCall?: (name: string, args: unknown, toolCallId: string) => void;
-  onToolResult?: (name: string, content: string, toolCallId: string) => void;
+  onToolResult?: (name: string, content: string, toolCallId: string, failed?: boolean) => void;
+  signal?: AbortSignal;
 };
 
 export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
@@ -144,16 +145,14 @@ export const runTools = async (
       continue;
     }
 
+    let failed = false;
     const toolResult = await recordedToolResult(toolName, parsedArgs.data, async () => {
-      try {
-        hooks.onToolCall?.(toolName, parsedArgs.data, toolCall.id);
-        return await tool.call(parsedArgs.data);
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        return JSON.stringify({ error: message });
-      }
+      hooks.onToolCall?.(toolName, parsedArgs.data, toolCall.id);
+      const result = await tool.execute(parsedArgs.data, { signal: hooks.signal });
+      failed = result.failed;
+      return result.content;
     });
-    hooks.onToolResult?.(toolName, toolResult, toolCall.id);
+    hooks.onToolResult?.(toolName, toolResult, toolCall.id, failed);
 
     toolMessages.push({
       role: 'tool' as const,

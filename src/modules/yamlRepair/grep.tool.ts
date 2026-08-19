@@ -1,4 +1,4 @@
-import { defineTool } from '../../tools/defineTool';
+import { defineTool, quoteActivityTarget, toolFailure } from '../../tools/defineTool';
 import type { YamlRepairContext } from './context';
 import { getLines } from './fileOps';
 import { grepArgsSchema } from './schemas';
@@ -18,6 +18,11 @@ export const grepTool = defineTool<
     'Returns matching lines with line numbers and a short surrounding context. ' +
     'Use this to locate errors and placeholders without reading the whole file.',
   argsSchema: grepArgsSchema,
+  activity: {
+    present: 'grepping',
+    past: 'grepped',
+    target: (args) => quoteActivityTarget(args.pattern),
+  },
   call(context, args) {
     const lines = getLines(context.filePath);
     const maxMatches = args.maxMatches ?? 20;
@@ -26,7 +31,7 @@ export const grepTool = defineTool<
       regex = new RegExp(args.pattern, args.caseInsensitive ? 'i' : undefined);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Invalid regular expression';
-      return `Could not compile pattern: ${message}`;
+      return toolFailure(`Could not compile pattern: ${message}`);
     }
 
     // Collect one extra match so we know whether the result was truncated.

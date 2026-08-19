@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
-import { createTool, zodToFunctionParameters } from './defineTool';
+import { createTool, toolFailure, zodToFunctionParameters } from './defineTool';
 import { controlDeviceArgsSchema } from '../modules/smartHome/schemas';
 
 describe('defineTool', () => {
@@ -10,11 +10,26 @@ describe('defineTool', () => {
       name: 'controlDevice',
       description: 'Controls a device',
       argsSchema: controlDeviceArgsSchema,
+      activity: { present: 'controlling', past: 'controlled' },
       call: async () => 'ok',
     });
 
     expect(tool.function.parameters).toEqual(zodToFunctionParameters(controlDeviceArgsSchema));
     expect(tool.argsSchema).toBe(controlDeviceArgsSchema);
+    expect(tool.activity).toEqual({ present: 'controlling', past: 'controlled' });
+  });
+
+  it('returns ToolFailure messages from call and marks execute as failed', async () => {
+    const tool = createTool({
+      name: 'failing',
+      description: 'failing',
+      argsSchema: z.object({}),
+      activity: { present: 'failing', past: 'failed' },
+      call: () => toolFailure('nope'),
+    });
+
+    await expect(tool.call({})).resolves.toBe('nope');
+    await expect(tool.execute({})).resolves.toEqual({ content: 'nope', failed: true });
   });
 
   it('includes required fields and constraints in generated parameters', () => {

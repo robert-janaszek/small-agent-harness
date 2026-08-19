@@ -1,19 +1,24 @@
 import { z } from 'zod';
 
-import { Tool, ToolContext, ToolFactory } from './types';
+import { settleToolCall, type ToolCallOptions } from '../core/tool';
+import { Tool, ToolActivity, ToolContext, ToolFactory } from './types';
+
+export { quoteActivityTarget, toolFailure } from '../core/tool';
 
 type ToolDefinition<T> = {
   name: string;
   description: string;
   argsSchema: z.ZodType<T>;
-  call: (args: T) => Promise<string> | string;
+  activity: ToolActivity<T>;
+  call: (args: T, options?: ToolCallOptions) => Promise<string> | string;
 };
 
 type ContextToolDefinition<TArgs, TContext> = {
   name: string;
   description: string;
   argsSchema: z.ZodType<TArgs>;
-  call: (context: TContext, args: TArgs) => Promise<string> | string;
+  activity: ToolActivity<TArgs>;
+  call: (context: TContext, args: TArgs, options?: ToolCallOptions) => Promise<string> | string;
 };
 
 export function zodToFunctionParameters(schema: z.ZodTypeAny): Record<string, unknown> {
@@ -22,6 +27,9 @@ export function zodToFunctionParameters(schema: z.ZodTypeAny): Record<string, un
 }
 
 export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
+  const execute = async (args: T, options?: ToolCallOptions) =>
+    settleToolCall(() => definition.call(args, options));
+
   return {
     type: 'function',
     function: {
@@ -30,7 +38,9 @@ export function createTool<T>(definition: ToolDefinition<T>): Tool<T> {
       parameters: zodToFunctionParameters(definition.argsSchema),
     },
     argsSchema: definition.argsSchema,
-    call: async (args) => definition.call(args),
+    activity: definition.activity,
+    execute,
+    call: async (args, options) => (await execute(args, options)).content,
   };
 }
 
@@ -42,6 +52,7 @@ export function defineTool<TArgs, TContext = ToolContext>(
       name: definition.name,
       description: definition.description,
       argsSchema: definition.argsSchema,
-      call: (args) => definition.call(context, args),
+      activity: definition.activity,
+      call: (args, options) => definition.call(context, args, options),
     });
 }

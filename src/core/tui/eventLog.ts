@@ -1,4 +1,6 @@
 import type { CoreEvent } from '../protocol';
+import type { ToolActivity } from '../tool';
+import { formatToolActivity } from './toolActivity';
 
 const MAX_CONTENT_PREVIEW = 56;
 const MAX_WRAPPED_AGENT_LINES = 10;
@@ -125,7 +127,10 @@ export function wrapPlainLine(line: string, width: number): string[] {
   return result.length > 0 ? result : [''];
 }
 
-export function formatEvent(event: CoreEvent): string | null {
+export function formatEvent(
+  event: CoreEvent,
+  activities: ReadonlyMap<string, ToolActivity> = new Map(),
+): string | null {
   switch (event.type) {
     case 'ready':
     case 'session_end':
@@ -136,9 +141,9 @@ export function formatEvent(event: CoreEvent): string | null {
     case 'assistant_message':
       return event.content.trim().length === 0 ? null : `assistant: ${event.content}`;
     case 'tool_call':
-      return `call ${event.name}(${truncate(JSON.stringify(event.args), 40)})`;
+      return formatToolActivity(event.name, event.args, 'running', activities.get(event.name));
     case 'tool_result':
-      return `  ${event.name}: ${truncate(event.content.replace(/\s+/g, ' '))}`;
+      return null;
     case 'agent_response':
       return event.content.trim().length === 0 ? null : `agent: ${event.content}`;
     case 'error':
@@ -155,19 +160,68 @@ export function formatEvent(event: CoreEvent): string | null {
   }
 }
 
+type TextLogEntry = {
+  kind: 'text';
+  line: string;
+};
+
+type ToolLogEntry = {
+  kind: 'tool';
+  toolCallId: string;
+  name: string;
+  args: unknown;
+  done: boolean;
+  failed: boolean;
+};
+
+type LogEntry = TextLogEntry | ToolLogEntry;
+
+function formatLogEntry(entry: LogEntry, activities: ReadonlyMap<string, ToolActivity>): string {
+  if (entry.kind === 'tool') {
+    const status = !entry.done ? 'running' : entry.failed ? 'failed' : 'done';
+    return formatToolActivity(entry.name, entry.args, status, activities.get(entry.name));
+  }
+  return entry.line;
+}
+
 export class EventLog {
-  private lines: string[] = [];
+  private entries: LogEntry[] = [];
+
+  constructor(private readonly activities: ReadonlyMap<string, ToolActivity> = new Map()) {}
 
   append(event: CoreEvent): void {
-    const line = formatEvent(event);
+    if (event.type === 'tool_call') {
+      this.entries.push({
+        kind: 'tool',
+        toolCallId: event.toolCallId,
+        name: event.name,
+        args: event.args,
+        done: false,
+        failed: false,
+      });
+      return;
+    }
+
+    if (event.type === 'tool_result') {
+      const entry = this.entries.find(
+        (item): item is ToolLogEntry => item.kind === 'tool' && item.toolCallId === event.toolCallId,
+      );
+      if (entry) {
+        entry.done = true;
+        entry.failed = event.failed === true;
+      }
+      return;
+    }
+
+    const line = formatEvent(event, this.activities);
     if (line === null) {
       return;
     }
-    this.lines.push(line);
+    this.entries.push({ kind: 'text', line });
   }
 
   clear(): void {
-    this.lines = [];
+    this.entries = [];
   }
 
   render(maxLines: number, width: number): string[] {
@@ -175,9 +229,10 @@ export class EventLog {
       return [];
     }
 
-    const wrappedLines = this.lines.flatMap((line) =>
-      isAgentLine(line) ? wrapAgentLine(line, width) : wrapPlainLine(line, width),
-    );
+    const wrappedLines = this.entries.flatMap((entry) => {
+      const line = formatLogEntry(entry, this.activities);
+      return isAgentLine(line) ? wrapAgentLine(line, width) : wrapPlainLine(line, width);
+    });
 
     return wrappedLines.slice(-maxLines);
   }
