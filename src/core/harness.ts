@@ -30,6 +30,8 @@ export type HarnessOptions = {
 
 export type HarnessRunOptions = {
   signal?: AbortSignal;
+  onTextDelta?: (delta: string) => void;
+  onTextDeltaCancel?: () => void;
 };
 
 export type HarnessRunResult = {
@@ -167,7 +169,11 @@ export class Harness {
                   ? { tools: this.tools, tool_choice: 'auto' as const }
                   : {}),
               },
-              { signal: options?.signal },
+              {
+                signal: options?.signal,
+                ...(options?.onTextDelta ? { onTextDelta: options.onTextDelta } : {}),
+                ...(options?.onTextDeltaCancel ? { onTextDeltaCancel: options.onTextDeltaCancel } : {}),
+              },
             );
 
             const responseMessage = getResponseMessage(response);

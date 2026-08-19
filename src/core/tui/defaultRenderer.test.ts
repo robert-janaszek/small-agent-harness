@@ -216,6 +216,41 @@ describe('DefaultRenderer', () => {
     expect(visibleText(output.join(''))).not.toContain('pending');
   });
 
+  it('streams assistant text into a single agent line', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    const createChatCompletion = vi.fn().mockImplementation(
+      async (
+        _params,
+        options?: { onTextDelta?: (delta: string) => void },
+      ) => {
+        options?.onTextDelta?.('Hel');
+        options?.onTextDelta?.('lo');
+        return {
+          choices: [{ message: { role: 'assistant', content: 'Hello', refusal: null } }],
+        };
+      },
+    );
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    await renderer.handleInput('hi');
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const text = visibleText(output.join(''));
+    expect(text).toContain('agent: Hello');
+    expect(text.match(/agent: Hello/g)).toHaveLength(1);
+  });
+
   it('shows the pending banner only when a turn is already running', async () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));

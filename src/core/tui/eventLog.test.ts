@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
 import { createTool, quoteActivityTarget } from '../tool';
-import { EventLog, formatEvent } from './eventLog';
+import { EventLog, formatEvent, wrapAgentLine } from './eventLog';
 import { indexToolActivity } from './toolActivity';
 
 const grep = createTool({
@@ -86,6 +86,24 @@ describe('formatEvent', () => {
   });
 });
 
+describe('wrapAgentLine', () => {
+  it('does not render an agent header when there is no visible content', () => {
+    expect(wrapAgentLine('agent: ', 40)).toEqual([]);
+    expect(wrapAgentLine('agent: \n', 40)).toEqual([]);
+    expect(wrapAgentLine('assistant:   ', 40)).toEqual([]);
+  });
+
+  it('does not leave a blank line from leading or trailing newlines', () => {
+    expect(wrapAgentLine('agent: \nHello', 40)).toEqual(['agent: Hello']);
+    expect(wrapAgentLine('agent: Hello\n', 40)).toEqual(['agent: Hello']);
+    expect(wrapAgentLine('agent: \nHello\n', 40)).toEqual(['agent: Hello']);
+  });
+
+  it('keeps a blank line between paragraphs', () => {
+    expect(wrapAgentLine('agent: Hello\n\nWorld', 40)).toEqual(['agent: Hello', '       ', '       World']);
+  });
+});
+
 describe('EventLog', () => {
   it('renders the latest wrapped lines and can be cleared', () => {
     const log = new EventLog();
@@ -159,5 +177,86 @@ describe('EventLog', () => {
     log.append({ type: 'tool_call', name: 'grep', args: null, toolCallId: '1' });
 
     expect(log.render(10, 40)).toEqual(['calling grep']);
+  });
+
+  it('does not show an agent header until a delta has visible text', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hi' });
+    log.appendDelta('  ');
+    log.appendDelta('\n');
+
+    expect(log.render(10, 40)).toEqual(['> hi']);
+
+    log.appendDelta('Hello');
+    expect(log.render(10, 40)).toEqual(['> hi', 'agent: Hello']);
+  });
+
+  it('does not flash an agent header when whitespace is followed by a tool call', () => {
+    const log = new EventLog(grepActivity);
+    log.appendDelta('\n');
+    log.appendDelta(' ');
+    log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
+
+    expect(log.render(10, 40)).toEqual(['grepping "TODO"']);
+  });
+
+  it('grows a single agent line from deltas and finalizes it on agent_response', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hi' });
+    log.appendDelta('Hel');
+    log.appendDelta('lo');
+
+    expect(log.render(10, 40)).toEqual(['> hi', 'agent: Hello']);
+
+    log.append({
+      type: 'agent_response',
+      content: 'Hello',
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    expect(log.render(10, 40)).toEqual(['> hi', 'agent: Hello']);
+  });
+
+  it('keeps streamed text on the agent line when deltas start or end with a newline', () => {
+    const log = new EventLog();
+    log.appendDelta('\nHello');
+    log.appendDelta('\n');
+
+    expect(log.render(10, 40)).toEqual(['agent: Hello']);
+
+    log.append({
+      type: 'agent_response',
+      content: 'Hello',
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    expect(log.render(10, 40)).toEqual(['agent: Hello']);
+  });
+
+  it('drops the streaming preview when a tool call starts', () => {
+    const log = new EventLog(grepActivity);
+    log.appendDelta('thinking');
+    log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
+
+    expect(log.render(10, 40)).toEqual(['grepping "TODO"']);
+  });
+
+  it('drops the streaming preview when assistant_message arrives', () => {
+    const log = new EventLog();
+    log.appendDelta('partial');
+    log.append({ type: 'assistant_message', content: 'thinking' });
+
+    expect(log.render(10, 40)).toEqual(['assistant: thinking']);
+  });
+
+  it('cancelStreaming removes an in-progress agent line', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hi' });
+    log.appendDelta('partial');
+    log.cancelStreaming();
+
+    expect(log.render(10, 40)).toEqual(['> hi']);
   });
 });
