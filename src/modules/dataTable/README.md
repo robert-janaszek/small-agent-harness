@@ -17,7 +17,7 @@ This first increment only loads fake data. Filter, aggregate (`sum` / `avg` / `m
 | Columns | 50 |
 | Rows | 50 |
 
-Each row is one order line item (shared `orderId` across lines). Columns mix identifiers, dates, categories, money, and flags so later tools can filter and aggregate like SQL.
+Each row is one order line item (shared `orderId` across lines). Columns mix identifiers, timestamps (`orderDate` is ISO datetime with a time of day), categories, money, and flags so later tools can filter and aggregate like SQL.
 
 Regenerate the JSON after changing the builder:
 

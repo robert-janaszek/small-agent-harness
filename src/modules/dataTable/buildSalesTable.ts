@@ -274,10 +274,21 @@ function round4(value: number): number {
   return Math.round(value * 10000) / 10000;
 }
 
+function datePart(iso: string): string {
+  return iso.slice(0, 10);
+}
+
 function addDays(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  const date = new Date(`${datePart(isoDate)}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function withTimeOfDay(isoDate: string, rng: () => number): string {
+  const hour = 8 + Math.floor(rng() * 11);
+  const minute = Math.floor(rng() * 60);
+  const second = Math.floor(rng() * 60);
+  return `${datePart(isoDate)}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}.000Z`;
 }
 
 function fiscalQuarter(isoDate: string): SalesRow['fiscalQuarter'] {
@@ -332,7 +343,7 @@ export function buildSalesTable(): SalesTable {
     const customer = pick(rng, CUSTOMERS);
     const salesperson = salespersonFor(customer.region, rng);
     const orderStatus = pick(rng, STATUSES);
-    const orderDate = addDays('2025-01-06', dayOffset);
+    const orderDate = withTimeOfDay(addDays('2025-01-06', dayOffset), rng);
     dayOffset += 1 + Math.floor(rng() * 4);
 
     const shipDate =
@@ -359,7 +370,7 @@ export function buildSalesTable(): SalesTable {
           : rng() < 0.2
             ? 'Rush handling requested.'
             : null;
-    const updatedAt = `${deliveryDate ?? shipDate ?? orderDate}T${String(8 + Math.floor(rng() * 10)).padStart(2, '0')}:14:00.000Z`;
+    const updatedAt = withTimeOfDay(deliveryDate ?? shipDate ?? orderDate, rng);
     const shippingCost = orderStatus === 'cancelled' ? 0 : round2(8 + rng() * 42);
     const orderId = `ORD-${orderSeq}`;
     orderSeq += 1;

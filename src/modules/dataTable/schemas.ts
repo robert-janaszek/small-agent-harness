@@ -11,13 +11,15 @@ import {
 export const cellValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
-const isoDateTimeSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}T/, 'Expected ISO datetime');
+const isoDateTimeSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/, 'Expected ISO datetime');
 
 export const salesRowSchema = z.object({
   rowId: z.number().int().positive(),
   orderId: z.string().min(1),
   lineNumber: z.number().int().positive(),
-  orderDate: isoDateSchema,
+  orderDate: isoDateTimeSchema,
   shipDate: isoDateSchema.nullable(),
   deliveryDate: isoDateSchema.nullable(),
   fiscalYear: z.number().int(),

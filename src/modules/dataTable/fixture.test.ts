@@ -38,6 +38,8 @@ describe('sales fixture', () => {
       moneyEquals(row.lineTotal, expectedTotal);
       moneyEquals(row.lineCost, expectedCost);
 
+      expect(row.orderDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/);
+
       if (row.isReturned) {
         expect(row.orderStatus).toBe('delivered');
         expect(row.returnReason).toBeTruthy();
@@ -51,9 +53,11 @@ describe('sales fixture', () => {
     const table = loadSalesFixture();
     const regions = new Set(table.rows.map((row) => row.region));
     const statuses = new Set(table.rows.map((row) => row.orderStatus));
+    const hours = new Set(table.rows.map((row) => row.orderDate.slice(11, 13)));
     const numeric = table.rows.map((row) => row.lineTotal);
 
     expect(regions.size).toBeGreaterThanOrEqual(3);
+    expect(hours.size).toBeGreaterThanOrEqual(3);
     expect(statuses.size).toBeGreaterThanOrEqual(3);
     expect(Math.max(...numeric)).toBeGreaterThan(Math.min(...numeric));
   });
