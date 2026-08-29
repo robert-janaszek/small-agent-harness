@@ -1,0 +1,61 @@
+export const SALES_COLUMNS = [
+  'rowId',
+  'orderId',
+  'lineNumber',
+  'orderDate',
+  'shipDate',
+  'deliveryDate',
+  'fiscalYear',
+  'fiscalQuarter',
+  'customerId',
+  'customerName',
+  'customerEmail',
+  'customerSegment',
+  'industry',
+  'region',
+  'country',
+  'city',
+  'warehouse',
+  'channel',
+  'salespersonId',
+  'salespersonName',
+  'team',
+  'sku',
+  'productName',
+  'category',
+  'subcategory',
+  'brand',
+  'quantity',
+  'unitPrice',
+  'discountPct',
+  'taxPct',
+  'lineNet',
+  'lineTax',
+  'lineTotal',
+  'unitCost',
+  'lineCost',
+  'marginPct',
+  'currency',
+  'paymentMethod',
+  'paymentStatus',
+  'orderStatus',
+  'shippingCost',
+  'weightKg',
+  'isReturned',
+  'returnReason',
+  'promoCode',
+  'campaign',
+  'npsScore',
+  'rating',
+  'notes',
+  'updatedAt',
+] as const;
+
+export type SalesColumn = (typeof SALES_COLUMNS)[number];
+
+export const SALES_COLUMN_COUNT = SALES_COLUMNS.length;
+export const SALES_ROW_COUNT = 50;
+export const SALES_TABLE_ID = 'sales';
+
+export const SALES_TABLE_DESCRIPTION =
+  'Synthetic B2B sales line items for deterministic filter, aggregate, and preview tools.';

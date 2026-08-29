@@ -16,6 +16,7 @@ This repo provides a repeatable testbed: a generic agent loop, a fake integratio
 - A **benchmark / experiment setup** for edge models — swap `MODEL_NAME`, run the same scenarios, compare behaviour.
 - An **example domain module** (`smartHome`) that simulates device control in memory — no real hardware, no external APIs.
 - A **second benchmark module** ([`yamlRepair`](src/modules/yamlRepair/README.md)) — repair a large broken YAML file via file tools (`grep`, `read`, `replace`, `yamlParse`).
+- A **third benchmark module** ([`dataTable`](src/modules/dataTable/README.md)) — in-memory tabular buffer (starts with a 50×50 sales fixture; filter / aggregate / preview tools come next).
 
 ## What this repo is not
 
@@ -26,6 +27,8 @@ This repo provides a repeatable testbed: a generic agent loop, a fake integratio
 The `smartHome` module is an **imaginary integration**: lights, AC units, TVs, and water valves live in an in-memory `ToolContext`. Tools read and mutate that state as if they talked to real services, but nothing leaves the process.
 
 See also **[YAML repair](src/modules/yamlRepair/README.md)** — a format-fidelity stress test on a ~6 700-line config file (syntax errors, placeholders, exact whitespace in `replace`).
+
+See also **[Data table](src/modules/dataTable/README.md)** — a 50×50 sales fixture in an in-memory buffer, so later tools can filter and aggregate without the model rewriting rows.
 
 ---
 
@@ -135,7 +138,7 @@ Each `harness.run` turn becomes an agent trace that includes:
 ## Architecture
 
 ```text
-modules/smartHome/main.ts  (or yamlRepair/main.ts)
+modules/smartHome/main.ts  (or yamlRepair/main.ts, dataTable/main.ts)
   └── core/run({ module })
         ├── EventBus
         ├── Harness({ modules })
@@ -241,6 +244,8 @@ Smart home emits `{ type: 'module', module: 'smartHome', event: 'state', payload
 
 YAML repair emits `{ type: 'module', module: 'yamlRepair', event: 'state', payload }` with `{ filePath, parseStatus }` (`errorCount`, `ok`, `errors`, `undoHint`). The work file itself is not streamed — only compact parse status for the right panel.
 
+Data table emits `{ type: 'module', module: 'dataTable', event: 'state', payload }` with `{ sourceId, description, rowCount, columnCount, columns }`. Row cells stay in the in-memory buffer and are not streamed.
+
 Example lines:
 
 ```json
@@ -271,7 +276,7 @@ npm run harness -s -- turn off all lights in the living room 2>/dev/null | jq -c
 - **stdout** — JSONL events only (dotenv load is silent)
 - **stderr** — debug; never parse as protocol
 
-yamlRepair is a Core plugin (`npm run yaml-repair`). virtualWizard is the same (`npm run virtual-wizard`); `npm run virtual-wizard:harness` is JSONL (`--jsonl`).
+yamlRepair is a Core plugin (`npm run yaml-repair`). virtualWizard is the same (`npm run virtual-wizard`); `npm run virtual-wizard:harness` is JSONL (`--jsonl`). dataTable is the same (`npm run data-table`); `npm run data-table:harness` is JSONL (`--jsonl`).
 
 ---
 
@@ -316,7 +321,7 @@ Any language can implement a client by spawning `npm run harness -- --serve` wit
 On a TTY, `npm start` runs Core `DefaultRenderer` in-process (no spawn):
 
 - **Left panel** — event log (`tool_call`, `tool_result`, tokens, agent response, …)
-- **Right panel** — module panel (`smartHome` floor plan, `yamlRepair` parse status, `virtualWizard` steps); updates on `module` / `state`
+- **Right panel** — module panel (`smartHome` floor plan, `yamlRepair` parse status, `virtualWizard` steps, `dataTable` buffer size); updates on `module` / `state`
 - **Diff rendering** — only changed terminal cells are rewritten (no full-screen clear)
 - **Multi-turn** — after each `agent_response`, enter another command; `/exit` ends the session
 
@@ -336,6 +341,7 @@ npm start
 | `npm run smart-home` | Alias for `npm start` |
 | `npm run virtual-wizard` | Virtual wizard Core host (TUI on TTY) |
 | `npm run yaml-repair` | YAML repair Core host (TUI on TTY) |
+| `npm run data-table` | Data table Core host (TUI on TTY; sales buffer in the right panel) |
 | `npm run core` | Host with no module (placeholder panel) |
 
 ---
@@ -386,6 +392,12 @@ src/
     │   ├── context.ts      # Wizard state + snapshot
     │   ├── renderer/       # Steps-panel paint
     │   └── *.tool.ts
+    ├── dataTable/          # Tabular buffer (Core plugin)
+    │   ├── main.ts         # run({ module })
+    │   ├── module.ts       # createDataTableModule() + buffer panel
+    │   ├── context.ts      # In-memory rows cloned from the fixture
+    │   ├── fixtures/       # 50x50 sales.json
+    │   └── renderer/       # Buffer-size paint
     └── yamlRepair/         # YAML repair benchmark (Core plugin)
         ├── main.ts         # run({ module }) — --default starts the canonical repair
         ├── module.ts       # createYamlRepairModule() + parse-status panel
@@ -420,6 +432,8 @@ Results will vary widely between models and quantizations. This repo is meant to
 | `npm run core` | Core host with no module |
 | `npm run virtual-wizard` | Virtual wizard Core plugin |
 | `npm run virtual-wizard:harness [-- args]` | Virtual wizard JSONL (`--jsonl`; one-shot or `--serve`) |
+| `npm run data-table [-- <command>]` | Data table Core host (TUI on TTY; waits for a command) |
+| `npm run data-table:harness [-- args]` | Data table JSONL (`--jsonl`; one-shot or `--serve`) |
 | `npm run yaml-repair [-- <command>]` | YAML repair Core host (TUI on TTY; waits for a command) |
 | `npm run yaml-repair -- --default` | YAML repair TUI with the canonical repair instruction |
 | `npm run yaml-repair:harness [-- args]` | YAML repair JSONL (`--jsonl`; one-shot or `--serve`) |

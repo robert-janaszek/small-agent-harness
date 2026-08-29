@@ -18,6 +18,8 @@
     "yaml-repair:batch": "tsx src/modules/yamlRepair/main.ts --jsonl --default",
     "virtual-wizard": "tsx src/modules/virtualWizard/main.ts",
     "virtual-wizard:harness": "tsx src/modules/virtualWizard/main.ts --jsonl",
+    "data-table": "tsx src/modules/dataTable/main.ts",
+    "data-table:harness": "tsx src/modules/dataTable/main.ts --jsonl",
     "start": "tsx src/modules/smartHome/main.ts",
     "render": "tsx src/modules/smartHome/main.ts"
   },
