@@ -7,6 +7,7 @@ import { Harness } from '../harness';
 import type { HarnessConfig } from '../config.validate';
 import type { Module, ModulePanel, PanelPaintContext } from '../module';
 import { createTool } from '../tool';
+import { colors } from './colors';
 import { DefaultRenderer, paintNoModulePanel } from './defaultRenderer';
 import { getBottomLayout } from './layout';
 
@@ -253,6 +254,68 @@ describe('DefaultRenderer', () => {
     expect(text.match(/agent: Hello/g)).toHaveLength(1);
   });
 
+  it('paints streamed thinking in light gray, then collapses to a duration', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+
+    let afterThink!: () => void;
+    const afterThinkPromise = new Promise<void>((resolve) => {
+      afterThink = resolve;
+    });
+    let continueTurn!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      continueTurn = resolve;
+    });
+
+    const createChatCompletion = vi.fn().mockImplementation(
+      async (
+        _params,
+        options?: { onTextDelta?: (delta: string) => void; onReasoningDelta?: (delta: string) => void },
+      ) => {
+        options?.onReasoningDelta?.('need a plan');
+        afterThink();
+        await gate;
+        options?.onTextDelta?.('Done.');
+        return {
+          choices: [{ message: { role: 'assistant', content: 'Done.', refusal: null } }],
+        };
+      },
+    );
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const turn = renderer.handleInput('hi');
+    await afterThinkPromise;
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const thinkingRaw = output.join('');
+    expect(visibleText(thinkingRaw)).toContain('think: need a plan');
+    expect(thinkingRaw).toContain(
+      `\x1b[38;2;${colors.thinking.r};${colors.thinking.g};${colors.thinking.b}m`,
+    );
+
+    continueTurn();
+    await turn;
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const text = visibleText(output.join(''));
+    expect(text).toMatch(/thought for \d+ seconds?/);
+    expect(text).toContain('agent: Done.');
+    expect(text).not.toContain('think: need a plan');
+  });
+
   it('repaints immediately when streamed text is cancelled for a tool call', async () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
@@ -413,6 +476,132 @@ describe('DefaultRenderer', () => {
 
     release();
     await turn;
+  });
+
+  it('shows a tool line as soon as a streamed tool call starts', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    const echoTool = createTool({
+      name: 'echo',
+      description: 'echo',
+      argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'echoing', past: 'echoed' },
+      call: async (args) => `echo:${args.text}`,
+    });
+
+    let afterStart!: () => void;
+    const afterStartPromise = new Promise<void>((resolve) => {
+      afterStart = resolve;
+    });
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const createChatCompletion = vi
+      .fn()
+      .mockImplementationOnce(
+        async (
+          _params,
+          options?: { onToolCallStart?: (name: string, toolCallId: string) => void },
+        ) => {
+          options?.onToolCallStart?.('echo', 'call_1');
+          afterStart();
+          await blocked;
+          return {
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  refusal: null,
+                  tool_calls: [
+                    {
+                      id: 'call_1',
+                      type: 'function',
+                      function: { name: 'echo', arguments: JSON.stringify({ text: 'hi' }) },
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+        },
+      )
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: 'assistant', content: 'done', refusal: null } }],
+      });
+
+    const harness = new Harness({
+      modules: [{ id: 'echo', tools: [echoTool] }],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const turn = renderer.handleInput('hi');
+    await afterStartPromise;
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+    expect(visibleText(output.join(''))).toContain('echoing');
+
+    release();
+    await turn;
+  });
+
+  it('does not leave a streamed tool line running when no tools are registered', async () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(12, 80, (chunk) => output.push(chunk));
+    const bus = createEventBus();
+    const createChatCompletion = vi.fn().mockImplementation(
+      async (
+        _params,
+        options?: { onToolCallStart?: (name: string, toolCallId: string) => void },
+      ) => {
+        options?.onToolCallStart?.('listDevices', 'call_1');
+        return {
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: 'I should call listDevices.\n',
+                refusal: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: { name: 'listDevices', arguments: '{}' },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      },
+    );
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    await renderer.handleInput('what tools do you see');
+
+    output.length = 0;
+    terminal.resize(12, 80);
+    renderer.refresh();
+
+    const text = visibleText(output.join('')).replace(/\s+/g, ' ');
+    expect(text).toContain('failed listDevices');
+    expect(text).toContain('No tools are available.');
+    expect(text).toContain('listDevices.');
+    expect(text).not.toContain('calling listDevices');
   });
 
   it('drops the streaming preview when the LLM call fails', async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
-import { createTool, defineTool, toolFailure, zodToFunctionParameters } from './tool';
+import { createTool, defineTool, toApiTool, toolFailure, zodToFunctionParameters } from './tool';
 
 const argsSchema = z.object({
   controlGroup: z.string().min(1),
@@ -23,6 +23,26 @@ describe('createTool', () => {
     expect(tool.function.parameters).toEqual(zodToFunctionParameters(argsSchema));
     expect(tool.argsSchema).toBe(argsSchema);
     expect(tool.activity).toEqual({ present: 'controlling', past: 'controlled' });
+  });
+
+  it('strips runtime fields when converting a tool for the chat API', () => {
+    const tool = createTool({
+      name: 'controlDevice',
+      description: 'Controls a device',
+      argsSchema,
+      activity: { present: 'controlling', past: 'controlled' },
+      call: async () => 'ok',
+    });
+
+    expect(toApiTool(tool)).toEqual({
+      type: 'function',
+      function: {
+        name: 'controlDevice',
+        description: 'Controls a device',
+        parameters: zodToFunctionParameters(argsSchema),
+      },
+    });
+    expect(JSON.stringify(toApiTool(tool))).not.toContain('argsSchema');
   });
 
   it('returns ToolFailure messages from call and marks execute as failed', async () => {

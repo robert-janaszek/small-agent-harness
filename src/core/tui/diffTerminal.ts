@@ -4,7 +4,7 @@ import { firstGrapheme, graphemes } from './unicode';
 
 export type TrueColor = { r: number; g: number; b: number };
 
-export type CharCell = { ch: string; fg?: number; bg?: number; trueColorBg?: TrueColor };
+export type CharCell = { ch: string; fg?: number; bg?: number; trueColorFg?: TrueColor; trueColorBg?: TrueColor };
 
 function writeStdoutSync(chunk: string): void {
   writeSync(process.stdout.fd, chunk);
@@ -19,6 +19,9 @@ function cellsEqual(a: CharCell, b: CharCell): boolean {
     a.ch === b.ch
     && a.fg === b.fg
     && a.bg === b.bg
+    && a.trueColorFg?.r === b.trueColorFg?.r
+    && a.trueColorFg?.g === b.trueColorFg?.g
+    && a.trueColorFg?.b === b.trueColorFg?.b
     && a.trueColorBg?.r === b.trueColorBg?.r
     && a.trueColorBg?.g === b.trueColorBg?.g
     && a.trueColorBg?.b === b.trueColorBg?.b
@@ -33,7 +36,9 @@ function createBuffer(rows: number, cols: number): CharCell[][] {
 
 function formatCell(cell: CharCell): string {
   const codes: string[] = [];
-  if (cell.fg !== undefined) {
+  if (cell.trueColorFg !== undefined) {
+    codes.push(`38;2;${cell.trueColorFg.r};${cell.trueColorFg.g};${cell.trueColorFg.b}`);
+  } else if (cell.fg !== undefined) {
     codes.push(String(cell.fg));
   }
   if (cell.bg !== undefined) {
@@ -87,15 +92,16 @@ export class DiffTerminal {
     fg?: number,
     bg?: number,
     trueColorBg?: TrueColor,
+    trueColorFg?: TrueColor,
   ): void {
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return;
-    this.buffer[row][col] = { ch: firstGrapheme(ch), fg, bg, trueColorBg };
+    this.buffer[row][col] = { ch: firstGrapheme(ch), fg, bg, trueColorBg, trueColorFg };
   }
 
-  fill(row: number, col: number, text: string): void {
+  fill(row: number, col: number, text: string, fg?: number, trueColorFg?: TrueColor): void {
     const chars = graphemes(text);
     for (let i = 0; i < chars.length; i++) {
-      this.setChar(row, col + i, chars[i] ?? ' ');
+      this.setChar(row, col + i, chars[i] ?? ' ', fg, undefined, undefined, trueColorFg);
     }
   }
 

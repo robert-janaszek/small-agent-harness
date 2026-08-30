@@ -19,6 +19,18 @@ export const hasToolCalls = (responseMessage: ChatCompletionMessage) => {
   return responseMessage.tool_calls && responseMessage.tool_calls.length > 0;
 };
 
+export function formatIgnoredToolCalls(responseMessage: ChatCompletionMessage): string {
+  const names = (responseMessage.tool_calls ?? [])
+    .map((toolCall) => (toolCall.type === 'function' ? toolCall.function.name : toolCall.type))
+    .filter((name) => name.length > 0);
+  const unique = [...new Set(names)];
+  if (unique.length === 0) {
+    return 'No tools are available.';
+  }
+
+  return `No tools are available. Ignored tool call(s): ${unique.join(', ')}.`;
+}
+
 export function formatMessageContent(
   content: ChatCompletionMessage['content'],
 ): string {
@@ -56,6 +68,17 @@ function unsupportedToolCallMessage(toolCall: ChatCompletionMessageToolCall): st
   return `Unsupported tool call type "${toolCall.type}". Use the provided function tools.`;
 }
 
+function emitFailedTool(
+  hooks: ToolRunnerHooks,
+  name: string,
+  toolCallId: string,
+  input: unknown,
+  content: string,
+): void {
+  hooks.onToolCall?.(name, input, toolCallId);
+  hooks.onToolResult?.(name, content, toolCallId, true);
+}
+
 async function recordedToolResult(
   name: string,
   input: unknown,
@@ -87,6 +110,7 @@ export const runTools = async (
         { type: toolCall.type, toolCallId: toolCall.id },
         async () => unsupportedToolCallMessage(toolCall),
       );
+      emitFailedTool(hooks, toolCall.custom.name, toolCall.id, { type: toolCall.type }, content);
       toolMessages.push({
         role: 'tool',
         tool_call_id: toolCall.id,
@@ -104,6 +128,7 @@ export const runTools = async (
         async () =>
           `Unknown tool: ${toolName}, called with arguments ${toolCall.function.arguments}. Use correct tool name`,
       );
+      emitFailedTool(hooks, toolName, toolCall.id, { arguments: toolCall.function.arguments }, content);
       toolMessages.push({
         role: 'tool' as const,
         tool_call_id: toolCall.id,
@@ -121,6 +146,7 @@ export const runTools = async (
         { arguments: toolCall.function.arguments },
         async () => 'Invalid tool arguments: malformed JSON',
       );
+      emitFailedTool(hooks, toolName, toolCall.id, { arguments: toolCall.function.arguments }, content);
       toolMessages.push({
         role: 'tool' as const,
         tool_call_id: toolCall.id,
@@ -136,6 +162,7 @@ export const runTools = async (
         rawArgs,
         async () => formatZodError(parsedArgs.error, 'Invalid tool arguments'),
       );
+      emitFailedTool(hooks, toolName, toolCall.id, rawArgs, content);
       toolMessages.push({
         role: 'tool' as const,
         tool_call_id: toolCall.id,

@@ -79,6 +79,17 @@ type ToolDefinition<T> = {
   call: (args: T, options?: ToolCallOptions) => Promise<string> | string;
 };
 
+export function toApiTool(tool: Tool): ChatCompletionFunctionTool {
+  return {
+    type: 'function',
+    function: {
+      name: tool.function.name,
+      ...(tool.function.description !== undefined ? { description: tool.function.description } : {}),
+      ...(tool.function.parameters !== undefined ? { parameters: tool.function.parameters } : {}),
+    },
+  };
+}
+
 export function zodToFunctionParameters(schema: z.ZodTypeAny): Record<string, unknown> {
   const { $schema: _schema, ...parameters } = z.toJSONSchema(schema) as Record<string, unknown>;
   return parameters;

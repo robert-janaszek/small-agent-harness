@@ -37,11 +37,28 @@ const maxIterationsSchema = z.union([z.number(), z.string()]).transform((value, 
   return parsed;
 });
 
+export const DEFAULT_MAX_COMPLETION_TOKENS = 16384;
+
+const maxCompletionTokensSchema = z.union([z.number(), z.string()]).optional().transform((value, ctx) => {
+  if (value === undefined || value === '') {
+    return undefined;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    ctx.addIssue({ code: 'custom', message: 'HARNESS_MAX_COMPLETION_TOKENS must be a positive integer' });
+    return z.NEVER;
+  }
+
+  return parsed;
+});
+
 export const harnessConfigSchema = z.object({
   openaiBaseUrl: openaiBaseUrlSchema,
   openaiApiKey: trimmedNonEmpty('OPENAI_API_KEY is required'),
   modelName: trimmedNonEmpty('MODEL_NAME is required'),
   maxIterations: maxIterationsSchema,
+  maxCompletionTokens: maxCompletionTokensSchema,
 });
 
 export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
@@ -53,6 +70,7 @@ export function readHarnessConfigFromEnv(env: NodeJS.ProcessEnv = process.env): 
     openaiApiKey: env.OPENAI_API_KEY ?? '',
     modelName: env.MODEL_NAME ?? '',
     maxIterations: env.HARNESS_MAX_ITERATIONS ?? '',
+    maxCompletionTokens: env.HARNESS_MAX_COMPLETION_TOKENS,
   };
 }
 

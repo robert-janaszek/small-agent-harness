@@ -117,6 +117,7 @@ npm run harness -- --serve
 | `OPENAI_API_KEY` | API key — many local servers accept any non-empty string |
 | `MODEL_NAME` | Model identifier as exposed by your server |
 | `HARNESS_MAX_ITERATIONS` | Safety cap on agent loop iterations (positive integer) |
+| `HARNESS_MAX_COMPLETION_TOKENS` | Optional. Max tokens generated per LLM call (default `16384`). Stops runaway local completions that never emit an EOS token |
 | `LANGFUSE_PUBLIC_KEY` | Optional. Langfuse public key — enables tracing when set with the secret key |
 | `LANGFUSE_SECRET_KEY` | Optional. Langfuse secret key |
 | `LANGFUSE_BASE_URL` | Optional. Langfuse host (default `https://cloud.langfuse.com`) |

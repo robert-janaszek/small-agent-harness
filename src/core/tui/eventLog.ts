@@ -1,11 +1,25 @@
 import type { CoreEvent } from '../protocol';
 import type { ToolActivity } from '../tool';
+import { colors } from './colors';
+import type { TrueColor } from './diffTerminal';
 import { formatToolActivity } from './toolActivity';
 
 const MAX_CONTENT_PREVIEW = 56;
 const MAX_WRAPPED_AGENT_LINES = 10;
 const AGENT_PREFIX = 'agent: ';
 const ASSISTANT_PREFIX = 'assistant: ';
+const THINK_PREFIX = 'think: ';
+
+export type LogLine = {
+  text: string;
+  fg?: number;
+  trueColorFg?: TrueColor;
+};
+
+export function formatThoughtDuration(elapsedMs: number): string {
+  const seconds = Math.max(1, Math.round(Math.max(0, elapsedMs) / 1000));
+  return seconds === 1 ? 'thought for 1 second' : `thought for ${seconds} seconds`;
+}
 
 function truncate(text: string, max = MAX_CONTENT_PREVIEW): string {
   if (max <= 0) {
@@ -91,6 +105,9 @@ export function wrapAgentLine(line: string, width: number): string[] {
   } else if (line.startsWith(ASSISTANT_PREFIX)) {
     prefix = ASSISTANT_PREFIX;
     content = line.slice(ASSISTANT_PREFIX.length);
+  } else if (line.startsWith(THINK_PREFIX)) {
+    prefix = THINK_PREFIX;
+    content = line.slice(THINK_PREFIX.length);
   } else {
     return [truncate(line, width)];
   }
@@ -125,8 +142,25 @@ export function wrapAgentLine(line: string, width: number): string[] {
   return result.length > MAX_WRAPPED_AGENT_LINES ? result.slice(0, MAX_WRAPPED_AGENT_LINES) : result;
 }
 
-function isAgentLine(line: string): boolean {
-  return line.startsWith(AGENT_PREFIX) || line.startsWith(ASSISTANT_PREFIX);
+function isWrappableLogLine(line: string): boolean {
+  return line.startsWith(AGENT_PREFIX) || line.startsWith(ASSISTANT_PREFIX) || line.startsWith(THINK_PREFIX);
+}
+
+function lineBody(line: string, prefix: string): string {
+  return line.startsWith(prefix) ? line.slice(prefix.length) : line;
+}
+
+function hasVisibleAgentText(line: string): boolean {
+  if (line.startsWith(AGENT_PREFIX)) {
+    return line.slice(AGENT_PREFIX.length).trim().length > 0;
+  }
+  if (line.startsWith(ASSISTANT_PREFIX)) {
+    return line.slice(ASSISTANT_PREFIX.length).trim().length > 0;
+  }
+  if (line.startsWith(THINK_PREFIX)) {
+    return line.slice(THINK_PREFIX.length).trim().length > 0;
+  }
+  return line.trim().length > 0;
 }
 
 export function wrapPlainLine(line: string, width: number): string[] {
@@ -178,6 +212,9 @@ type TextLogEntry = {
   kind: 'text';
   line: string;
   streaming?: boolean;
+  tone?: 'default' | 'thinking';
+  startedAt?: number;
+  thinkingBody?: string;
 };
 
 type ToolLogEntry = {
@@ -190,6 +227,19 @@ type ToolLogEntry = {
 };
 
 type LogEntry = TextLogEntry | ToolLogEntry;
+
+function isReasoningFallback(entry: TextLogEntry, agentLine: string): boolean {
+  if (entry.tone !== 'thinking') {
+    return false;
+  }
+  const body = entry.thinkingBody ?? lineBody(entry.line, THINK_PREFIX);
+  const agentBody = lineBody(agentLine, AGENT_PREFIX);
+  return normalizeThought(body) === normalizeThought(agentBody);
+}
+
+function normalizeThought(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
 
 function formatLogEntry(entry: LogEntry, activities: ReadonlyMap<string, ToolActivity>): string {
   if (entry.kind === 'tool') {
@@ -204,26 +254,58 @@ export class EventLog {
 
   constructor(private readonly activities: ReadonlyMap<string, ToolActivity> = new Map()) {}
 
-  append(event: CoreEvent): void {
+  append(event: CoreEvent, now = Date.now()): void {
     if (event.type === 'agent_response') {
+      this.finalizeThinking(now);
+      this.failPendingTools();
       const last = this.entries.at(-1);
       if (last?.kind === 'text' && last.streaming) {
         const line = formatEvent(event, this.activities);
         last.streaming = false;
         if (line === null) {
-          this.entries.pop();
+          if (!hasVisibleAgentText(last.line)) {
+            this.entries.pop();
+          }
+        } else if (isReasoningFallback(last, line)) {
+          return;
         } else {
           last.line = line;
         }
         return;
       }
+
+      const line = formatEvent(event, this.activities);
+      if (line === null) {
+        return;
+      }
+      const previous = this.entries.at(-1);
+      if (previous?.kind === 'text' && isReasoningFallback(previous, line)) {
+        return;
+      }
+      this.entries.push({ kind: 'text', line });
+      return;
     }
 
     if (event.type === 'assistant_message' || event.type === 'tool_call' || event.type === 'error') {
-      this.cancelStreaming();
+      this.cancelStreaming(now);
+    }
+
+    if (event.type === 'error') {
+      this.failPendingTools();
     }
 
     if (event.type === 'tool_call') {
+      const existing = this.entries.find(
+        (item): item is ToolLogEntry => item.kind === 'tool' && item.toolCallId === event.toolCallId,
+      );
+      if (existing) {
+        existing.name = event.name;
+        existing.args = event.args;
+        existing.done = false;
+        existing.failed = false;
+        return;
+      }
+
       this.entries.push({
         kind: 'tool',
         toolCallId: event.toolCallId,
@@ -253,27 +335,19 @@ export class EventLog {
     this.entries.push({ kind: 'text', line });
   }
 
-  appendDelta(delta: string): void {
-    if (delta.length === 0) {
-      return;
-    }
-
-    const last = this.entries.at(-1);
-    if (last?.kind === 'text' && last.streaming) {
-      last.line += delta;
-      return;
-    }
-
-    if (delta.trim().length === 0) {
-      return;
-    }
-
-    this.entries.push({ kind: 'text', line: `${AGENT_PREFIX}${delta}`, streaming: true });
+  appendDelta(delta: string, now = Date.now()): void {
+    this.finalizeThinking(now);
+    this.appendStreamingDelta(delta, AGENT_PREFIX, 'default', now);
   }
 
-  cancelStreaming(): void {
+  appendReasoningDelta(delta: string, now = Date.now()): void {
+    this.appendStreamingDelta(delta, THINK_PREFIX, 'thinking', now);
+  }
+
+  cancelStreaming(now = Date.now()): void {
+    this.finalizeThinking(now);
     const last = this.entries.at(-1);
-    if (last?.kind === 'text' && last.streaming) {
+    if (last?.kind === 'text' && last.streaming && last.tone !== 'thinking') {
       this.entries.pop();
     }
   }
@@ -283,15 +357,75 @@ export class EventLog {
   }
 
   render(maxLines: number, width: number): string[] {
+    return this.renderLines(maxLines, width).map((line) => line.text);
+  }
+
+  renderLines(maxLines: number, width: number): LogLine[] {
     if (maxLines <= 0) {
       return [];
     }
 
     const wrappedLines = this.entries.flatMap((entry) => {
       const line = formatLogEntry(entry, this.activities);
-      return isAgentLine(line) ? wrapAgentLine(line, width) : wrapPlainLine(line, width);
+      const trueColorFg = entry.kind === 'text' && entry.tone === 'thinking' ? colors.thinking : undefined;
+      const wrapped = isWrappableLogLine(line) ? wrapAgentLine(line, width) : wrapPlainLine(line, width);
+      return wrapped.map((text) => (trueColorFg === undefined ? { text } : { text, trueColorFg }));
     });
 
     return wrappedLines.slice(-maxLines);
+  }
+
+  private failPendingTools(): void {
+    for (const entry of this.entries) {
+      if (entry.kind === 'tool' && !entry.done) {
+        entry.done = true;
+        entry.failed = true;
+      }
+    }
+  }
+
+  private appendStreamingDelta(
+    delta: string,
+    prefix: string,
+    tone: 'default' | 'thinking',
+    now: number,
+  ): void {
+    if (delta.length === 0) {
+      return;
+    }
+
+    const last = this.entries.at(-1);
+    if (last?.kind === 'text' && last.streaming && (last.tone ?? 'default') === tone) {
+      last.line += delta;
+      return;
+    }
+
+    if (delta.trim().length === 0) {
+      return;
+    }
+
+    this.entries.push({
+      kind: 'text',
+      line: `${prefix}${delta}`,
+      streaming: true,
+      tone,
+      ...(tone === 'thinking' ? { startedAt: now } : {}),
+    });
+  }
+
+  private finalizeThinking(now: number): void {
+    const last = this.entries.at(-1);
+    if (last?.kind !== 'text' || !last.streaming || last.tone !== 'thinking') {
+      return;
+    }
+
+    if (!hasVisibleAgentText(last.line)) {
+      this.entries.pop();
+      return;
+    }
+
+    last.thinkingBody = lineBody(last.line, THINK_PREFIX);
+    last.line = formatThoughtDuration(now - (last.startedAt ?? now));
+    last.streaming = false;
   }
 }

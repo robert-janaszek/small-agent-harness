@@ -19,7 +19,7 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
 
   return {
     async createChatCompletion(params, options) {
-      const { onTextDelta, onTextDeltaCancel, ...requestOptions } = options ?? {};
+      const { onTextDelta, onReasoningDelta, onTextDeltaCancel, onToolCallStart, ...requestOptions } = options ?? {};
       const stream = (await client.chat.completions.create(
         {
           ...params,
@@ -31,7 +31,9 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
 
       return consumeChatCompletionStream(stream, {
         onTextDelta,
+        onReasoningDelta,
         onTextDeltaCancel,
+        onToolCallStart,
         signal: requestOptions.signal ?? undefined,
       });
     },

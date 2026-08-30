@@ -2,7 +2,7 @@ import { loadEnv } from './loadEnv';
 import { readHarnessConfigFromEnv, validateHarnessConfig, type HarnessConfig } from './config.validate';
 
 export type { HarnessConfig, HarnessConfigInput } from './config.validate';
-export { readHarnessConfigFromEnv, validateHarnessConfig } from './config.validate';
+export { readHarnessConfigFromEnv, validateHarnessConfig, DEFAULT_MAX_COMPLETION_TOKENS } from './config.validate';
 
 let cachedConfig: HarnessConfig | undefined;
 

@@ -7,8 +7,8 @@ import { Harness } from './harness';
 import { createEventBus } from './eventBus';
 import { composeSystemPrompt, HARNESS_PROMPT, type Module } from './module';
 import type { CoreEvent } from './protocol';
-import { createTool } from './tool';
-import type { HarnessConfig } from './config.validate';
+import { createTool, toApiTool } from './tool';
+import { DEFAULT_MAX_COMPLETION_TOKENS, type HarnessConfig } from './config.validate';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 
 const testConfig: HarnessConfig = {
@@ -87,6 +87,7 @@ describe('core Harness', () => {
           { role: 'system', content: HARNESS_PROMPT },
           { role: 'user', content: 'what is 2+2' },
         ],
+        max_tokens: DEFAULT_MAX_COMPLETION_TOKENS,
       },
       { signal: undefined },
     );
@@ -101,13 +102,15 @@ describe('core Harness', () => {
     });
     const { harness } = createTestHarness({ createChatCompletion });
     const onTextDelta = vi.fn();
+    const onReasoningDelta = vi.fn();
     const onTextDeltaCancel = vi.fn();
+    const onToolCallStart = vi.fn();
 
-    await harness.run('hello', { onTextDelta, onTextDeltaCancel });
+    await harness.run('hello', { onTextDelta, onReasoningDelta, onTextDeltaCancel, onToolCallStart });
 
     expect(createChatCompletion).toHaveBeenCalledWith(
       expect.anything(),
-      { signal: undefined, onTextDelta, onTextDeltaCancel },
+      { signal: undefined, onTextDelta, onReasoningDelta, onTextDeltaCancel, onToolCallStart },
     );
 
     createChatCompletion.mockClear();
@@ -214,7 +217,7 @@ describe('core Harness', () => {
 
     expect(result.content).toBe('finished');
     expect(result.iterations).toBe(2);
-    expect(createChatCompletion.mock.calls[0][0].tools).toEqual([echoTool]);
+    expect(createChatCompletion.mock.calls[0][0].tools).toEqual([toApiTool(echoTool)]);
     expect(createChatCompletion.mock.calls[0][0].tool_choice).toBe('auto');
     expect(createChatCompletion.mock.calls[0][0].messages[0]).toEqual({
       role: 'system',
@@ -278,17 +281,80 @@ describe('core Harness', () => {
     await expect(harness.run('hello')).rejects.toThrow('Chat completion API returned an empty response');
   });
 
-  it('throws after max iterations', async () => {
+  it('throws after max iterations when the model keeps calling registered tools', async () => {
+    const echo = createTool({
+      name: 'echo',
+      description: 'echo',
+      argsSchema: z.object({ text: z.string() }),
+      activity: { present: 'echoing', past: 'echoed' },
+      call: async (args) => args.text,
+    });
     const createChatCompletion = vi.fn().mockResolvedValue({
-      choices: [{ message: assistantToolCall('missing', {}) }],
+      choices: [{ message: assistantToolCall('echo', { text: 'x' }) }],
     });
     const harness = new Harness({
+      modules: [{ id: 'echo', tools: [echo] }],
       llmClient: { createChatCompletion },
       config: { ...testConfig, maxIterations: 2 },
     });
 
     await expect(harness.run('loop')).rejects.toThrow('Max iterations reached');
     expect(createChatCompletion).toHaveBeenCalledTimes(2);
+  });
+
+  it('ends the turn when the model emits tool calls but no tools are registered', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: assistantToolCall('listDevices', {}) }],
+    });
+    const { harness, events } = createTestHarness({ createChatCompletion });
+
+    const result = await harness.run('what tools do you see');
+
+    expect(createChatCompletion).toHaveBeenCalledTimes(1);
+    expect(result.content).toBe('No tools are available. Ignored tool call(s): listDevices.');
+    expect(harness.getMessageHistory()).toEqual([
+      { role: 'user', content: 'what tools do you see' },
+      { role: 'assistant', content: 'No tools are available. Ignored tool call(s): listDevices.' },
+    ]);
+    expect(events.map((event) => event.type)).toEqual(['user_command', 'agent_response']);
+  });
+
+  it('prefers ignored tool calls over reasoning content when no tools are registered', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          finish_reason: 'length',
+          message: {
+            ...assistantToolCall('listDevices', {}),
+            content: 'I should call listDevices to inspect the buffer.\n',
+          },
+        },
+      ],
+    });
+    const { harness } = createTestHarness({ createChatCompletion });
+
+    const result = await harness.run('what tools do you see');
+
+    expect(createChatCompletion).toHaveBeenCalledTimes(1);
+    expect(result.content).toBe('No tools are available. Ignored tool call(s): listDevices.');
+    expect(harness.getMessageHistory()).toEqual([
+      { role: 'user', content: 'what tools do you see' },
+      { role: 'assistant', content: 'No tools are available. Ignored tool call(s): listDevices.' },
+    ]);
+  });
+
+  it('sends a custom max_tokens when configured', async () => {
+    const createChatCompletion = vi.fn().mockResolvedValue({
+      choices: [{ message: assistantMessage('ok') }],
+    });
+    const harness = new Harness({
+      llmClient: { createChatCompletion },
+      config: { ...testConfig, maxCompletionTokens: 512 },
+    });
+
+    await harness.run('hello');
+
+    expect(createChatCompletion.mock.calls[0][0].max_tokens).toBe(512);
   });
 
   it('throws AbortError when signal is aborted before run starts', async () => {

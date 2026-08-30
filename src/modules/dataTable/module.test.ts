@@ -47,6 +47,7 @@ describe('createDataTableModule', () => {
   it('tells the model not to invent or drop rows from memory', () => {
     expect(DATA_TABLE_PROMPT).toContain('Do not count, filter, sort, or aggregate rows in your head');
     expect(DATA_TABLE_PROMPT).toContain('Do not ask the user a question');
+    expect(DATA_TABLE_PROMPT).toContain('You currently have no tools');
     expect(DATA_TABLE_PROMPT).not.toContain('tool-calling harness');
 
     const composed = composeSystemPrompt(HARNESS_PROMPT, [createDataTableModule()]);

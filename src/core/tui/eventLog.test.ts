@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
 import { createTool, quoteActivityTarget } from '../tool';
-import { EventLog, formatEvent, wrapAgentLine } from './eventLog';
+import { colors } from './colors';
+import { EventLog, formatEvent, formatThoughtDuration, wrapAgentLine } from './eventLog';
 import { indexToolActivity } from './toolActivity';
 
 const grep = createTool({
@@ -91,6 +92,7 @@ describe('wrapAgentLine', () => {
     expect(wrapAgentLine('agent: ', 40)).toEqual([]);
     expect(wrapAgentLine('agent: \n', 40)).toEqual([]);
     expect(wrapAgentLine('assistant:   ', 40)).toEqual([]);
+    expect(wrapAgentLine('think: ', 40)).toEqual([]);
   });
 
   it('does not leave a blank line from leading or trailing newlines', () => {
@@ -101,6 +103,19 @@ describe('wrapAgentLine', () => {
 
   it('keeps a blank line between paragraphs', () => {
     expect(wrapAgentLine('agent: Hello\n\nWorld', 40)).toEqual(['agent: Hello', '       ', '       World']);
+  });
+
+  it('wraps think lines with the think prefix', () => {
+    expect(wrapAgentLine('think: looking at tools', 40)).toEqual(['think: looking at tools']);
+  });
+});
+
+describe('formatThoughtDuration', () => {
+  it('rounds to whole seconds and uses singular for one', () => {
+    expect(formatThoughtDuration(0)).toBe('thought for 1 second');
+    expect(formatThoughtDuration(1400)).toBe('thought for 1 second');
+    expect(formatThoughtDuration(1600)).toBe('thought for 2 seconds');
+    expect(formatThoughtDuration(5000)).toBe('thought for 5 seconds');
   });
 });
 
@@ -235,6 +250,27 @@ describe('EventLog', () => {
     expect(log.render(10, 40)).toEqual(['agent: Hello']);
   });
 
+  it('keeps streamed text when the final agent_response has no content', () => {
+    const log = new EventLog();
+    log.appendDelta('thinking about tools');
+    log.append({
+      type: 'agent_response',
+      content: '',
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 1, completion_tokens: 20, total_tokens: 21 },
+    });
+
+    expect(log.render(10, 40)).toEqual(['agent: thinking about tools']);
+  });
+
+  it('updates an existing tool line when the same toolCallId is appended again', () => {
+    const log = new EventLog(grepActivity);
+    log.append({ type: 'tool_call', name: 'grep', args: {}, toolCallId: '1' });
+    log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' });
+
+    expect(log.render(10, 40)).toEqual(['grepping "TODO"']);
+  });
+
   it('drops the streaming preview when a tool call starts', () => {
     const log = new EventLog(grepActivity);
     log.appendDelta('thinking');
@@ -267,5 +303,91 @@ describe('EventLog', () => {
     log.cancelStreaming();
 
     expect(log.render(10, 40)).toEqual(['> hi']);
+  });
+
+  it('renders reasoning as think lines, then collapses to a duration', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hi' });
+    log.appendReasoningDelta('maybe ', 1_000);
+    log.appendReasoningDelta('no tools', 1_100);
+
+    expect(log.render(10, 40)).toEqual(['> hi', 'think: maybe no tools']);
+    expect(log.renderLines(10, 40)).toEqual([
+      { text: '> hi' },
+      { text: 'think: maybe no tools', trueColorFg: colors.thinking },
+    ]);
+
+    log.appendDelta('None yet.', 4_000);
+
+    expect(log.render(10, 40)).toEqual(['> hi', 'thought for 3 seconds', 'agent: None yet.']);
+    expect(log.renderLines(10, 40)[1]).toEqual({
+      text: 'thought for 3 seconds',
+      trueColorFg: colors.thinking,
+    });
+
+    log.append({
+      type: 'agent_response',
+      content: 'None yet.',
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    expect(log.render(10, 40)).toEqual(['> hi', 'thought for 3 seconds', 'agent: None yet.']);
+  });
+
+  it('does not duplicate thinking when the final response is the reasoning fallback', () => {
+    const log = new EventLog();
+    log.appendReasoningDelta('thinking about tools', 0);
+    log.append(
+      {
+        type: 'agent_response',
+        content: 'thinking about tools',
+        iterations: 1,
+        tokenUsage: { prompt_tokens: 1, completion_tokens: 20, total_tokens: 21 },
+      },
+      1_000,
+    );
+
+    expect(log.render(10, 40)).toEqual(['thought for 1 second']);
+  });
+
+  it('treats trailing whitespace as the same reasoning fallback', () => {
+    const log = new EventLog();
+    log.appendReasoningDelta('thinking about tools\n', 0);
+    log.append(
+      {
+        type: 'agent_response',
+        content: 'thinking about tools',
+        iterations: 1,
+        tokenUsage: { prompt_tokens: 1, completion_tokens: 20, total_tokens: 21 },
+      },
+      1_000,
+    );
+
+    expect(log.render(10, 40)).toEqual(['thought for 1 second']);
+  });
+
+  it('marks a streamed tool line as failed when the turn ends without a result', () => {
+    const log = new EventLog();
+    log.append({ type: 'tool_call', name: 'listDevices', args: {}, toolCallId: 'call_1' });
+    log.append({
+      type: 'agent_response',
+      content: 'No tools are available. Ignored tool call(s): listDevices.',
+      iterations: 1,
+      tokenUsage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    expect(log.render(10, 80)).toEqual([
+      'failed listDevices',
+      'agent: No tools are available. Ignored tool call(s): listDevices.',
+    ]);
+  });
+
+  it('collapses think lines when a tool call starts', () => {
+    const log = new EventLog(grepActivity);
+    log.appendReasoningDelta('need grep', 0);
+    log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' }, 2_000);
+
+    expect(log.render(10, 40)).toEqual(['thought for 2 seconds', 'grepping "TODO"']);
   });
 });

@@ -57,6 +57,17 @@ describe('DiffTerminal', () => {
     expect(output.join('')).toContain('\x1b[32m●\x1b[0m');
   });
 
+  it('applies foreground color when filling a string', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(1, 3, (chunk) => output.push(chunk));
+
+    terminal.fill(0, 0, 'ab', 90);
+    terminal.flush();
+
+    expect(output.join('')).toContain('\x1b[90ma\x1b[0m');
+    expect(output.join('')).toContain('\x1b[90mb\x1b[0m');
+  });
+
   it('writes styled cells with foreground and background codes', () => {
     const output: string[] = [];
     const terminal = new DiffTerminal(1, 3, (chunk) => output.push(chunk));
@@ -75,6 +86,17 @@ describe('DiffTerminal', () => {
     terminal.flush();
 
     expect(output.join('')).toContain('\x1b[37;48;2;135;206;250mx\x1b[0m');
+  });
+
+  it('writes styled cells with true-color foreground', () => {
+    const output: string[] = [];
+    const terminal = new DiffTerminal(1, 3, (chunk) => output.push(chunk));
+
+    terminal.fill(0, 0, 'ab', undefined, { r: 196, g: 196, b: 196 });
+    terminal.flush();
+
+    expect(output.join('')).toContain('\x1b[38;2;196;196;196ma\x1b[0m');
+    expect(output.join('')).toContain('\x1b[38;2;196;196;196mb\x1b[0m');
   });
 
   it('fills Polish letters as whole cells', () => {
