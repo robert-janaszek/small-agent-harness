@@ -4,7 +4,7 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { createOpenAiClient } from '../client/createOpenAiClient';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { getHarnessConfig } from './config';
-import type { HarnessConfig } from './config.validate';
+import { DEFAULT_MAX_COMPLETION_TOKENS, type HarnessConfig } from './config.validate';
 import { createLangfuseSessionId, withAgentObservation } from '../observability/langfuse';
 import {
   assertUniqueModuleIds,
@@ -17,8 +17,8 @@ import {
 } from './module';
 import { createEventBus, type EventBus } from './eventBus';
 import { CORE_PROTOCOL_VERSION, type TokenUsage } from './protocol';
-import { formatMessageContent, hasToolCalls, runTools, toAssistantHistoryMessage } from './runTools';
-import type { Tool } from './tool';
+import { formatIgnoredToolCalls, formatMessageContent, hasToolCalls, runTools, toAssistantHistoryMessage } from './runTools';
+import { toApiTool, type Tool } from './tool';
 
 export type HarnessOptions = {
   modules?: Module[];
@@ -31,7 +31,9 @@ export type HarnessOptions = {
 export type HarnessRunOptions = {
   signal?: AbortSignal;
   onTextDelta?: (delta: string) => void;
+  onReasoningDelta?: (delta: string) => void;
   onTextDeltaCancel?: () => void;
+  onToolCallStart?: (name: string, toolCallId: string) => void;
 };
 
 export type HarnessRunResult = {
@@ -165,14 +167,17 @@ export class Harness {
               {
                 model: this.config.modelName,
                 messages,
+                max_tokens: this.config.maxCompletionTokens ?? DEFAULT_MAX_COMPLETION_TOKENS,
                 ...(this.tools.length > 0
-                  ? { tools: this.tools, tool_choice: 'auto' as const }
+                  ? { tools: this.tools.map(toApiTool), tool_choice: 'auto' as const }
                   : {}),
               },
               {
                 signal: options?.signal,
                 ...(options?.onTextDelta ? { onTextDelta: options.onTextDelta } : {}),
+                ...(options?.onReasoningDelta ? { onReasoningDelta: options.onReasoningDelta } : {}),
                 ...(options?.onTextDeltaCancel ? { onTextDeltaCancel: options.onTextDeltaCancel } : {}),
+                ...(options?.onToolCallStart ? { onToolCallStart: options.onToolCallStart } : {}),
               },
             );
 
@@ -185,10 +190,9 @@ export class Harness {
               this.bus.emit({ type: 'tokens', iteration, usage: tokenUsage });
             }
 
-            this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
-
-            if (hasToolCalls(responseMessage)) {
+            if (hasToolCalls(responseMessage) && this.tools.length > 0) {
               options?.signal?.throwIfAborted();
+              this.messageHistory.push(toAssistantHistoryMessage(responseMessage));
 
               const toolResponse = await runTools(responseMessage, this.tools, {
                 signal: options?.signal,
@@ -209,9 +213,12 @@ export class Harness {
               continue;
             }
 
-            const content = formatMessageContent(responseMessage.content);
-            if (!content) {
-              this.messageHistory.pop();
+            const content =
+              hasToolCalls(responseMessage) && this.tools.length === 0
+                ? formatIgnoredToolCalls(responseMessage)
+                : formatMessageContent(responseMessage.content);
+            if (content) {
+              this.messageHistory.push({ role: 'assistant', content });
             }
 
             const result = {

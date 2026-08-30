@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import OpenAI from 'openai';
 import { z } from 'zod';
 
-import { runTools, toAssistantHistoryMessage } from './runTools';
+import { formatIgnoredToolCalls, runTools, toAssistantHistoryMessage } from './runTools';
 import { createTool, toolFailure } from './tool';
 import { delay } from './delay';
 
@@ -38,10 +38,17 @@ describe('runTools', () => {
   });
 
   it('returns an error for malformed JSON arguments', async () => {
-    const response = await runTools(makeToolCallMessage('echo', '{not-json'), [echoTool]);
+    const onToolCall = vi.fn();
+    const onToolResult = vi.fn();
+    const response = await runTools(makeToolCallMessage('echo', '{not-json'), [echoTool], {
+      onToolCall,
+      onToolResult,
+    });
 
     expect(response).toHaveLength(1);
     expect(response[0].content).toBe('Invalid tool arguments: malformed JSON');
+    expect(onToolCall).toHaveBeenCalledWith('echo', { arguments: '{not-json' }, 'call_1');
+    expect(onToolResult).toHaveBeenCalledWith('echo', 'Invalid tool arguments: malformed JSON', 'call_1', true);
   });
 
   it('returns an error for invalid tool arguments', async () => {
@@ -65,13 +72,18 @@ describe('runTools', () => {
   });
 
   it('returns an error for unknown tools', async () => {
+    const onToolCall = vi.fn();
+    const onToolResult = vi.fn();
     const response = await runTools(
       makeToolCallMessage('missing', JSON.stringify({ text: 'hi' })),
       [echoTool],
+      { onToolCall, onToolResult },
     );
 
     expect(response).toHaveLength(1);
     expect(response[0].content).toContain('Unknown tool: missing');
+    expect(onToolCall).toHaveBeenCalledWith('missing', { arguments: '{"text":"hi"}' }, 'call_1');
+    expect(onToolResult).toHaveBeenCalledWith('missing', expect.stringContaining('Unknown tool: missing'), 'call_1', true);
   });
 
   it('returns tool execution errors', async () => {
@@ -243,5 +255,30 @@ describe('runTools', () => {
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
+
+describe('formatIgnoredToolCalls', () => {
+  it('lists function names when the model called tools that are not registered', () => {
+    expect(formatIgnoredToolCalls(makeToolCallMessage('listDevices', '{}'))).toBe(
+      'No tools are available. Ignored tool call(s): listDevices.',
+    );
+  });
+
+  it('falls back when the tool call has no name', () => {
+    expect(
+      formatIgnoredToolCalls({
+        role: 'assistant',
+        content: null,
+        refusal: null,
+        tool_calls: [
+          {
+            id: 'call_1',
+            type: 'function',
+            function: { name: '', arguments: '{}' },
+          },
+        ],
+      }),
+    ).toBe('No tools are available.');
   });
 });

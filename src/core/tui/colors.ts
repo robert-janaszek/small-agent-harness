@@ -5,6 +5,7 @@ export const colors = {
   paletteFg: 37,
   paletteBg: { r: 35, g: 90, b: 175 } satisfies TrueColor,
   cursor: 36,
+  thinking: { r: 196, g: 196, b: 196 } satisfies TrueColor,
   text: 37,
   success: 32,
   error: 31,

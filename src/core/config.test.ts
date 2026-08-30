@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readHarnessConfigFromEnv, validateHarnessConfig } from './config.validate';
+import { DEFAULT_MAX_COMPLETION_TOKENS, readHarnessConfigFromEnv, validateHarnessConfig } from './config.validate';
 
 const validInput = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',
@@ -10,12 +10,13 @@ const validInput = {
 
 describe('validateHarnessConfig', () => {
   it('accepts valid config', () => {
-    expect(validateHarnessConfig(validInput)).toEqual({
+    expect(validateHarnessConfig(validInput)).toMatchObject({
       openaiBaseUrl: 'http://127.0.0.1:1234/v1',
       openaiApiKey: 'lmstudio',
       modelName: 'google/gemma-3-12b',
       maxIterations: 15,
     });
+    expect(validateHarnessConfig(validInput).maxCompletionTokens).toBeUndefined();
   });
 
   it('trims string values', () => {
@@ -75,5 +76,17 @@ describe('validateHarnessConfig', () => {
     expect(() =>
       validateHarnessConfig({ ...validInput, maxIterations: 'abc' }),
     ).toThrow('HARNESS_MAX_ITERATIONS must be a positive integer');
+  });
+
+  it('accepts HARNESS_MAX_COMPLETION_TOKENS and ignores a blank value', () => {
+    expect(validateHarnessConfig({ ...validInput, maxCompletionTokens: '2048' }).maxCompletionTokens).toBe(2048);
+    expect(validateHarnessConfig({ ...validInput, maxCompletionTokens: '' }).maxCompletionTokens).toBeUndefined();
+    expect(DEFAULT_MAX_COMPLETION_TOKENS).toBe(16384);
+  });
+
+  it('rejects invalid HARNESS_MAX_COMPLETION_TOKENS', () => {
+    expect(() =>
+      validateHarnessConfig({ ...validInput, maxCompletionTokens: '0' }),
+    ).toThrow('HARNESS_MAX_COMPLETION_TOKENS must be a positive integer');
   });
 });

@@ -87,7 +87,10 @@ describe('createChatCompletionStreamAssembler', () => {
           ],
         }),
       ),
-    ).toEqual({ becameToolCall: true });
+    ).toEqual({
+      becameToolCall: true,
+      startedToolCalls: [{ id: 'call_1', name: 'echo' }],
+    });
 
     expect(
       assembler.push(
@@ -127,6 +130,91 @@ describe('createChatCompletionStreamAssembler', () => {
         function: { name: 'echo', arguments: '{"text":"hi"}' },
       },
     ]);
+  });
+
+  it('streams reasoning until content arrives, then uses content as the message', () => {
+    const assembler = createChatCompletionStreamAssembler();
+
+    expect(
+      assembler.push(
+        chunk({
+          role: 'assistant',
+          reasoning_content: 'hmm',
+        } as ChatCompletionChunk['choices'][number]['delta']),
+      ),
+    ).toEqual({ reasoningDelta: 'hmm' });
+    expect(assembler.push(chunk({ content: 'ok' }, { finish_reason: 'stop' }))).toEqual({
+      textDelta: 'ok',
+    });
+
+    expect(assembler.toChatCompletion().choices[0]?.message.content).toBe('ok');
+  });
+
+  it('falls back to reasoning when the model never produced content', () => {
+    const assembler = createChatCompletionStreamAssembler();
+    assembler.push(
+      chunk({
+        role: 'assistant',
+        reasoning: 'thinking about tools',
+      } as ChatCompletionChunk['choices'][number]['delta']),
+    );
+    assembler.push(chunk({}, { finish_reason: 'length' }));
+
+    expect(assembler.toChatCompletion().choices[0]?.message.content).toBe('thinking about tools');
+    expect(assembler.toChatCompletion().choices[0]?.finish_reason).toBe('length');
+  });
+
+  it('does not copy reasoning into content when the model also emitted tool calls', () => {
+    const assembler = createChatCompletionStreamAssembler();
+    assembler.push(
+      chunk({
+        role: 'assistant',
+        reasoning_content: 'I should call listDevices',
+      } as ChatCompletionChunk['choices'][number]['delta']),
+    );
+    assembler.push(
+      chunk({
+        tool_calls: [
+          {
+            index: 0,
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'listDevices', arguments: '{}' },
+          },
+        ],
+      }),
+    );
+    assembler.push(chunk({}, { finish_reason: 'tool_calls' }));
+
+    const completion = assembler.toChatCompletion();
+    expect(completion.choices[0]?.message.content).toBeNull();
+    expect(completion.choices[0]?.message.tool_calls?.[0]).toMatchObject({
+      function: { name: 'listDevices', arguments: '{}' },
+    });
+  });
+
+  it('reads reasoning from content parts used by some local servers', () => {
+    const assembler = createChatCompletionStreamAssembler();
+    assembler.push(
+      chunk({
+        role: 'assistant',
+        reasoning_content: [{ type: 'text', text: 'hmm' }],
+      } as ChatCompletionChunk['choices'][number]['delta']),
+    );
+
+    expect(assembler.toChatCompletion().choices[0]?.message.content).toBe('hmm');
+  });
+
+  it('reads text from content parts used by some local servers', () => {
+    const assembler = createChatCompletionStreamAssembler();
+    assembler.push(
+      chunk({
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Hi' }],
+      } as ChatCompletionChunk['choices'][number]['delta']),
+    );
+
+    expect(assembler.toChatCompletion().choices[0]?.message.content).toBe('Hi');
   });
 
   it('returns empty choices when the stream never produced a message', () => {
@@ -170,6 +258,76 @@ describe('consumeChatCompletionStream', () => {
     });
   });
 
+  it('announces a tool call as soon as id and name are known', async () => {
+    const onToolCallStart = vi.fn();
+
+    async function* stream(): AsyncGenerator<ChatCompletionChunk> {
+      yield chunk({
+        tool_calls: [
+          {
+            index: 0,
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'echo', arguments: '' },
+          },
+        ],
+      });
+      yield chunk({
+        tool_calls: [
+          {
+            index: 0,
+            function: { arguments: '{}' },
+          },
+        ],
+      });
+      yield chunk({}, { finish_reason: 'tool_calls' });
+    }
+
+    await consumeChatCompletionStream(stream(), { onToolCallStart });
+
+    expect(onToolCallStart).toHaveBeenCalledTimes(1);
+    expect(onToolCallStart).toHaveBeenCalledWith('echo', 'call_1');
+  });
+
+  it('waits for the full tool name before announcing a streamed call', async () => {
+    const onToolCallStart = vi.fn();
+
+    async function* stream(): AsyncGenerator<ChatCompletionChunk> {
+      yield chunk({
+        tool_calls: [
+          {
+            index: 0,
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'e' },
+          },
+        ],
+      });
+      yield chunk({
+        tool_calls: [
+          {
+            index: 0,
+            function: { name: 'cho' },
+          },
+        ],
+      });
+      yield chunk({
+        tool_calls: [
+          {
+            index: 0,
+            function: { arguments: '{}' },
+          },
+        ],
+      });
+      yield chunk({}, { finish_reason: 'tool_calls' });
+    }
+
+    await consumeChatCompletionStream(stream(), { onToolCallStart });
+
+    expect(onToolCallStart).toHaveBeenCalledTimes(1);
+    expect(onToolCallStart).toHaveBeenCalledWith('echo', 'call_1');
+  });
+
   it('does not cancel when the stream is content-only', async () => {
     const onTextDelta = vi.fn();
     const onTextDeltaCancel = vi.fn();
@@ -183,6 +341,24 @@ describe('consumeChatCompletionStream', () => {
 
     expect(onTextDelta.mock.calls.map((call) => call[0])).toEqual(['Hi', '!']);
     expect(onTextDeltaCancel).not.toHaveBeenCalled();
+  });
+
+  it('forwards reasoning separately from content', async () => {
+    const onTextDelta = vi.fn();
+    const onReasoningDelta = vi.fn();
+
+    async function* stream(): AsyncGenerator<ChatCompletionChunk> {
+      yield chunk({
+        reasoning_content: 'hmm',
+      } as ChatCompletionChunk['choices'][number]['delta']);
+      yield chunk({ content: 'ok' }, { finish_reason: 'stop' });
+    }
+
+    await consumeChatCompletionStream(stream(), { onTextDelta, onReasoningDelta });
+
+    expect(onReasoningDelta).toHaveBeenCalledWith('hmm');
+    expect(onTextDelta).toHaveBeenCalledWith('ok');
+    expect(onTextDelta).not.toHaveBeenCalledWith('hmm');
   });
 
   it('stops waiting when the abort signal fires', async () => {

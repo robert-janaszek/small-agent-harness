@@ -287,8 +287,16 @@ export class DefaultRenderer {
           this.eventLog.appendDelta(delta);
           this.streamDirty = true;
         },
+        onReasoningDelta: (delta) => {
+          this.eventLog.appendReasoningDelta(delta);
+          this.streamDirty = true;
+        },
         onTextDeltaCancel: () => {
           this.eventLog.cancelStreaming();
+          this.redraw();
+        },
+        onToolCallStart: (name, toolCallId) => {
+          this.eventLog.append({ type: 'tool_call', name, args: {}, toolCallId });
           this.redraw();
         },
       });
@@ -396,16 +404,16 @@ export class DefaultRenderer {
       queueLength,
       palette?.matches.length ?? 0,
     );
-    const leftLines = this.eventLog.render(layout.contentRows, split.leftWidth);
+    const leftLines = this.eventLog.renderLines(layout.contentRows, split.leftWidth);
 
     this.terminal.clear();
 
     for (let lineRow = 0; lineRow < layout.contentRows; lineRow++) {
-      this.terminal.fill(
-        lineRow,
-        0,
-        (leftLines[lineRow] ?? '').padEnd(split.leftWidth).slice(0, split.leftWidth),
-      );
+      const line = leftLines[lineRow];
+      if (!line) {
+        continue;
+      }
+      this.terminal.fill(lineRow, 0, line.text.slice(0, split.leftWidth), line.fg, line.trueColorFg);
     }
 
     drawVerticalDivider(this.terminal, split.dividerCol);

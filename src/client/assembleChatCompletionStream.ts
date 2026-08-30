@@ -8,9 +8,16 @@ type ChatCompletionChunk = OpenAI.Chat.Completions.ChatCompletionChunk;
 type ToolCallDelta = NonNullable<ChatCompletionChunk['choices'][number]['delta']['tool_calls']>[number];
 type FinishReason = ChatCompletion['choices'][number]['finish_reason'];
 
+export type StartedToolCall = {
+  id: string;
+  name: string;
+};
+
 export type StreamPushResult = {
   textDelta?: string;
+  reasoningDelta?: string;
   becameToolCall?: boolean;
+  startedToolCalls?: StartedToolCall[];
 };
 
 type AccumulatedToolCall = {
@@ -20,10 +27,12 @@ type AccumulatedToolCall = {
     name: string;
     arguments: string;
   };
+  argumentsStarted: boolean;
 };
 
 export type ChatCompletionStreamAssembler = {
   push(chunk: ChatCompletionChunk): StreamPushResult;
+  flushStartedToolCalls(): StartedToolCall[];
   toChatCompletion(): ChatCompletion;
 };
 
@@ -32,12 +41,14 @@ export function createChatCompletionStreamAssembler(): ChatCompletionStreamAssem
   let created = 0;
   let model = '';
   let content = '';
+  let reasoning = '';
   let refusal: string | null = null;
   let finishReason: FinishReason = 'stop';
   let usage: ChatCompletion['usage'];
   let sawChoice = false;
   let sawToolCalls = false;
   const toolCalls: AccumulatedToolCall[] = [];
+  const announcedToolCalls = new Set<number>();
 
   return {
     push(chunk) {
@@ -67,13 +78,28 @@ export function createChatCompletionStreamAssembler(): ChatCompletionStreamAssem
 
       if (delta.tool_calls && delta.tool_calls.length > 0) {
         sawToolCalls = true;
-        mergeToolCallDeltas(toolCalls, delta.tool_calls);
+        const startedToolCalls = mergeToolCallDeltas(toolCalls, delta.tool_calls, announcedToolCalls);
+        if (startedToolCalls.length > 0) {
+          result.startedToolCalls = startedToolCalls;
+        }
       }
 
-      if (typeof delta.content === 'string' && delta.content.length > 0) {
-        content += delta.content;
+      const contentText = asDeltaText(delta.content);
+      const reasoningText = asDeltaText(
+        extraField(delta, 'reasoning_content') ?? extraField(delta, 'reasoning'),
+      );
+
+      if (reasoningText.length > 0) {
+        reasoning += reasoningText;
         if (!sawToolCalls) {
-          result.textDelta = delta.content;
+          result.reasoningDelta = reasoningText;
+        }
+      }
+
+      if (contentText.length > 0) {
+        content += contentText;
+        if (!sawToolCalls) {
+          result.textDelta = contentText;
         }
       }
 
@@ -83,6 +109,10 @@ export function createChatCompletionStreamAssembler(): ChatCompletionStreamAssem
 
       if (choice.finish_reason) {
         finishReason = choice.finish_reason;
+        const flushed = announceReadyToolCalls(toolCalls, announcedToolCalls, true);
+        if (flushed.length > 0) {
+          result.startedToolCalls = [...(result.startedToolCalls ?? []), ...flushed];
+        }
       }
 
       if (becameToolCall) {
@@ -91,13 +121,24 @@ export function createChatCompletionStreamAssembler(): ChatCompletionStreamAssem
 
       return result;
     },
+    flushStartedToolCalls() {
+      return announceReadyToolCalls(toolCalls, announcedToolCalls, true);
+    },
     toChatCompletion() {
+      const hasToolCalls = toolCalls.some((toolCall) => toolCall !== undefined);
+      const visible = content.length > 0 ? content : hasToolCalls ? '' : reasoning;
       const message: ChatCompletion['choices'][number]['message'] = {
         role: 'assistant',
-        content: content.length > 0 ? content : null,
+        content: visible.length > 0 ? visible : null,
         refusal,
       };
-      const assembledToolCalls = toolCalls.filter((toolCall) => toolCall !== undefined);
+      const assembledToolCalls = toolCalls
+        .filter((toolCall) => toolCall !== undefined)
+        .map(({ id: toolCallId, type, function: fn }) => ({
+          id: toolCallId,
+          type,
+          function: { name: fn.name, arguments: fn.arguments },
+        }));
       if (assembledToolCalls.length > 0) {
         message.tool_calls = assembledToolCalls;
       }
@@ -125,7 +166,10 @@ export function createChatCompletionStreamAssembler(): ChatCompletionStreamAssem
 
 export async function consumeChatCompletionStream(
   stream: AsyncIterable<ChatCompletionChunk>,
-  callbacks: Pick<ChatCompletionRequestOptions, 'onTextDelta' | 'onTextDeltaCancel' | 'signal'> = {},
+  callbacks: Pick<
+    ChatCompletionRequestOptions,
+    'onTextDelta' | 'onReasoningDelta' | 'onTextDeltaCancel' | 'onToolCallStart' | 'signal'
+  > = {},
 ): Promise<ChatCompletion> {
   const assembler = createChatCompletionStreamAssembler();
   let cancelled = false;
@@ -143,9 +187,24 @@ export async function consumeChatCompletionStream(
       if (event.becameToolCall && !cancelled) {
         cancelled = true;
         callbacks.onTextDeltaCancel?.();
-      } else if (event.textDelta && !cancelled) {
-        callbacks.onTextDelta?.(event.textDelta);
+      } else if (!cancelled) {
+        if (event.reasoningDelta) {
+          callbacks.onReasoningDelta?.(event.reasoningDelta);
+        }
+        if (event.textDelta) {
+          callbacks.onTextDelta?.(event.textDelta);
+        }
       }
+
+      if (event.startedToolCalls) {
+        for (const toolCall of event.startedToolCalls) {
+          callbacks.onToolCallStart?.(toolCall.name, toolCall.id);
+        }
+      }
+    }
+
+    for (const toolCall of assembler.flushStartedToolCalls()) {
+      callbacks.onToolCallStart?.(toolCall.name, toolCall.id);
     }
   } finally {
     void iterator.return?.();
@@ -194,7 +253,11 @@ async function nextChunk(
   });
 }
 
-function mergeToolCallDeltas(toolCalls: AccumulatedToolCall[], deltas: ToolCallDelta[]): void {
+function mergeToolCallDeltas(
+  toolCalls: AccumulatedToolCall[],
+  deltas: ToolCallDelta[],
+  announced: Set<number>,
+): StartedToolCall[] {
   for (const delta of deltas) {
     const existing = toolCalls[delta.index];
     if (!existing) {
@@ -205,18 +268,69 @@ function mergeToolCallDeltas(toolCalls: AccumulatedToolCall[], deltas: ToolCallD
           name: delta.function?.name ?? '',
           arguments: delta.function?.arguments ?? '',
         },
+        argumentsStarted: delta.function?.arguments !== undefined,
       };
+    } else {
+      if (delta.id) {
+        existing.id = delta.id;
+      }
+      if (delta.function?.name) {
+        existing.function.name += delta.function.name;
+      }
+      if (delta.function?.arguments !== undefined) {
+        existing.argumentsStarted = true;
+        existing.function.arguments += delta.function.arguments;
+      }
+    }
+  }
+
+  return announceReadyToolCalls(toolCalls, announced, false);
+}
+
+function announceReadyToolCalls(
+  toolCalls: AccumulatedToolCall[],
+  announced: Set<number>,
+  force: boolean,
+): StartedToolCall[] {
+  const started: StartedToolCall[] = [];
+
+  for (const [index, toolCall] of toolCalls.entries()) {
+    if (!toolCall || announced.has(index) || !toolCall.id || !toolCall.function.name) {
+      continue;
+    }
+    if (!force && !toolCall.argumentsStarted) {
       continue;
     }
 
-    if (delta.id) {
-      existing.id = delta.id;
-    }
-    if (delta.function?.name) {
-      existing.function.name += delta.function.name;
-    }
-    if (delta.function?.arguments) {
-      existing.function.arguments += delta.function.arguments;
-    }
+    announced.add(index);
+    started.push({ id: toolCall.id, name: toolCall.function.name });
   }
+
+  return started;
+}
+
+function extraField(delta: object, key: string): unknown {
+  return (delta as Record<string, unknown>)[key];
+}
+
+function asDeltaText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (!Array.isArray(value)) {
+    return '';
+  }
+
+  return value
+    .map((part) => {
+      if (typeof part === 'string') {
+        return part;
+      }
+      if (typeof part === 'object' && part !== null && 'text' in part && typeof (part as { text: unknown }).text === 'string') {
+        return (part as { text: string }).text;
+      }
+      return '';
+    })
+    .join('');
 }
