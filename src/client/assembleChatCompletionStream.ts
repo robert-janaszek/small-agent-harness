@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 
+import { toAbortError } from '../core/delay';
 import type { ChatCompletionRequestOptions } from './llmClient.type';
 
 type ChatCompletion = OpenAI.Chat.Completions.ChatCompletion;
@@ -124,22 +125,73 @@ export function createChatCompletionStreamAssembler(): ChatCompletionStreamAssem
 
 export async function consumeChatCompletionStream(
   stream: AsyncIterable<ChatCompletionChunk>,
-  callbacks: Pick<ChatCompletionRequestOptions, 'onTextDelta' | 'onTextDeltaCancel'> = {},
+  callbacks: Pick<ChatCompletionRequestOptions, 'onTextDelta' | 'onTextDeltaCancel' | 'signal'> = {},
 ): Promise<ChatCompletion> {
   const assembler = createChatCompletionStreamAssembler();
   let cancelled = false;
+  const iterator = stream[Symbol.asyncIterator]();
+  const signal = callbacks.signal ?? undefined;
 
-  for await (const chunk of stream) {
-    const event = assembler.push(chunk);
-    if (event.becameToolCall && !cancelled) {
-      cancelled = true;
-      callbacks.onTextDeltaCancel?.();
-    } else if (event.textDelta && !cancelled) {
-      callbacks.onTextDelta?.(event.textDelta);
+  try {
+    while (true) {
+      const next = await nextChunk(iterator, signal);
+      if (next.done) {
+        break;
+      }
+
+      const event = assembler.push(next.value);
+      if (event.becameToolCall && !cancelled) {
+        cancelled = true;
+        callbacks.onTextDeltaCancel?.();
+      } else if (event.textDelta && !cancelled) {
+        callbacks.onTextDelta?.(event.textDelta);
+      }
     }
+  } finally {
+    void iterator.return?.();
+  }
+
+  if (signal?.aborted) {
+    throw toAbortError(signal);
   }
 
   return assembler.toChatCompletion();
+}
+
+async function nextChunk(
+  iterator: AsyncIterator<ChatCompletionChunk>,
+  signal?: AbortSignal,
+): Promise<IteratorResult<ChatCompletionChunk>> {
+  if (!signal) {
+    return iterator.next();
+  }
+
+  if (signal.aborted) {
+    throw toAbortError(signal);
+  }
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      cleanup();
+      void iterator.return?.();
+      reject(toAbortError(signal));
+    };
+    const cleanup = () => {
+      signal.removeEventListener('abort', onAbort);
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+    iterator.next().then(
+      (result) => {
+        cleanup();
+        resolve(result);
+      },
+      (error: unknown) => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
 }
 
 function mergeToolCallDeltas(toolCalls: AccumulatedToolCall[], deltas: ToolCallDelta[]): void {

@@ -181,6 +181,7 @@ export async function run(options: RunOptions = {}): Promise<number> {
 
   initLangfuseTracing();
 
+  let exitCode = 1;
   try {
     const { mode, command } = resolveHostMode(parsed, {
       tty: isTty(),
@@ -188,19 +189,21 @@ export async function run(options: RunOptions = {}): Promise<number> {
     });
 
     if (mode === 'jsonl-serve') {
-      return await runJsonlSession(options.module, '', true);
+      exitCode = await runJsonlSession(options.module, '', true);
+    } else if (mode === 'jsonl-batch') {
+      exitCode = await runJsonlSession(options.module, command, false);
+    } else {
+      exitCode = await runTuiSession(options.module, command);
     }
 
-    if (mode === 'jsonl-batch') {
-      return await runJsonlSession(options.module, command, false);
-    }
-
-    return await runTuiSession(options.module, command);
+    return exitCode;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     writeFatalError(message);
+    exitCode = 1;
     return 1;
   } finally {
-    await flushLangfuse();
+    // Ctrl+C / SIGTERM must not wait on in-flight LLM spans or a down Langfuse.
+    await flushLangfuse(exitCode === 130 || exitCode === 143 ? 0 : undefined);
   }
 }

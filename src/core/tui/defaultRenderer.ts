@@ -64,6 +64,7 @@ export class DefaultRenderer {
   private currentAbort: AbortController | null = null;
   private currentTurn: Promise<void> | null = null;
   private interrupted = false;
+  private cancellingTurn = false;
   private unsubscribe: (() => void) | null = null;
   private sessionEnded = false;
   private resolveSession: (() => void) | null = null;
@@ -123,8 +124,7 @@ export class DefaultRenderer {
 
     await this.waitForSessionEnd();
 
-    this.stopActivityTimer();
-    this.inputLine.close();
+    this.teardownIo();
     this.unsubscribe?.();
     this.unsubscribe = null;
     return this.exitCode;
@@ -168,8 +168,14 @@ export class DefaultRenderer {
     await this.drainQueue(command);
   }
 
-  private async handleInterrupt(): Promise<void> {
-    if (this.turnActive) {
+  async handleInterrupt(): Promise<void> {
+    if (this.sessionEnded || this.interrupted) {
+      await this.requestExit();
+      return;
+    }
+
+    if (this.turnActive && !this.cancellingTurn) {
+      this.cancellingTurn = true;
       this.commandQueue = [];
       this.eventLog.cancelStreaming();
       this.currentAbort?.abort();
@@ -196,6 +202,7 @@ export class DefaultRenderer {
 
   private async requestExit(): Promise<void> {
     if (this.sessionEnded) {
+      this.teardownIo();
       this.settleSession();
       return;
     }
@@ -203,10 +210,15 @@ export class DefaultRenderer {
     this.interrupted = true;
     this.sessionEnded = true;
     this.commandQueue = [];
+    this.teardownIo();
     this.currentAbort?.abort();
-    await this.currentTurn?.catch(() => undefined);
     this.harness.endSession();
     this.settleSession();
+  }
+
+  private teardownIo(): void {
+    this.stopActivityTimer();
+    this.inputLine.close();
   }
 
   private settleSession(): void {
@@ -261,6 +273,7 @@ export class DefaultRenderer {
     this.currentTurn = null;
     this.currentAbort = null;
     this.turnActive = false;
+    this.cancellingTurn = false;
     if (!this.interrupted) {
       this.redraw();
     }

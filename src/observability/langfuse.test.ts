@@ -4,6 +4,7 @@ import {
   createLangfuseSessionId,
   flushLangfuse,
   initLangfuseTracing,
+  installLangfuseProcessorForTests,
   isLangfuseEnabled,
   resetLangfuseTracingForTests,
   withAgentObservation,
@@ -64,6 +65,31 @@ describe('langfuse observability', () => {
     vi.stubEnv('LANGFUSE_SECRET_KEY', '');
     expect(() => initLangfuseTracing()).not.toThrow();
     await expect(flushLangfuse()).resolves.toBeUndefined();
+  });
+
+  it('flushLangfuse is a no-op when timeout is zero', async () => {
+    let flushed = false;
+    installLangfuseProcessorForTests({
+      async forceFlush() {
+        flushed = true;
+      },
+    });
+
+    await expect(flushLangfuse(0)).resolves.toBeUndefined();
+    expect(flushed).toBe(false);
+  });
+
+  it('flushLangfuse returns when forceFlush hangs past the timeout', async () => {
+    let resolveFlush!: () => void;
+    installLangfuseProcessorForTests({
+      forceFlush: () =>
+        new Promise<void>((resolve) => {
+          resolveFlush = resolve;
+        }),
+    });
+
+    await expect(flushLangfuse(20)).resolves.toBeUndefined();
+    resolveFlush();
   });
 
   it('withAgentObservation runs the callback when disabled', async () => {

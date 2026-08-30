@@ -184,4 +184,31 @@ describe('consumeChatCompletionStream', () => {
     expect(onTextDelta.mock.calls.map((call) => call[0])).toEqual(['Hi', '!']);
     expect(onTextDeltaCancel).not.toHaveBeenCalled();
   });
+
+  it('stops waiting when the abort signal fires', async () => {
+    const controller = new AbortController();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const onTextDelta = vi.fn();
+
+    async function* stream(): AsyncGenerator<ChatCompletionChunk> {
+      yield chunk({ content: 'Hi' });
+      await gate;
+      yield chunk({ content: 'there' }, { finish_reason: 'stop' });
+    }
+
+    const pending = consumeChatCompletionStream(stream(), {
+      onTextDelta,
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => {
+      expect(onTextDelta).toHaveBeenCalledWith('Hi');
+    });
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    release();
+  });
 });

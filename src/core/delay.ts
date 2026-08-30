@@ -23,7 +23,7 @@ export function delay(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function toAbortError(signal?: AbortSignal): Error {
+export function toAbortError(signal?: AbortSignal): Error {
   if (signal?.reason instanceof Error) {
     return signal.reason;
   }

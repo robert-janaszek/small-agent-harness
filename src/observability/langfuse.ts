@@ -47,13 +47,24 @@ export function initLangfuseTracing(): void {
   sdk.start();
 }
 
-export async function flushLangfuse(): Promise<void> {
-  if (!spanProcessor) {
+const DEFAULT_FLUSH_TIMEOUT_MS = 1_000;
+
+function sleepUnref(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+  });
+}
+
+export async function flushLangfuse(timeoutMs = DEFAULT_FLUSH_TIMEOUT_MS): Promise<void> {
+  if (!spanProcessor || timeoutMs <= 0) {
     return;
   }
 
   try {
-    await spanProcessor.forceFlush();
+    await Promise.race([spanProcessor.forceFlush(), sleepUnref(timeoutMs)]);
   } catch {
     // Observability must not fail a successful harness run (e.g. revoked Langfuse keys).
   }
@@ -71,6 +82,11 @@ export function resetLangfuseTracingForTests(): void {
   initialized = false;
   spanProcessor = undefined;
   sdk = undefined;
+}
+
+/** @internal test helper */
+export function installLangfuseProcessorForTests(processor: { forceFlush(): Promise<void> }): void {
+  spanProcessor = processor as LangfuseSpanProcessor;
 }
 
 export async function withAgentObservation<T>(
