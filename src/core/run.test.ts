@@ -18,9 +18,14 @@ vi.mock('./harness', () => ({
   },
 }));
 
-vi.mock('../observability/langfuse', () => ({
+const langfuseMocks = vi.hoisted(() => ({
   initLangfuseTracing: vi.fn(),
   flushLangfuse: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../observability/langfuse', () => ({
+  initLangfuseTracing: langfuseMocks.initLangfuseTracing,
+  flushLangfuse: langfuseMocks.flushLangfuse,
 }));
 
 import { parseRunArgv, resolveHostMode, run } from './run';
@@ -151,6 +156,7 @@ describe('run JSONL batch', () => {
       tokenUsage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
       iterations: 1,
     });
+    langfuseMocks.flushLangfuse.mockClear();
   });
 
   it('emits session_end after a successful batch turn', async () => {
@@ -160,6 +166,7 @@ describe('run JSONL batch', () => {
     expect(harnessMocks.startSession).toHaveBeenCalledOnce();
     expect(harnessMocks.run).toHaveBeenCalledWith('do the thing');
     expect(harnessMocks.endSession).toHaveBeenCalledOnce();
+    expect(langfuseMocks.flushLangfuse).toHaveBeenCalledWith(undefined);
   });
 
   it('still ends the session when the batch turn throws', async () => {
