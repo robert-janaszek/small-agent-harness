@@ -64,14 +64,28 @@ export function renderBufferLines(snapshot: DataTableStateSnapshot, maxLines: nu
     ...wrapText('Data buffer', width),
     '-'.repeat(Math.min(width, 24)),
     ...wrapText(snapshot.sourceId || 'unknown', width),
-    ...wrapText(size, width),
   ];
 
+  if (snapshot.description.length > 0) {
+    lines.push(...wrapText(snapshot.description, width));
+  }
+
+  lines.push(...wrapText(size, width));
+
   if (snapshot.columns.length > 0) {
-    lines.push(...wrapText(`Columns: ${snapshot.columns.join(', ')}`, width));
+    lines.push(...wrapText(formatColumnSummary(snapshot.columns), width));
   }
 
   return lines.slice(0, maxLines);
+}
+
+export function formatColumnSummary(columns: string[]): string {
+  if (columns.length <= 2) {
+    return `Columns: ${columns.join(', ')}`;
+  }
+
+  const rest = columns.length - 2;
+  return `Columns: ${columns[0]}, ${columns[1]}, … (+${rest})`;
 }
 
 function lineColor(text: string, row: number): number {

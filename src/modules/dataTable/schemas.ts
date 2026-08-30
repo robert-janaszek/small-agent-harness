@@ -85,17 +85,6 @@ export const salesTableSchema = z
         });
       }
     }
-
-    for (const [rowIndex, row] of table.rows.entries()) {
-      const keys = Object.keys(row);
-      if (keys.length !== SALES_COLUMN_COUNT) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `row ${rowIndex} must have ${SALES_COLUMN_COUNT} keys`,
-          path: ['rows', rowIndex],
-        });
-      }
-    }
   });
 
 export type CellValue = z.infer<typeof cellValueSchema>;

@@ -58,4 +58,4 @@ export const SALES_ROW_COUNT = 50;
 export const SALES_TABLE_ID = 'sales';
 
 export const SALES_TABLE_DESCRIPTION =
-  'Synthetic B2B sales line items for deterministic filter, aggregate, and preview tools.';
+  'Synthetic B2B sales line items for deterministic filter, aggregate, and preview tools. Catalog prices are not FX-converted; group money totals by currency.';

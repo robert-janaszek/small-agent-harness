@@ -250,6 +250,7 @@ const STATUSES: readonly SalesRow['orderStatus'][] = [
 ];
 
 const SEED = 20260829;
+const MIN_RETURNED_ORDERS = 3;
 
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0;
@@ -289,6 +290,78 @@ function withTimeOfDay(isoDate: string, rng: () => number): string {
   const minute = Math.floor(rng() * 60);
   const second = Math.floor(rng() * 60);
   return `${datePart(isoDate)}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}.000Z`;
+}
+
+function toUtcMs(iso: string): number {
+  return new Date(iso.includes('T') ? iso : `${iso}T00:00:00.000Z`).getTime();
+}
+
+function laterTimestamp(bases: Array<string | null>, rng: () => number): string {
+  const times = bases.filter((value): value is string => value !== null).map(toUtcMs);
+  const latest = Math.max(...times);
+  const extraMs = (15 + Math.floor(rng() * 12 * 60)) * 60_000;
+  return new Date(latest + extraMs).toISOString();
+}
+
+function orderIdsInAppearance(rows: SalesRow[]): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (seen.has(row.orderId)) {
+      continue;
+    }
+    seen.add(row.orderId);
+    ids.push(row.orderId);
+  }
+  return ids;
+}
+
+function linesForOrder(rows: SalesRow[], orderId: string): SalesRow[] {
+  return rows.filter((row) => row.orderId === orderId);
+}
+
+function markOrderReturned(lines: SalesRow[], reason: string): void {
+  for (const row of lines) {
+    if (row.orderStatus !== 'delivered') {
+      row.orderStatus = 'delivered';
+      if (!row.shipDate) {
+        row.shipDate = addDays(row.orderDate, 2);
+      }
+      if (!row.deliveryDate) {
+        row.deliveryDate = addDays(row.shipDate, 2);
+      }
+    }
+    row.isReturned = true;
+    row.returnReason = reason;
+    row.paymentStatus = 'refunded';
+    row.notes = 'Return opened after delivery.';
+  }
+}
+
+function ensureReturnedOrders(rows: SalesRow[], minOrders: number, rng: () => number): void {
+  const orderIds = orderIdsInAppearance(rows);
+  const returnedCount = () =>
+    orderIds.filter((orderId) => linesForOrder(rows, orderId)[0]?.isReturned).length;
+  if (returnedCount() >= minOrders) {
+    return;
+  }
+
+  const notReturned = orderIds.filter((orderId) => !linesForOrder(rows, orderId)[0]?.isReturned);
+  const byStatus = (status: SalesRow['orderStatus']) =>
+    notReturned.filter((orderId) => linesForOrder(rows, orderId)[0]?.orderStatus === status);
+  const candidates = [
+    ...byStatus('delivered'),
+    ...byStatus('shipped'),
+    ...byStatus('processing'),
+    ...byStatus('pending'),
+  ];
+
+  for (const orderId of candidates) {
+    if (returnedCount() >= minOrders) {
+      break;
+    }
+    markOrderReturned(linesForOrder(rows, orderId), pick(rng, RETURN_REASONS));
+  }
 }
 
 function fiscalQuarter(isoDate: string): SalesRow['fiscalQuarter'] {
@@ -344,7 +417,7 @@ export function buildSalesTable(): SalesTable {
     const salesperson = salespersonFor(customer.region, rng);
     const orderStatus = pick(rng, STATUSES);
     const orderDate = withTimeOfDay(addDays('2025-01-06', dayOffset), rng);
-    dayOffset += 1 + Math.floor(rng() * 4);
+    dayOffset += 6 + Math.floor(rng() * 14);
 
     const shipDate =
       orderStatus === 'pending' || orderStatus === 'processing' || orderStatus === 'cancelled'
@@ -370,8 +443,8 @@ export function buildSalesTable(): SalesTable {
           : rng() < 0.2
             ? 'Rush handling requested.'
             : null;
-    const updatedAt = withTimeOfDay(deliveryDate ?? shipDate ?? orderDate, rng);
-    const shippingCost = orderStatus === 'cancelled' ? 0 : round2(8 + rng() * 42);
+    const updatedAt = laterTimestamp([orderDate, shipDate, deliveryDate], rng);
+    const orderShippingCost = orderStatus === 'cancelled' ? 0 : round2(8 + rng() * 42);
     const orderId = `ORD-${orderSeq}`;
     orderSeq += 1;
 
@@ -426,7 +499,7 @@ export function buildSalesTable(): SalesTable {
         paymentMethod,
         paymentStatus,
         orderStatus,
-        shippingCost,
+        shippingCost: lineNumber === 1 ? orderShippingCost : 0,
         weightKg: round2(product.weightKg * quantity),
         isReturned,
         returnReason,
@@ -439,6 +512,8 @@ export function buildSalesTable(): SalesTable {
       });
     }
   }
+
+  ensureReturnedOrders(rows, MIN_RETURNED_ORDERS, rng);
 
   return {
     id: SALES_TABLE_ID,

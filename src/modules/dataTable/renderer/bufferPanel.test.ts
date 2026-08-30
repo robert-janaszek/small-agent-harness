@@ -18,13 +18,16 @@ describe('renderBufferLines', () => {
     expect(lines).toContain('Waiting for buffer...');
   });
 
-  it('shows buffer size and column names', () => {
+  it('shows buffer size, description, and a truncated column list', () => {
     const lines = renderBufferLines(snapshot, 10, 40);
 
     expect(lines[0]).toBe('Data buffer');
     expect(lines).toContain('sales');
+    expect(lines.join(' ')).toContain('Synthetic B2B sales line items');
     expect(lines).toContain('50 rows x 50 cols');
     expect(lines.join(' ')).toContain('rowId');
     expect(lines.join(' ')).toContain('orderId');
+    expect(lines.join(' ')).toContain('(+1)');
+    expect(lines.join(' ')).not.toContain('lineTotal');
   });
 });

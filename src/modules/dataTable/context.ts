@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { salesTableSchema, type DataRow, type SalesTable } from './schemas';
+import { salesTableSchema, type SalesRow, type SalesTable } from './schemas';
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'sales.json');
 
@@ -18,8 +18,11 @@ export type DataTableContext = {
   sourceId: string;
   description: string;
   columns: string[];
-  rows: DataRow[];
-  initialRows: DataRow[];
+  rows: SalesRow[];
+  initialSourceId: string;
+  initialDescription: string;
+  initialColumns: string[];
+  initialRows: SalesRow[];
 };
 
 export function getFixturePath(): string {
@@ -31,23 +34,30 @@ export function loadSalesFixture(): SalesTable {
   return salesTableSchema.parse(parsed);
 }
 
-function cloneRows(rows: DataRow[]): DataRow[] {
+function cloneRows(rows: SalesRow[]): SalesRow[] {
   return structuredClone(rows);
 }
 
 export function createContext(): DataTableContext {
   const table = loadSalesFixture();
   const rows = cloneRows(table.rows);
+  const columns = [...table.columns];
   return {
     sourceId: table.id,
     description: table.description,
-    columns: [...table.columns],
+    columns,
     rows,
+    initialSourceId: table.id,
+    initialDescription: table.description,
+    initialColumns: [...columns],
     initialRows: cloneRows(rows),
   };
 }
 
 export function resetContext(context: DataTableContext): void {
+  context.sourceId = context.initialSourceId;
+  context.description = context.initialDescription;
+  context.columns = [...context.initialColumns];
   context.rows = cloneRows(context.initialRows);
 }
 

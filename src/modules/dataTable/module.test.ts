@@ -51,6 +51,8 @@ describe('createDataTableModule', () => {
 
     const composed = composeSystemPrompt(HARNESS_PROMPT, [createDataTableModule()]);
     expect(composed).toContain('in-memory tabular buffer');
+    expect(composed).toContain(`${SALES_ROW_COUNT} rows x ${SALES_COLUMN_COUNT} columns`);
+    expect(composed).toContain('Never sum lineTotal');
     expect(composed).toContain('Module instructions override these defaults');
   });
 
@@ -79,6 +81,7 @@ describe('createDataTableModule', () => {
     expect(JSON.stringify(started?.payload)).not.toContain('Northwind Logistics');
 
     module.context.rows.pop();
+    module.context.columns = ['rowId'];
     expect(module.context.rows).toHaveLength(SALES_ROW_COUNT - 1);
 
     harness.resetSession();
@@ -88,8 +91,10 @@ describe('createDataTableModule', () => {
       sourceId: SALES_TABLE_ID,
       rowCount: SALES_ROW_COUNT,
       columnCount: SALES_COLUMN_COUNT,
+      columns: [...SALES_COLUMNS],
     });
     expect(module.context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(module.context.columns).toEqual([...SALES_COLUMNS]);
   });
 });
 
@@ -111,7 +116,9 @@ describe('createDataTablePanel', () => {
     const text = visibleText(output.join(''));
     expect(text).toContain('Data buffer');
     expect(text).toContain('sales');
+    expect(text).toContain('Synthetic B2B sales line items');
     expect(text).toContain('50 rows x 50 cols');
+    expect(text).toContain('(+48)');
   });
 
   it('ignores payloads that are not a data table snapshot', () => {
@@ -157,7 +164,16 @@ describe('createDataTablePanel', () => {
 });
 
 describe('isDataTableStateSnapshot', () => {
-  it('accepts a buffer snapshot and rejects unrelated objects', () => {
+  it('accepts a buffer snapshot and rejects unrelated or contradictory objects', () => {
+    expect(
+      isDataTableStateSnapshot({
+        sourceId: 'sales',
+        description: 'fixture',
+        rowCount: 50,
+        columnCount: 1,
+        columns: ['rowId'],
+      }),
+    ).toBe(true);
     expect(
       isDataTableStateSnapshot({
         sourceId: 'sales',
@@ -166,7 +182,16 @@ describe('isDataTableStateSnapshot', () => {
         columnCount: 50,
         columns: ['rowId'],
       }),
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      isDataTableStateSnapshot({
+        sourceId: 'sales',
+        description: 'fixture',
+        rowCount: Number.NaN,
+        columnCount: 1,
+        columns: ['rowId'],
+      }),
+    ).toBe(false);
     expect(isDataTableStateSnapshot({ currentIndex: 0, steps: [] })).toBe(false);
     expect(isDataTableStateSnapshot({})).toBe(false);
     expect(isDataTableStateSnapshot({ sourceId: 'sales' })).toBe(false);

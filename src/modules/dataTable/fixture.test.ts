@@ -10,6 +10,10 @@ function moneyEquals(actual: number, expected: number): void {
   expect(actual).toBeCloseTo(expected, 2);
 }
 
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 describe('sales fixture', () => {
   it('is a 50 x 50 JSON table that matches the seeded builder', () => {
     const fromDisk = JSON.parse(readFileSync(getFixturePath(), 'utf8')) as unknown;
@@ -39,26 +43,62 @@ describe('sales fixture', () => {
       moneyEquals(row.lineCost, expectedCost);
 
       expect(row.orderDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/);
+      expect(Date.parse(row.updatedAt)).toBeGreaterThan(Date.parse(row.orderDate));
 
       if (row.isReturned) {
         expect(row.orderStatus).toBe('delivered');
         expect(row.returnReason).toBeTruthy();
+        expect(row.paymentStatus).toBe('refunded');
       } else {
         expect(row.returnReason).toBeNull();
       }
     }
   });
 
+  it('stores order shippingCost on line 1 so row sums match per-order sums', () => {
+    const table = loadSalesFixture();
+    const byOrder = new Map<string, typeof table.rows>();
+
+    for (const row of table.rows) {
+      const lines = byOrder.get(row.orderId) ?? [];
+      lines.push(row);
+      byOrder.set(row.orderId, lines);
+    }
+
+    let orderShipping = 0;
+    for (const lines of byOrder.values()) {
+      const first = lines.find((line) => line.lineNumber === 1);
+      expect(first).toBeDefined();
+      orderShipping = round2(orderShipping + first!.shippingCost);
+      for (const line of lines) {
+        if (line.lineNumber !== 1) {
+          expect(line.shippingCost).toBe(0);
+        }
+      }
+    }
+
+    const rowSum = round2(table.rows.reduce((sum, row) => sum + row.shippingCost, 0));
+    expect(rowSum).toBe(orderShipping);
+  });
+
   it('covers enough groups for later filter and aggregate tools', () => {
     const table = loadSalesFixture();
     const regions = new Set(table.rows.map((row) => row.region));
     const statuses = new Set(table.rows.map((row) => row.orderStatus));
+    const quarters = new Set(table.rows.map((row) => row.fiscalQuarter));
+    const payments = new Set(table.rows.map((row) => row.paymentStatus));
     const hours = new Set(table.rows.map((row) => row.orderDate.slice(11, 13)));
     const numeric = table.rows.map((row) => row.lineTotal);
 
+    expect(table.rows.some((row) => row.isReturned)).toBe(true);
+    expect(new Set(table.rows.filter((row) => row.isReturned).map((row) => row.orderId)).size).toBeGreaterThanOrEqual(
+      3,
+    );
     expect(regions.size).toBeGreaterThanOrEqual(3);
     expect(hours.size).toBeGreaterThanOrEqual(3);
     expect(statuses.size).toBeGreaterThanOrEqual(3);
+    expect(quarters.size).toBeGreaterThan(1);
+    expect(payments.size).toBeGreaterThan(1);
     expect(Math.max(...numeric)).toBeGreaterThan(Math.min(...numeric));
   });
 });
@@ -76,5 +116,22 @@ describe('createContext', () => {
 
     resetContext(context);
     expect(context.rows[0]!.lineTotal).toBe(original);
+  });
+
+  it('restores columns and identity on reset', () => {
+    const context = createContext();
+    const originalColumns = [...context.columns];
+
+    context.columns = ['rowId'];
+    context.sourceId = 'mutated';
+    context.description = 'mutated';
+    context.rows = [];
+
+    resetContext(context);
+
+    expect(context.columns).toEqual(originalColumns);
+    expect(context.sourceId).toBe('sales');
+    expect(context.description).toBe(loadSalesFixture().description);
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
   });
 });
