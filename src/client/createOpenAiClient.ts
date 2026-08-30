@@ -29,7 +29,11 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
         requestOptions,
       )) as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
 
-      return consumeChatCompletionStream(stream, { onTextDelta, onTextDeltaCancel });
+      return consumeChatCompletionStream(stream, {
+        onTextDelta,
+        onTextDeltaCancel,
+        signal: requestOptions.signal ?? undefined,
+      });
     },
   };
 }

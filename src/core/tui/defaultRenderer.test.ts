@@ -616,4 +616,131 @@ describe('DefaultRenderer', () => {
       process.stdin.removeAllListeners('data');
     }
   });
+
+  it('cancels the current turn on the first ctrl+c and leaves the session running', async () => {
+    const events: Array<{ type: string; message?: string }> = [];
+    const terminal = new DiffTerminal(12, 80, () => {});
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
+    let started!: () => void;
+    const startedPromise = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const createChatCompletion = vi.fn().mockImplementation((_params, options?: { signal?: AbortSignal }) => {
+      started();
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        });
+      });
+    });
+    const harness = new Harness({
+      modules: [],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+    const renderer = new DefaultRenderer(terminal, harness, bus);
+
+    const first = renderer.handleInput('slow');
+    await startedPromise;
+    await renderer.handleInterrupt();
+    await first;
+
+    expect(events.some((event) => event.type === 'session_end')).toBe(false);
+    expect(events.some((event) => event.type === 'error' && event.message === 'Cancelled.')).toBe(true);
+  });
+
+  it('exits on the second ctrl+c when the in-flight turn ignores abort', async () => {
+    const originalIsTTY = process.stdin.isTTY;
+    const originalSetRawMode = process.stdin.setRawMode;
+    const originalPause = process.stdin.pause;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+    process.stdin.setRawMode = vi.fn() as typeof process.stdin.setRawMode;
+    process.stdin.pause = vi.fn() as typeof process.stdin.pause;
+
+    let hangReject!: (error: Error) => void;
+    try {
+      const terminal = new DiffTerminal(12, 80, () => {});
+      const bus = createEventBus();
+      let started!: () => void;
+      const startedPromise = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const createChatCompletion = vi.fn().mockImplementation(() => {
+        started();
+        return new Promise((_resolve, reject) => {
+          hangReject = reject;
+        });
+      });
+      const harness = new Harness({
+        modules: [],
+        llmClient: { createChatCompletion },
+        config: testConfig,
+        bus,
+      });
+      const renderer = new DefaultRenderer(terminal, harness, bus);
+      const running = renderer.run();
+      void renderer.handleInput('slow');
+      await startedPromise;
+
+      await renderer.handleInterrupt();
+      await renderer.handleInterrupt();
+
+      await expect(running).resolves.toBe(130);
+      expect(process.stdin.pause).toHaveBeenCalled();
+    } finally {
+      hangReject?.(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+      Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true });
+      process.stdin.setRawMode = originalSetRawMode;
+      process.stdin.pause = originalPause;
+      process.stdin.removeAllListeners('data');
+    }
+  });
+
+  it('resolves run() on shutdown even if the in-flight LLM stream ignores abort', async () => {
+    const originalIsTTY = process.stdin.isTTY;
+    const originalSetRawMode = process.stdin.setRawMode;
+    const originalPause = process.stdin.pause;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+    process.stdin.setRawMode = vi.fn() as typeof process.stdin.setRawMode;
+    process.stdin.pause = vi.fn() as typeof process.stdin.pause;
+
+    let hangReject!: (error: Error) => void;
+    try {
+      const terminal = new DiffTerminal(12, 80, () => {});
+      const bus = createEventBus();
+      let started!: () => void;
+      const startedPromise = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const createChatCompletion = vi.fn().mockImplementation(() => {
+        started();
+        return new Promise((_resolve, reject) => {
+          hangReject = reject;
+        });
+      });
+      const harness = new Harness({
+        modules: [],
+        llmClient: { createChatCompletion },
+        config: testConfig,
+        bus,
+      });
+      const renderer = new DefaultRenderer(terminal, harness, bus);
+      const running = renderer.run();
+      void renderer.handleInput('slow');
+      await startedPromise;
+
+      renderer.shutdown(130);
+
+      await expect(running).resolves.toBe(130);
+      expect(process.stdin.pause).toHaveBeenCalled();
+    } finally {
+      hangReject?.(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+      Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true });
+      process.stdin.setRawMode = originalSetRawMode;
+      process.stdin.pause = originalPause;
+      process.stdin.removeAllListeners('data');
+    }
+  });
 });
