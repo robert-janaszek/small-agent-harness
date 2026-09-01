@@ -91,3 +91,124 @@ export type CellValue = z.infer<typeof cellValueSchema>;
 export type SalesRow = z.infer<typeof salesRowSchema>;
 export type SalesTable = z.infer<typeof salesTableSchema>;
 export type DataRow = Record<string, CellValue>;
+
+export const PREVIEW_MAX_LIMIT = 10;
+export const DISTINCT_VALUES_CAP = 20;
+
+export const filterOpSchema = z.enum([
+  'eq',
+  'neq',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'contains',
+  'in',
+  'isNull',
+  'isNotNull',
+]);
+
+const filterValueSchema = z.union([cellValueSchema, z.array(cellValueSchema)]);
+
+export const filterClauseSchema = z.object({
+  column: z.string().min(1).describe('Column name to test'),
+  op: filterOpSchema.describe(
+    'Comparison: eq, neq, gt, gte, lt, lte, contains, in, isNull, isNotNull',
+  ),
+  value: filterValueSchema
+    .optional()
+    .describe('Right-hand value. Required except for isNull and isNotNull. Use an array for op in.'),
+});
+
+export const filterRowsArgsSchema = z
+  .object({
+    match: z
+      .enum(['all', 'any'])
+      .optional()
+      .describe('Combine clauses with AND (all) or OR (any). Default all.'),
+    where: z.array(filterClauseSchema).min(1).describe('Filter clauses against the current buffer'),
+  })
+  .superRefine((args, ctx) => {
+    for (const [index, clause] of args.where.entries()) {
+      if (clause.op === 'isNull' || clause.op === 'isNotNull') {
+        continue;
+      }
+      if (clause.value === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `where[${index}].value is required for op "${clause.op}"`,
+          path: ['where', index, 'value'],
+        });
+      }
+      if (clause.op === 'in' && clause.value !== undefined && !Array.isArray(clause.value)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `where[${index}].value must be an array when op is "in"`,
+          path: ['where', index, 'value'],
+        });
+      }
+    }
+  });
+
+export const sortKeySchema = z.object({
+  column: z.string().min(1).describe('Column to sort by'),
+  direction: z.enum(['asc', 'desc']).optional().describe('Sort direction. Default asc.'),
+});
+
+export const sortRowsArgsSchema = z.object({
+  keys: z.array(sortKeySchema).min(1).describe('Sort keys, applied in order'),
+});
+
+export const aggregateMetricSchema = z.object({
+  op: z.enum(['count', 'sum', 'avg', 'min', 'max']).describe('Aggregation: count, sum, avg, min, or max'),
+  column: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Column to aggregate. Required for sum, avg, min, and max. Optional for count.'),
+  as: z.string().min(1).optional().describe('Result column name. Defaults to count or op_column.'),
+});
+
+export const aggregateArgsSchema = z.object({
+  groupBy: z
+    .array(z.string().min(1))
+    .optional()
+    .describe('Columns to group by. Omit or pass [] for a single total row.'),
+  metrics: z.array(aggregateMetricSchema).min(1).describe('Aggregations to compute for each group'),
+});
+
+export const describeTableArgsSchema = z.object({
+  column: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('When set, also list distinct values for this column (capped).'),
+});
+
+export const previewRowsArgsSchema = z.object({
+  offset: z.number().int().min(1).describe('1-based row number to start from'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(PREVIEW_MAX_LIMIT)
+    .describe(`Number of rows to return (max ${PREVIEW_MAX_LIMIT})`),
+  columns: z
+    .array(z.string().min(1))
+    .min(1)
+    .optional()
+    .describe('Optional column projection for this read only. Does not change the buffer.'),
+});
+
+export const resetBufferArgsSchema = z.object({});
+
+export type FilterOp = z.infer<typeof filterOpSchema>;
+export type FilterClause = z.infer<typeof filterClauseSchema>;
+export type FilterRowsArgs = z.infer<typeof filterRowsArgsSchema>;
+export type SortKey = z.infer<typeof sortKeySchema>;
+export type SortRowsArgs = z.infer<typeof sortRowsArgsSchema>;
+export type AggregateMetric = z.infer<typeof aggregateMetricSchema>;
+export type AggregateArgs = z.infer<typeof aggregateArgsSchema>;
+export type DescribeTableArgs = z.infer<typeof describeTableArgsSchema>;
+export type PreviewRowsArgs = z.infer<typeof previewRowsArgsSchema>;
+export type ResetBufferArgs = z.infer<typeof resetBufferArgsSchema>;

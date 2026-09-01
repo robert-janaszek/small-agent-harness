@@ -16,7 +16,7 @@ This repo provides a repeatable testbed: a generic agent loop, a fake integratio
 - A **benchmark / experiment setup** for edge models — swap `MODEL_NAME`, run the same scenarios, compare behaviour.
 - An **example domain module** (`smartHome`) that simulates device control in memory — no real hardware, no external APIs.
 - A **second benchmark module** ([`yamlRepair`](src/modules/yamlRepair/README.md)) — repair a large broken YAML file via file tools (`grep`, `read`, `replace`, `yamlParse`).
-- A **third benchmark module** ([`dataTable`](src/modules/dataTable/README.md)) — in-memory tabular buffer (starts with a 50×50 sales fixture; filter / aggregate / preview tools come next).
+- A **third benchmark module** ([`dataTable`](src/modules/dataTable/README.md)) — in-memory tabular buffer (50×50 sales fixture; `describeTable` / `filterRows` / `sortRows` / `aggregate` / `previewRows` / `resetBuffer`; export-to-user comes later).
 
 ## What this repo is not
 
@@ -28,7 +28,7 @@ The `smartHome` module is an **imaginary integration**: lights, AC units, TVs, a
 
 See also **[YAML repair](src/modules/yamlRepair/README.md)** — a format-fidelity stress test on a ~6 700-line config file (syntax errors, placeholders, exact whitespace in `replace`).
 
-See also **[Data table](src/modules/dataTable/README.md)** — a 50×50 sales fixture in an in-memory buffer, so later tools can filter and aggregate without the model rewriting rows.
+See also **[Data table](src/modules/dataTable/README.md)** — a 50×50 sales fixture in an in-memory buffer. Filter, sort, aggregate, and paginated preview go through tools so the model does not rewrite rows. A user-facing export that bypasses the model is not in this increment.
 
 ---
 
@@ -397,8 +397,10 @@ src/
     │   ├── main.ts         # run({ module })
     │   ├── module.ts       # createDataTableModule() + buffer panel
     │   ├── context.ts      # In-memory rows cloned from the fixture
+    │   ├── query.ts        # Filter / sort / aggregate / preview engine
     │   ├── fixtures/       # 50x50 sales.json
-    │   └── renderer/       # Buffer-size paint
+    │   ├── renderer/       # Buffer-size paint
+    │   └── *.tool.ts
     └── yamlRepair/         # YAML repair benchmark (Core plugin)
         ├── main.ts         # run({ module }) — --default starts the canonical repair
         ├── module.ts       # createYamlRepairModule() + parse-status panel

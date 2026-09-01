@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { salesTableSchema, type SalesRow, type SalesTable } from './schemas';
+import { salesTableSchema, type DataRow, type SalesRow, type SalesTable } from './schemas';
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'sales.json');
 
@@ -18,11 +18,11 @@ export type DataTableContext = {
   sourceId: string;
   description: string;
   columns: string[];
-  rows: SalesRow[];
+  rows: DataRow[];
   initialSourceId: string;
   initialDescription: string;
   initialColumns: string[];
-  initialRows: SalesRow[];
+  initialRows: DataRow[];
 };
 
 export function getFixturePath(): string {
@@ -34,13 +34,17 @@ export function loadSalesFixture(): SalesTable {
   return salesTableSchema.parse(parsed);
 }
 
-function cloneRows(rows: SalesRow[]): SalesRow[] {
+function toDataRows(rows: SalesRow[]): DataRow[] {
+  return rows.map((row) => ({ ...row }) as DataRow);
+}
+
+function cloneRows(rows: DataRow[]): DataRow[] {
   return structuredClone(rows);
 }
 
 export function createContext(): DataTableContext {
   const table = loadSalesFixture();
-  const rows = cloneRows(table.rows);
+  const rows = toDataRows(table.rows);
   const columns = [...table.columns];
   return {
     sourceId: table.id,

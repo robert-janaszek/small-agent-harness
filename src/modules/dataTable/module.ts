@@ -1,5 +1,7 @@
 import { SALES_COLUMN_COUNT, SALES_ROW_COUNT } from './columns';
 import type { Module, ModulePanel } from '../../core/module';
+import type { Tool } from '../../core/tool';
+import { aggregateTool } from './aggregate.tool';
 import {
   createContext,
   createEmptySnapshot,
@@ -8,21 +10,34 @@ import {
   type DataTableContext,
   type DataTableStateSnapshot,
 } from './context';
+import { describeTableTool } from './describeTable.tool';
+import { filterRowsTool } from './filterRows.tool';
+import { previewRowsTool } from './previewRows.tool';
 import { paintBufferPanel } from './renderer/bufferPanel';
+import { resetBufferTool } from './resetBuffer.tool';
+import { sortRowsTool } from './sortRows.tool';
 
 export const DATA_TABLE_MODULE_ID = 'dataTable';
 
 export const DATA_TABLE_PROMPT = `You work on an in-memory tabular buffer of sales line items.
 
-Small models drop, duplicate, and invent records when they scan tables in the prompt. Do not count, filter, sort, or aggregate rows in your head. Do not quote row payloads unless a tool returned them.
+Small models drop, duplicate, and invent records when they scan tables in the prompt. Do not count, filter, sort, or aggregate rows in your head. Do not quote row payloads unless a tool returned them. Numbers and row lists in your reply must come from a tool result.
 
-The buffer starts as the sales fixture (${SALES_ROW_COUNT} rows x ${SALES_COLUMN_COUNT} columns). Module state only reports rowCount, columnCount, and column names — not the cells.
+The buffer starts as the sales fixture (${SALES_ROW_COUNT} rows x ${SALES_COLUMN_COUNT} columns). Module state only reports rowCount, columnCount, and column names — not the cells. Call describeTable to learn column types and distinct values.
 
 Money columns mix EUR, USD, JPY, GBP, CAD, and SGD at catalog prices that are not FX-converted. Never sum lineTotal, lineNet, or similar money fields across currencies without grouping by currency.
 
-You currently have no tools. If asked what tools you have, say so in one short sentence. Do not invent tool names or dump schemas.
+Tools:
+- describeTable: column stats; pass column to list distinct values (capped).
+- filterRows: keep matching rows (AND by default). Mutates the buffer.
+- sortRows: order the buffer. Mutates the buffer.
+- aggregate: groupBy + count/sum/avg/min/max. Replaces the buffer with the result table and returns those rows.
+- previewRows: paginated cells for you (offset 1-based, max 10 rows). Optional columns project the read without changing the buffer.
+- resetBuffer: restore the original sales fixture after a filter, sort, or aggregate.
 
-Tools for filter, aggregate (sum/avg/max/min/count), paginated preview, and sending the full buffer to the user (bypassing the model) will be added next. Until those tools exist, do not claim specific totals or row lists.
+filterRows, sortRows, and aggregate replace the working set. Call resetBuffer when you need the original table again.
+previewRows cannot return the whole buffer. After aggregate, do not preview for confirmation if the grouped rows are already in the tool result.
+There is no tool to send the full buffer to the user yet.
 
 Do not ask the user a question.`;
 
@@ -81,6 +96,14 @@ export function createDataTableModule(): DataTableModule {
     id: DATA_TABLE_MODULE_ID,
     context,
     prompt: DATA_TABLE_PROMPT,
+    tools: [
+      describeTableTool(context),
+      filterRowsTool(context),
+      sortRowsTool(context),
+      aggregateTool(context),
+      previewRowsTool(context),
+      resetBufferTool(context),
+    ] as Tool<any>[],
     createPanel: createDataTablePanel,
     onSessionStart: emitState,
     onSessionReset: (runtime) => {

@@ -109,13 +109,13 @@ describe('createContext', () => {
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
     expect(context.columns).toHaveLength(SALES_COLUMN_COUNT);
 
-    const original = context.rows[0]!.lineTotal;
+    const original = Number(context.rows[0]!.lineTotal);
     context.rows[0]!.lineTotal = -1;
-    expect(context.initialRows[0]!.lineTotal).toBe(original);
+    expect(Number(context.initialRows[0]!.lineTotal)).toBe(original);
     expect(loadSalesFixture().rows[0]!.lineTotal).toBe(original);
 
     resetContext(context);
-    expect(context.rows[0]!.lineTotal).toBe(original);
+    expect(Number(context.rows[0]!.lineTotal)).toBe(original);
   });
 
   it('restores columns and identity on reset', () => {
