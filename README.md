@@ -245,7 +245,7 @@ Smart home emits `{ type: 'module', module: 'smartHome', event: 'state', payload
 
 YAML repair emits `{ type: 'module', module: 'yamlRepair', event: 'state', payload }` with `{ filePath, parseStatus }` (`errorCount`, `ok`, `errors`, `undoHint`). The work file itself is not streamed — only compact parse status for the right panel.
 
-Data table emits `{ type: 'module', module: 'dataTable', event: 'state', payload }` with `{ sourceId, description, rowCount, columnCount, columns }`. Row cells stay in the in-memory buffer and are not streamed on `state`. `sendBufferToUser` emits `{ event: 'export', payload }` with the full `columns` and `rows` for JSONL consumers. The TUI shows a truncated preview (up to 15 rows).
+Data table emits `{ type: 'module', module: 'dataTable', event: 'state', payload }` with `{ sourceId, description, rowCount, columnCount, columns }`. Row cells stay in the in-memory buffer and are not streamed on `state`. `sendBufferToUser` emits `{ event: 'export', payload }` with the full `columns` and `rows` (numbers rounded to two decimal places) for JSONL consumers. The TUI shows a truncated preview (up to 15 rows).
 
 Example lines:
 

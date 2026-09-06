@@ -8,6 +8,7 @@ import {
   describeTable,
   filterRows,
   previewRows,
+  roundExportRows,
   selectColumns,
   sortRows,
 } from './query';
@@ -184,6 +185,15 @@ describe('aggregateRows', () => {
         metrics: [{ op: 'sum', column: 'region' }],
       }),
     ).toThrow('Cannot sum non-numeric column "region"');
+  });
+});
+
+describe('roundExportRows', () => {
+  it('rounds finite numbers to two decimal places and leaves other cells alone', () => {
+    const rounded = roundExportRows([
+      { name: 'alpha', amount: 10.126, ratio: 1 / 3, count: 4, note: null },
+    ]);
+    expect(rounded).toEqual([{ name: 'alpha', amount: 10.13, ratio: 0.33, count: 4, note: null }]);
   });
 });
 

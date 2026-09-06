@@ -214,6 +214,22 @@ describe('dataTable tools', () => {
     expect(payload.rows).toHaveLength(SALES_ROW_COUNT);
     expect(JSON.stringify(payload.rows)).toContain('Northwind Logistics');
   });
+
+  it('rounds exported numbers to two decimals without mutating the buffer', async () => {
+    const context = createContext();
+    context.columns = ['amount', 'label'];
+    context.rows = [{ amount: 10.126, label: 'keep' }];
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    await sendBufferToUserTool(context).call({});
+
+    expect(context.rows[0]?.amount).toBe(10.126);
+    const payload = emitted[0]?.payload as { rows: Array<{ amount: number; label: string }> };
+    expect(payload.rows).toEqual([{ amount: 10.13, label: 'keep' }]);
+  });
 });
 
 describe('dataTable tool activity', () => {

@@ -40,7 +40,7 @@ npm run data-table
 npm run data-table:harness -- --serve
 ```
 
-The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events. `sendBufferToUser` emits `{ type: 'module', event: 'export' }` with the **full** current table for JSONL consumers. The TUI log shows up to 15 rows and as many columns as fit, marked `(truncated)`.
+The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events. `sendBufferToUser` emits `{ type: 'module', event: 'export' }` with the **full** current table for JSONL consumers (numeric cells rounded to two decimal places). The TUI log shows up to 15 rows and as many columns as fit, marked `(truncated)`.
 
 System tests (`npm run test:system`) run the same live-model loop as smart home when `GET {OPENAI_BASE_URL}/models` is reachable: filter to EMEA, `SUM(lineTotal)` grouped by currency, and `sendBufferToUser`. They are skipped automatically if the API is down.
 

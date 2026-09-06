@@ -238,6 +238,23 @@ export function projectRow(row: DataRow, columns: string[]): DataRow {
   return projected;
 }
 
+export function roundExportRows(rows: DataRow[]): DataRow[] {
+  return rows.map((row) => {
+    const next: DataRow = {};
+    for (const [column, value] of Object.entries(row)) {
+      next[column] = roundExportValue(value);
+    }
+    return next;
+  });
+}
+
+function roundExportValue(value: CellValue): CellValue {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return value;
+  }
+  return Math.round(value * 100) / 100;
+}
+
 export function previewRows(rows: DataRow[], columns: string[], spec: PreviewRowsArgs): PreviewResult {
   const selected = spec.columns ?? columns;
   for (const column of selected) {

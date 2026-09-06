@@ -1,5 +1,6 @@
 import { defineTool } from '../../core/tool';
 import type { DataTableContext } from './context';
+import { roundExportRows } from './query';
 import { sendBufferToUserArgsSchema, type SendBufferToUserArgs } from './schemas';
 
 export const sendBufferToUserTool = defineTool<SendBufferToUserArgs, DataTableContext>({
@@ -15,7 +16,7 @@ export const sendBufferToUserTool = defineTool<SendBufferToUserArgs, DataTableCo
   },
   call(context) {
     const columns = [...context.columns];
-    const rows = structuredClone(context.rows);
+    const rows = roundExportRows(structuredClone(context.rows));
     context.emit('export', {
       sourceId: context.sourceId,
       description: context.description,
