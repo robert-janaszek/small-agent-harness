@@ -201,7 +201,7 @@ npm run test:watch
 |-------|----------------|
 | `npm test` | Config validation, `Harness` loop (mocked LLM), `runTools`, all smart home tools, integration scenario with poisoned tool |
 | `npm run test:coverage` | Same as `npm test`, plus V8 coverage (`text` + `html` under `coverage/`) |
-| `npm run test:system` | Full agent runs: lights off, AC on + temperature, water valve — skipped automatically if the API is unreachable |
+| `npm run test:system` | Full agent runs against a live model: smart home (lights, AC, valve) and dataTable (filter EMEA, sum by currency, send buffer) — skipped automatically if the API is unreachable |
 
 System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when no server is available, so CI and offline development still work with unit tests only. They check `HarnessRunResult.iterations < maxIterations` and domain state in `module.context` — not only side effects that could occur before the loop fails.
 
