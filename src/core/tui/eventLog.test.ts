@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createTool, quoteActivityTarget } from '../tool';
 import { colors } from './colors';
 import { EventLog, formatEvent, formatThoughtDuration, wrapAgentLine } from './eventLog';
+import { EXPORT_PREVIEW_MAX_ROWS } from './tablePreview';
 import { indexToolActivity } from './toolActivity';
 
 const grep = createTool({
@@ -389,5 +390,38 @@ describe('EventLog', () => {
     log.append({ type: 'tool_call', name: 'grep', args: { pattern: 'TODO' }, toolCallId: '1' }, 2_000);
 
     expect(log.render(10, 40)).toEqual(['thought for 2 seconds', 'grepping "TODO"']);
+  });
+
+  it('renders a truncated table for module export and does not dump the JSON payload', () => {
+    const log = new EventLog();
+    const rows = Array.from({ length: 50 }, (_, index) => ({
+      id: index + 1,
+      name: `R${String(index + 1).padStart(2, '0')}`,
+    }));
+    const payload = { columns: ['id', 'name'], rows, secret: 'Northwind Logistics' };
+
+    expect(
+      formatEvent({
+        type: 'module',
+        module: 'dataTable',
+        event: 'export',
+        payload,
+      }),
+    ).toBeNull();
+
+    log.append({
+      type: 'module',
+      module: 'dataTable',
+      event: 'export',
+      payload,
+    });
+
+    const text = log.render(40, 80).join('\n');
+    expect(text).toContain(`exported ${EXPORT_PREVIEW_MAX_ROWS}/50 rows (truncated)`);
+    expect(text).toContain('R01');
+    expect(text).toContain('R15');
+    expect(text).not.toContain('R16');
+    expect(text).not.toContain('Northwind Logistics');
+    expect(text).not.toContain(JSON.stringify(payload));
   });
 });

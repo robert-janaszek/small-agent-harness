@@ -2,6 +2,7 @@ import type { CoreEvent } from '../protocol';
 import type { ToolActivity } from '../tool';
 import { colors } from './colors';
 import type { TrueColor } from './diffTerminal';
+import { formatTablePreview, parseExportTable, type TablePreviewSource } from './tablePreview';
 import { formatToolActivity } from './toolActivity';
 
 const MAX_CONTENT_PREVIEW = 56;
@@ -197,7 +198,7 @@ export function formatEvent(
     case 'error':
       return `ERROR: ${event.message}`;
     case 'module': {
-      if (event.event === 'state') {
+      if (event.event === 'state' || event.event === 'export') {
         return null;
       }
       if (event.payload === undefined) {
@@ -226,7 +227,11 @@ type ToolLogEntry = {
   failed: boolean;
 };
 
-type LogEntry = TextLogEntry | ToolLogEntry;
+type TableLogEntry = {
+  kind: 'table';
+} & TablePreviewSource;
+
+type LogEntry = TextLogEntry | ToolLogEntry | TableLogEntry;
 
 function isReasoningFallback(entry: TextLogEntry, agentLine: string): boolean {
   if (entry.tone !== 'thinking') {
@@ -245,6 +250,9 @@ function formatLogEntry(entry: LogEntry, activities: ReadonlyMap<string, ToolAct
   if (entry.kind === 'tool') {
     const status = !entry.done ? 'running' : entry.failed ? 'failed' : 'done';
     return formatToolActivity(entry.name, entry.args, status, activities.get(entry.name));
+  }
+  if (entry.kind === 'table') {
+    return '';
   }
   return entry.line;
 }
@@ -328,6 +336,16 @@ export class EventLog {
       return;
     }
 
+    if (event.type === 'module' && event.event === 'export') {
+      const table = parseExportTable(event.payload);
+      if (table) {
+        this.entries.push({ kind: 'table', columns: table.columns, rows: table.rows });
+        return;
+      }
+      this.entries.push({ kind: 'text', line: `module.${event.module} export` });
+      return;
+    }
+
     const line = formatEvent(event, this.activities);
     if (line === null) {
       return;
@@ -366,6 +384,9 @@ export class EventLog {
     }
 
     const wrappedLines = this.entries.flatMap((entry) => {
+      if (entry.kind === 'table') {
+        return formatTablePreview(entry, width).map((text) => ({ text }));
+      }
       const line = formatLogEntry(entry, this.activities);
       const trueColorFg = entry.kind === 'text' && entry.tone === 'thinking' ? colors.thinking : undefined;
       const wrapped = isWrappableLogLine(line) ? wrapAgentLine(line, width) : wrapPlainLine(line, width);
