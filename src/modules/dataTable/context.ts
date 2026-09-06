@@ -23,6 +23,7 @@ export type DataTableContext = {
   initialDescription: string;
   initialColumns: string[];
   initialRows: DataRow[];
+  emit: (event: string, payload?: unknown) => void;
 };
 
 export function getFixturePath(): string {
@@ -55,6 +56,7 @@ export function createContext(): DataTableContext {
     initialDescription: table.description,
     initialColumns: [...columns],
     initialRows: cloneRows(rows),
+    emit: () => {},
   };
 }
 

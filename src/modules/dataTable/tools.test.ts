@@ -10,6 +10,8 @@ import { createDataTableModule } from './module';
 import { PREVIEW_MAX_LIMIT } from './schemas';
 import { previewRowsTool } from './previewRows.tool';
 import { resetBufferTool } from './resetBuffer.tool';
+import { selectColumnsTool } from './selectColumns.tool';
+import { sendBufferToUserTool } from './sendBufferToUser.tool';
 import { sortRowsTool } from './sortRows.tool';
 
 function parseJson(content: string): Record<string, unknown> {
@@ -161,6 +163,57 @@ describe('dataTable tools', () => {
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
     expect(context.columns).toEqual([...SALES_COLUMNS]);
   });
+
+  it('selectColumns mutates the schema and resetBuffer restores the fixture', async () => {
+    const context = createContext();
+    const select = selectColumnsTool(context);
+    const reset = resetBufferTool(context);
+    const result = parseJson(
+      await select.call({
+        columns: ['orderId', 'lineTotal', 'currency'],
+      }),
+    );
+
+    expect(result).toEqual({
+      rowCount: SALES_ROW_COUNT,
+      columnCount: 3,
+      columns: ['orderId', 'lineTotal', 'currency'],
+    });
+    expect(JSON.stringify(result)).not.toContain('Northwind Logistics');
+    expect(context.columns).toEqual(['orderId', 'lineTotal', 'currency']);
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(Object.keys(context.rows[0] ?? {})).toEqual(['orderId', 'lineTotal', 'currency']);
+
+    const restored = parseJson(await reset.call({}));
+    expect(restored).toEqual({ rowCount: SALES_ROW_COUNT, columnCount: SALES_COLUMN_COUNT });
+    expect(context.columns).toEqual([...SALES_COLUMNS]);
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+  });
+
+  it('sendBufferToUser emits the full buffer and omits cells from the tool result', async () => {
+    const context = createContext();
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    const result = parseJson(await sendBufferToUserTool(context).call({}));
+    expect(result).toMatchObject({
+      sent: true,
+      rowCount: SALES_ROW_COUNT,
+      columnCount: SALES_COLUMN_COUNT,
+      message: 'do not reprint these rows',
+    });
+    expect(JSON.stringify(result)).not.toContain('Northwind Logistics');
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]?.event).toBe('export');
+    const payload = emitted[0]?.payload as { rows: unknown[]; columns: string[] };
+    expect(payload.columns).toEqual([...SALES_COLUMNS]);
+    expect(payload.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(JSON.stringify(payload.rows)).toContain('Northwind Logistics');
+  });
 });
 
 describe('dataTable tool activity', () => {
@@ -180,6 +233,12 @@ describe('dataTable tool activity', () => {
       'filtered 1 clause',
     ],
     [
+      'selectColumns',
+      { columns: ['orderId', 'currency'] },
+      'selecting "orderId, currency"',
+      'selected "orderId, currency"',
+    ],
+    [
       'sortRows',
       { keys: [{ column: 'lineTotal', direction: 'desc' }] },
       'sorting "lineTotal"',
@@ -193,6 +252,7 @@ describe('dataTable tool activity', () => {
     ],
     ['aggregate', { metrics: [{ op: 'count' }] }, 'aggregating totals', 'aggregated totals'],
     ['previewRows', { offset: 1, limit: 10 }, 'previewing rows 1-10', 'previewed rows 1-10'],
+    ['sendBufferToUser', {}, 'sending buffer', 'sent buffer'],
     ['resetBuffer', {}, 'resetting buffer', 'reset buffer'],
   ] as const)('%s present/past', (name, args, running, done) => {
     expect(format(name, args, 'running')).toBe(running);

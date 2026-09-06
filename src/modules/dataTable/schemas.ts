@@ -200,6 +200,15 @@ export const previewRowsArgsSchema = z.object({
     .describe('Optional column projection for this read only. Does not change the buffer.'),
 });
 
+export const selectColumnsArgsSchema = z.object({
+  columns: z
+    .array(z.string().min(1))
+    .min(1)
+    .describe('Columns to keep, in this order. Replaces the buffer schema.'),
+});
+
+export const sendBufferToUserArgsSchema = z.object({});
+
 export const resetBufferArgsSchema = z.object({});
 
 export type FilterOp = z.infer<typeof filterOpSchema>;
@@ -211,4 +220,6 @@ export type AggregateMetric = z.infer<typeof aggregateMetricSchema>;
 export type AggregateArgs = z.infer<typeof aggregateArgsSchema>;
 export type DescribeTableArgs = z.infer<typeof describeTableArgsSchema>;
 export type PreviewRowsArgs = z.infer<typeof previewRowsArgsSchema>;
+export type SelectColumnsArgs = z.infer<typeof selectColumnsArgsSchema>;
+export type SendBufferToUserArgs = z.infer<typeof sendBufferToUserArgsSchema>;
 export type ResetBufferArgs = z.infer<typeof resetBufferArgsSchema>;

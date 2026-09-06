@@ -206,6 +206,38 @@ export function aggregateRows(rows: DataRow[], columns: string[], spec: Aggregat
   return { columns: resultColumns, rows: resultRows, warnings };
 }
 
+export function selectColumns(
+  rows: DataRow[],
+  columns: string[],
+  selected: string[],
+): { columns: string[]; rows: DataRow[] } {
+  if (selected.length === 0) {
+    throw new QueryError('selectColumns requires at least one column');
+  }
+
+  const seen = new Set<string>();
+  for (const name of selected) {
+    requireColumn(columns, name);
+    if (seen.has(name)) {
+      throw new QueryError(`Duplicate column "${name}"`);
+    }
+    seen.add(name);
+  }
+
+  return {
+    columns: [...selected],
+    rows: rows.map((row) => projectRow(row, selected)),
+  };
+}
+
+export function projectRow(row: DataRow, columns: string[]): DataRow {
+  const projected: DataRow = {};
+  for (const column of columns) {
+    projected[column] = getCell(row, column);
+  }
+  return projected;
+}
+
 export function previewRows(rows: DataRow[], columns: string[], spec: PreviewRowsArgs): PreviewResult {
   const selected = spec.columns ?? columns;
   for (const column of selected) {
@@ -464,12 +496,4 @@ function computeMetric(rows: DataRow[], metric: AggregateMetric): CellValue {
     return Math.min(...values);
   }
   return Math.max(...values);
-}
-
-function projectRow(row: DataRow, columns: string[]): DataRow {
-  const projected: DataRow = {};
-  for (const column of columns) {
-    projected[column] = getCell(row, column);
-  }
-  return projected;
 }

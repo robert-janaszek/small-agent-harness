@@ -40,28 +40,29 @@ npm run data-table
 npm run data-table:harness -- --serve
 ```
 
-The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events.
+The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events. `sendBufferToUser` emits `{ type: 'module', event: 'export' }` with the **full** current table for JSONL consumers. The TUI log shows up to 15 rows and as many columns as fit, marked `(truncated)`.
 
 ---
 
 ## Tools
 
-The working set is the in-memory buffer. `filterRows`, `sortRows`, and `aggregate` replace it. `resetBuffer` (and session reset) restore the sales fixture.
+The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRows`, and `aggregate` replace it. `resetBuffer` (and session reset) restore the sales fixture.
 
 | Tool | Mutates buffer? | What the model sees |
 |------|-----------------|---------------------|
 | `describeTable` | no | Column types, null/distinct counts; optional distinct values (capped) |
 | `filterRows` | yes (WHERE) | `{ rowCount, dropped }` |
+| `selectColumns` | yes (SELECT) | `{ rowCount, columnCount, columns }` |
 | `sortRows` | yes (ORDER BY) | `{ rowCount }` |
 | `aggregate` | yes (replaces with the result table) | Grouped rows plus `warnings` |
 | `previewRows` | no | Up to 10 rows, 1-based `offset`; optional `columns` project the read |
+| `sendBufferToUser` | no | Counts only; full rows go to the user via `export` |
 | `resetBuffer` | yes (fixture) | `{ rowCount, columnCount }` |
-
-There is no `sendBufferToUser` yet. Do not dump the full table through `previewRows`.
 
 Typical sequences:
 
 - Totals in EMEA per currency: `describeTable` → `filterRows` `region = EMEA` → `aggregate` `groupBy: [currency]`, `sum(lineTotal)` → answer from the tool result.
 - Inspect expensive lines: `sortRows` `lineTotal desc` → `previewRows` with a narrow `columns` list.
+- Hand the user a slice: `filterRows` → `selectColumns` → `sendBufferToUser` (do not reprint the rows).
 
 The buffer starts as a clone of `sales.json`. Session reset restores rows **and** columns.

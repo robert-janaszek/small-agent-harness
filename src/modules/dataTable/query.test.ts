@@ -8,6 +8,7 @@ import {
   describeTable,
   filterRows,
   previewRows,
+  selectColumns,
   sortRows,
 } from './query';
 import { DISTINCT_VALUES_CAP, type DataRow } from './schemas';
@@ -183,6 +184,24 @@ describe('aggregateRows', () => {
         metrics: [{ op: 'sum', column: 'region' }],
       }),
     ).toThrow('Cannot sum non-numeric column "region"');
+  });
+});
+
+describe('selectColumns', () => {
+  it('projects columns in the requested order', () => {
+    const result = selectColumns(ROWS, [...COLUMNS], ['amount', 'name']);
+    expect(result.columns).toEqual(['amount', 'name']);
+    expect(result.rows).toEqual([
+      { amount: 10, name: 'alpha' },
+      { amount: 30, name: 'beta' },
+      { amount: 20, name: 'gamma' },
+      { amount: null, name: 'delta' },
+    ]);
+  });
+
+  it('rejects unknown and duplicate columns', () => {
+    expect(() => selectColumns(ROWS, [...COLUMNS], ['missing'])).toThrow('Unknown column "missing"');
+    expect(() => selectColumns(ROWS, [...COLUMNS], ['name', 'name'])).toThrow('Duplicate column "name"');
   });
 });
 

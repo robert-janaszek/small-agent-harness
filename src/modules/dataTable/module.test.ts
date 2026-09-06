@@ -72,7 +72,10 @@ describe('createDataTableModule', () => {
     expect(DATA_TABLE_PROMPT).toContain('Do not ask the user a question');
     expect(DATA_TABLE_PROMPT).toContain('Call describeTable');
     expect(DATA_TABLE_PROMPT).toContain('Call resetBuffer when you need the original table again');
+    expect(DATA_TABLE_PROMPT).toContain('sendBufferToUser');
+    expect(DATA_TABLE_PROMPT).toContain('selectColumns');
     expect(DATA_TABLE_PROMPT).not.toContain('You currently have no tools');
+    expect(DATA_TABLE_PROMPT).not.toContain('There is no tool to send the full buffer');
     expect(DATA_TABLE_PROMPT).not.toContain('tool-calling harness');
 
     const composed = composeSystemPrompt(HARNESS_PROMPT, [createDataTableModule()]);
@@ -123,14 +126,16 @@ describe('createDataTableModule', () => {
     expect(module.context.columns).toEqual([...SALES_COLUMNS]);
   });
 
-  it('registers the six buffer tools', () => {
+  it('registers the buffer tools', () => {
     const module = createDataTableModule();
     expect(module.tools?.map((tool) => tool.function.name)).toEqual([
       'describeTable',
       'filterRows',
+      'selectColumns',
       'sortRows',
       'aggregate',
       'previewRows',
+      'sendBufferToUser',
       'resetBuffer',
     ]);
   });
@@ -175,6 +180,52 @@ describe('createDataTableModule', () => {
       rowCount: module.context.rows.length,
       columnCount: SALES_COLUMN_COUNT,
     });
+  });
+
+  it('emits a full export payload and keeps cells out of the tool result', async () => {
+    const events: CoreEvent[] = [];
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
+    const module = createDataTableModule();
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantToolCall('sendBufferToUser', {}) }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('sent the buffer') }],
+      });
+    const harness = new Harness({
+      modules: [module],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+
+    harness.startSession();
+    await harness.run('send the table to the user');
+
+    const exported = events.find(
+      (event): event is Extract<CoreEvent, { type: 'module' }> =>
+        event.type === 'module' && event.module === DATA_TABLE_MODULE_ID && event.event === 'export',
+    );
+    expect(exported?.payload).toMatchObject({
+      sourceId: SALES_TABLE_ID,
+      rowCount: SALES_ROW_COUNT,
+      columnCount: SALES_COLUMN_COUNT,
+    });
+    const payload = exported?.payload as { rows: unknown[]; columns: string[] };
+    expect(payload.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(payload.columns).toEqual([...SALES_COLUMNS]);
+    expect(JSON.stringify(payload.rows)).toContain('Northwind Logistics');
+
+    const toolResult = events.find(
+      (event): event is Extract<CoreEvent, { type: 'tool_result' }> =>
+        event.type === 'tool_result' && event.name === 'sendBufferToUser',
+    );
+    expect(toolResult?.content).toContain('"sent":true');
+    expect(toolResult?.content).toContain('do not reprint these rows');
+    expect(toolResult?.content).not.toContain('Northwind Logistics');
   });
 });
 
