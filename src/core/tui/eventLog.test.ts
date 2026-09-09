@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { createTool, quoteActivityTarget } from '../tool';
 import { colors } from './colors';
-import { EventLog, formatEvent, formatThoughtDuration, wrapAgentLine } from './eventLog';
+import { EventLog, formatEvent, formatThoughtDuration, MAX_WRAPPED_THINK_LINES, wrapAgentLine } from './eventLog';
 import { EXPORT_PREVIEW_MAX_ROWS } from './tablePreview';
 import { indexToolActivity } from './toolActivity';
 
@@ -109,6 +109,28 @@ describe('wrapAgentLine', () => {
   it('wraps think lines with the think prefix', () => {
     expect(wrapAgentLine('think: looking at tools', 40)).toEqual(['think: looking at tools']);
   });
+
+  it('keeps the full agent reply instead of dropping wrapped lines after the first few', () => {
+    const sentences = Array.from({ length: 20 }, (_, index) => `Sentence number ${index + 1}.`);
+    const wrapped = wrapAgentLine(`agent: ${sentences.join(' ')}`, 40);
+
+    expect(wrapped.length).toBeGreaterThan(10);
+    expect(wrapped[0]).toMatch(/^agent: Sentence number 1\./);
+    expect(wrapped.join('\n').replace(/\s+/g, ' ')).toContain('Sentence number 20.');
+    expect(wrapped.every((line) => line.length <= 40)).toBe(true);
+  });
+
+  it('keeps only the last few wrapped think lines and retags the visible head', () => {
+    const thoughts = Array.from({ length: 20 }, (_, index) => `Thought number ${index + 1}.`);
+    const wrapped = wrapAgentLine(`think: ${thoughts.join(' ')}`, 40);
+    const collapsed = wrapped.join('\n').replace(/\s+/g, ' ');
+
+    expect(wrapped).toHaveLength(MAX_WRAPPED_THINK_LINES);
+    expect(wrapped[0]?.startsWith('think: ')).toBe(true);
+    expect(collapsed).toContain('Thought number 20.');
+    expect(collapsed).not.toContain('Thought number 1.');
+    expect(wrapped.every((line) => line.length <= 40)).toBe(true);
+  });
 });
 
 describe('formatThoughtDuration', () => {
@@ -135,6 +157,37 @@ describe('EventLog', () => {
 
     log.clear();
     expect(log.render(10, 40)).toEqual([]);
+  });
+
+  it('renders a long streamed agent reply past the old ten-line wrap cap', () => {
+    const log = new EventLog();
+    const sentences = Array.from({ length: 20 }, (_, index) => `Sentence number ${index + 1}.`);
+    log.appendDelta(`${sentences.join(' ')} `);
+    log.appendDelta('Final sentence.');
+
+    const lines = log.render(40, 36);
+    expect(lines.some((line) => line.includes('Sentence number 1.'))).toBe(true);
+    expect(lines.some((line) => line.includes('Final sentence.'))).toBe(true);
+    expect(lines.filter((line) => line.startsWith('agent:') || line.startsWith('       ')).length).toBeGreaterThan(
+      10,
+    );
+  });
+
+  it('scrolls streamed thinking to the latest lines without filling the pane', () => {
+    const log = new EventLog();
+    log.append({ type: 'user_command', command: 'hi' });
+    const thoughts = Array.from({ length: 20 }, (_, index) => `Thought number ${index + 1}.`);
+    log.appendReasoningDelta(thoughts.join(' '));
+
+    const lines = log.render(40, 40);
+    const collapsed = lines.join('\n').replace(/\s+/g, ' ');
+    const thinkLines = lines.filter((line) => line.startsWith('think:') || line.startsWith('       '));
+
+    expect(lines[0]).toBe('> hi');
+    expect(thinkLines).toHaveLength(MAX_WRAPPED_THINK_LINES);
+    expect(thinkLines[0]?.startsWith('think: ')).toBe(true);
+    expect(collapsed).toContain('Thought number 20.');
+    expect(collapsed).not.toContain('Thought number 1.');
   });
 
   it('wraps long non-agent lines instead of overflowing the pane', () => {
