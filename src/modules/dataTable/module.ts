@@ -27,7 +27,7 @@ Small models drop, duplicate, and invent records when they scan tables in the pr
 
 The buffer starts as the sales fixture (${SALES_ROW_COUNT} rows x ${SALES_COLUMN_COUNT} columns). Module state only reports rowCount, columnCount, and column names — not the cells. Call describeTable to learn column types and distinct values.
 
-Money columns mix EUR, USD, JPY, GBP, CAD, and SGD at catalog prices that are not FX-converted. Never sum lineTotal, lineNet, or similar money fields across currencies without grouping by currency.
+Money columns mix EUR, USD, JPY, GBP, CAD, and SGD. Catalog prices start in EUR and are converted to the customer currency. Never sum lineTotal, lineNet, or similar money fields across currencies without grouping by currency.
 
 Tools:
 - describeTable: column stats; pass column to list distinct values (capped).

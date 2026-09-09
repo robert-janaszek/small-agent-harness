@@ -25,6 +25,27 @@ describe('sales fixture', () => {
     expect(generated.columns).toHaveLength(SALES_COLUMN_COUNT);
   });
 
+  it('converts the EUR catalog into the row currency instead of reusing the same number', () => {
+    const table = buildSalesTable();
+    const nimbus = table.rows.filter((row) => row.sku === 'SIT-NM-880');
+    const byCurrency = new Map<string, number>();
+
+    expect(nimbus.length).toBeGreaterThan(1);
+
+    for (const row of nimbus) {
+      const previous = byCurrency.get(row.currency);
+      if (previous === undefined) {
+        byCurrency.set(row.currency, row.unitPrice);
+      } else {
+        expect(row.unitPrice).toBe(previous);
+      }
+    }
+
+    expect(byCurrency.get('EUR')).toBe(289);
+    expect(byCurrency.get('GBP')).toBe(245.65);
+    expect(byCurrency.size).toBeGreaterThan(1);
+  });
+
   it('gives every row the same 50 keys and consistent money fields', () => {
     const table = loadSalesFixture();
 
