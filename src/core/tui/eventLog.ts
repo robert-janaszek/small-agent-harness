@@ -6,7 +6,7 @@ import { formatTablePreview, parseExportTable, type TablePreviewSource } from '.
 import { formatToolActivity } from './toolActivity';
 
 const MAX_CONTENT_PREVIEW = 56;
-const MAX_WRAPPED_AGENT_LINES = 10;
+export const MAX_WRAPPED_THINK_LINES = 6;
 const AGENT_PREFIX = 'agent: ';
 const ASSISTANT_PREFIX = 'assistant: ';
 const THINK_PREFIX = 'think: ';
@@ -140,7 +140,25 @@ export function wrapAgentLine(line: string, width: number): string[] {
     }
   }
 
-  return result.length > MAX_WRAPPED_AGENT_LINES ? result.slice(0, MAX_WRAPPED_AGENT_LINES) : result;
+  if (prefix === THINK_PREFIX && result.length > MAX_WRAPPED_THINK_LINES) {
+    return prefixTail(result.slice(-MAX_WRAPPED_THINK_LINES), prefix);
+  }
+
+  return result;
+}
+
+function prefixTail(lines: string[], prefix: string): string[] {
+  const first = lines[0];
+  if (first === undefined || first.startsWith(prefix)) {
+    return lines;
+  }
+
+  const indent = ' '.repeat(prefix.length);
+  if (first.startsWith(indent)) {
+    return [`${prefix}${first.slice(indent.length)}`, ...lines.slice(1)];
+  }
+
+  return [`${prefix}${first}`, ...lines.slice(1)];
 }
 
 function isWrappableLogLine(line: string): boolean {
