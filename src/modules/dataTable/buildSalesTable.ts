@@ -26,9 +26,20 @@ type Product = {
   category: string;
   subcategory: string;
   brand: string;
+  /** Catalog amount in EUR; converted to the customer currency on each row. */
   unitPrice: number;
   unitCost: number;
   weightKg: number;
+};
+
+/** Synthetic EUR→local rates so a chair is not 289 JPY and 289 GBP. */
+const FX_FROM_EUR: Record<SalesRow['currency'], number> = {
+  EUR: 1,
+  USD: 1.1,
+  GBP: 0.85,
+  CAD: 1.5,
+  SGD: 1.45,
+  JPY: 160,
 };
 
 type Salesperson = {
@@ -271,6 +282,10 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+function convertFromEur(amountEur: number, currency: SalesRow['currency']): number {
+  return round2(amountEur * FX_FROM_EUR[currency]);
+}
+
 function round4(value: number): number {
   return Math.round(value * 10000) / 10000;
 }
@@ -444,7 +459,8 @@ export function buildSalesTable(): SalesTable {
             ? 'Rush handling requested.'
             : null;
     const updatedAt = laterTimestamp([orderDate, shipDate, deliveryDate], rng);
-    const orderShippingCost = orderStatus === 'cancelled' ? 0 : round2(8 + rng() * 42);
+    const orderShippingCost =
+      orderStatus === 'cancelled' ? 0 : convertFromEur(8 + rng() * 42, customer.currency);
     const orderId = `ORD-${orderSeq}`;
     orderSeq += 1;
 
@@ -452,10 +468,12 @@ export function buildSalesTable(): SalesTable {
       const product = pick(rng, PRODUCTS);
       const quantity = 1 + Math.floor(rng() * 8);
       const discountPct = promoCode ? round4(0.05 + rng() * 0.12) : round4(rng() * 0.04);
-      const lineNet = round2(quantity * product.unitPrice * (1 - discountPct));
+      const unitPrice = convertFromEur(product.unitPrice, customer.currency);
+      const unitCost = convertFromEur(product.unitCost, customer.currency);
+      const lineNet = round2(quantity * unitPrice * (1 - discountPct));
       const lineTax = round2(lineNet * customer.taxPct);
       const lineTotal = round2(lineNet + lineTax);
-      const lineCost = round2(quantity * product.unitCost);
+      const lineCost = round2(quantity * unitCost);
       const marginPct = lineNet === 0 ? 0 : round4((lineNet - lineCost) / lineNet);
 
       rows.push({
@@ -486,13 +504,13 @@ export function buildSalesTable(): SalesTable {
         subcategory: product.subcategory,
         brand: product.brand,
         quantity,
-        unitPrice: product.unitPrice,
+        unitPrice,
         discountPct,
         taxPct: customer.taxPct,
         lineNet,
         lineTax,
         lineTotal,
-        unitCost: product.unitCost,
+        unitCost,
         lineCost,
         marginPct,
         currency: customer.currency,

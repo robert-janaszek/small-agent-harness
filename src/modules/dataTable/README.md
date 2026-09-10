@@ -17,7 +17,7 @@ Unlike `smartHome` (short device commands) and `yamlRepair` (format fidelity on 
 
 Each row is one order line item (shared `orderId` across lines). Columns mix identifiers, timestamps (`orderDate` is ISO datetime with a time of day), categories, money, and flags so tools can filter and aggregate like SQL.
 
-**Money is mixed-currency on purpose.** `unitPrice` / `lineTotal` use catalog numbers in EUR, USD, JPY, GBP, CAD, and SGD with **no FX conversion**. A naive `SUM(lineTotal)` is the wrong answer; group by `currency` first. `aggregate` still computes the number and adds a warning when a money column is summed or averaged without `currency` in `groupBy`.
+**Money is mixed-currency on purpose.** Catalog `unitPrice` / `unitCost` are EUR and converted to the customer currency (so a chair is not `289` in both EUR and JPY). A naive `SUM(lineTotal)` is still the wrong answer; group by `currency` first. `aggregate` still computes the number and adds a warning when a money column is summed or averaged without `currency` in `groupBy`.
 
 `shippingCost` is an order-level amount stored on `lineNumber === 1` (other lines are `0`), so `SUM(shippingCost)` over rows matches summing once per `orderId`.
 
