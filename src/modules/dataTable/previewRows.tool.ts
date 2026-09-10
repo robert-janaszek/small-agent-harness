@@ -9,7 +9,7 @@ export const previewRowsTool = defineTool<PreviewRowsArgs, DataTableContext>({
     `Returns a paginated slice of the current buffer for you to read. ` +
     `offset is 1-based. limit must be between 1 and ${PREVIEW_MAX_LIMIT}. ` +
     `Optional columns project this read only and do not change the buffer. ` +
-    `Never try to preview the whole table.`,
+    `Never try to preview the whole table. Does not show anything to the user — call sendBufferToUser for that.`,
   argsSchema: previewRowsArgsSchema,
   activity: {
     present: 'previewing',

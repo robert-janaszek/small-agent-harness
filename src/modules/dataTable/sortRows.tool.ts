@@ -2,12 +2,14 @@ import { defineTool, quoteActivityTarget, toolFailure } from '../../core/tool';
 import type { DataTableContext } from './context';
 import { QueryError, sortRows } from './query';
 import { sortRowsArgsSchema, type SortRowsArgs } from './schemas';
+import { withSendBufferGate } from './sendBufferToUser.tool';
 
 export const sortRowsTool = defineTool<SortRowsArgs, DataTableContext>({
   name: 'sortRows',
   description:
     'Sorts the in-memory buffer by one or more columns. Nulls stay last. ' +
-    'Returns the rowCount. Does not return row payloads.',
+    'Returns the rowCount. Does not return row payloads. ' +
+    'The user cannot see this change and a previous export is stale. Call sendBufferToUser after this sort.',
   argsSchema: sortRowsArgsSchema,
   activity: {
     present: 'sorting',
@@ -17,7 +19,7 @@ export const sortRowsTool = defineTool<SortRowsArgs, DataTableContext>({
   call(context, args) {
     try {
       context.rows = sortRows(context.rows, context.columns, args.keys);
-      return JSON.stringify({ rowCount: context.rows.length });
+      return withSendBufferGate({ rowCount: context.rows.length });
     } catch (error) {
       if (error instanceof QueryError) {
         return toolFailure(error.message);

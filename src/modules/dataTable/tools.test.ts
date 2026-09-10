@@ -11,7 +11,7 @@ import { PREVIEW_MAX_LIMIT } from './schemas';
 import { previewRowsTool } from './previewRows.tool';
 import { resetBufferTool } from './resetBuffer.tool';
 import { selectColumnsTool } from './selectColumns.tool';
-import { sendBufferToUserTool } from './sendBufferToUser.tool';
+import { SEND_BUFFER_AFTER_MUTATION, sendBufferToUserTool } from './sendBufferToUser.tool';
 import { sortRowsTool } from './sortRows.tool';
 
 function parseJson(content: string): Record<string, unknown> {
@@ -57,6 +57,7 @@ describe('dataTable tools', () => {
     expect(context.rows.length).toBeLessThan(SALES_ROW_COUNT);
     expect(context.rows.every((row) => row.region === 'EMEA')).toBe(true);
     expect(JSON.stringify(result)).not.toContain('orderId');
+    expect(result.next).toBe(SEND_BUFFER_AFTER_MUTATION);
   });
 
   it('sortRows orders the buffer and keeps the same length', async () => {
@@ -69,6 +70,7 @@ describe('dataTable tools', () => {
     );
 
     expect(result.rowCount).toBe(SALES_ROW_COUNT);
+    expect(result.next).toBe(SEND_BUFFER_AFTER_MUTATION);
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
     const totals = context.rows.map((row) => Number(row.lineTotal));
     const sorted = [...totals].sort((left, right) => right - left);
@@ -86,6 +88,7 @@ describe('dataTable tools', () => {
     );
 
     expect(result.warnings).toEqual([]);
+    expect(result.next).toBe(SEND_BUFFER_AFTER_MUTATION);
     expect(result.columns).toEqual(['currency', 'count', 'total']);
     expect(context.columns).toEqual(['currency', 'count', 'total']);
     expect(context.rows).toHaveLength(result.rowCount as number);
@@ -178,6 +181,7 @@ describe('dataTable tools', () => {
       rowCount: SALES_ROW_COUNT,
       columnCount: 3,
       columns: ['orderId', 'lineTotal', 'currency'],
+      next: SEND_BUFFER_AFTER_MUTATION,
     });
     expect(JSON.stringify(result)).not.toContain('Northwind Logistics');
     expect(context.columns).toEqual(['orderId', 'lineTotal', 'currency']);

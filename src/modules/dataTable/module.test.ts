@@ -74,6 +74,8 @@ describe('createDataTableModule', () => {
     expect(DATA_TABLE_PROMPT).toContain('Call resetBuffer when you need the original table again');
     expect(DATA_TABLE_PROMPT).toContain('sendBufferToUser');
     expect(DATA_TABLE_PROMPT).toContain('selectColumns');
+    expect(DATA_TABLE_PROMPT).toContain('that export is stale');
+    expect(DATA_TABLE_PROMPT).toContain('The user cannot see the buffer');
     expect(DATA_TABLE_PROMPT).not.toContain('You currently have no tools');
     expect(DATA_TABLE_PROMPT).not.toContain('There is no tool to send the full buffer');
     expect(DATA_TABLE_PROMPT).not.toContain('tool-calling harness');
