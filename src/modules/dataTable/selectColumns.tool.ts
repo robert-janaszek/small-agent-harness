@@ -2,12 +2,14 @@ import { defineTool, quoteActivityTarget, toolFailure } from '../../core/tool';
 import type { DataTableContext } from './context';
 import { QueryError, selectColumns } from './query';
 import { selectColumnsArgsSchema, type SelectColumnsArgs } from './schemas';
+import { withSendBufferGate } from './sendBufferToUser.tool';
 
 export const selectColumnsTool = defineTool<SelectColumnsArgs, DataTableContext>({
   name: 'selectColumns',
   description:
     'Keeps only the given columns, in this order, and replaces the in-memory buffer schema. ' +
     'Returns the new column list. Does not return row payloads. ' +
+    'The user cannot see this change. After the last mutation this turn, call sendBufferToUser. ' +
     'Call resetBuffer to restore the original fixture.',
   argsSchema: selectColumnsArgsSchema,
   activity: {
@@ -20,7 +22,7 @@ export const selectColumnsTool = defineTool<SelectColumnsArgs, DataTableContext>
       const result = selectColumns(context.rows, context.columns, args.columns);
       context.rows = result.rows;
       context.columns = result.columns;
-      return JSON.stringify({
+      return withSendBufferGate({
         rowCount: result.rows.length,
         columnCount: result.columns.length,
         columns: result.columns,

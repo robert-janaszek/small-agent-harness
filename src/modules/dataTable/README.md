@@ -53,18 +53,20 @@ The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRow
 | Tool | Mutates buffer? | What the model sees |
 |------|-----------------|---------------------|
 | `describeTable` | no | Column types, null/distinct counts; optional distinct values (capped) |
-| `filterRows` | yes (WHERE) | `{ rowCount, dropped }` |
-| `selectColumns` | yes (SELECT) | `{ rowCount, columnCount, columns }` |
-| `sortRows` | yes (ORDER BY) | `{ rowCount }` |
-| `aggregate` | yes (replaces with the result table) | Grouped rows plus `warnings` |
+| `filterRows` | yes (WHERE) | `{ rowCount, dropped, next }` |
+| `selectColumns` | yes (SELECT) | `{ rowCount, columnCount, columns, next }` |
+| `sortRows` | yes (ORDER BY) | `{ rowCount, next }` |
+| `aggregate` | yes (replaces with the result table) | Grouped rows plus `warnings` and `next` |
 | `previewRows` | no | Up to 10 rows, 1-based `offset`; optional `columns` project the read |
 | `sendBufferToUser` | no | Counts only; full rows go to the user via `export` |
 | `resetBuffer` | yes (fixture) | `{ rowCount, columnCount }` |
 
+Mutating tools return `next: call sendBufferToUser` because the user cannot see the buffer. A previous export is stale after a later `sortRows` / `filterRows` / `selectColumns` / `aggregate`.
+
 Typical sequences:
 
-- Totals in EMEA per currency: `describeTable` → `filterRows` `region = EMEA` → `aggregate` `groupBy: [currency]`, `sum(lineTotal)` → answer from the tool result.
-- Inspect expensive lines: `sortRows` `lineTotal desc` → `previewRows` with a narrow `columns` list.
+- Totals in EMEA per currency: `describeTable` → `filterRows` `region = EMEA` → `aggregate` `groupBy: [currency]`, `sum(lineTotal)` → `sendBufferToUser`.
+- Show expensive lines: `sortRows` `lineTotal desc` → `sendBufferToUser` (do not stop after sort; `previewRows` is only for you).
 - Hand the user a slice: `filterRows` → `selectColumns` → `sendBufferToUser` (do not reprint the rows).
 
 The buffer starts as a clone of `sales.json`. Session reset restores rows **and** columns.

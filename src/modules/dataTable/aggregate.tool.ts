@@ -2,6 +2,7 @@ import { defineTool, toolFailure } from '../../core/tool';
 import type { DataTableContext } from './context';
 import { QueryError, aggregateRows } from './query';
 import { aggregateArgsSchema, type AggregateArgs } from './schemas';
+import { withSendBufferGate } from './sendBufferToUser.tool';
 
 export const aggregateTool = defineTool<AggregateArgs, DataTableContext>({
   name: 'aggregate',
@@ -10,6 +11,7 @@ export const aggregateTool = defineTool<AggregateArgs, DataTableContext>({
     'Replaces the buffer with the result table and returns those rows. ' +
     'Omit groupBy (or pass []) for a single total row. ' +
     'Money columns mix currencies; group by currency before summing lineTotal or similar fields. ' +
+    'The user cannot see this table until you call sendBufferToUser. ' +
     'Call resetBuffer to restore the original fixture.',
   argsSchema: aggregateArgsSchema,
   activity: {
@@ -25,7 +27,7 @@ export const aggregateTool = defineTool<AggregateArgs, DataTableContext>({
       const result = aggregateRows(context.rows, context.columns, args);
       context.rows = result.rows;
       context.columns = result.columns;
-      return JSON.stringify({
+      return withSendBufferGate({
         rowCount: result.rows.length,
         columns: result.columns,
         rows: result.rows,
