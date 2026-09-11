@@ -8,7 +8,7 @@ import { SALES_COLUMNS, SALES_ROW_COUNT } from './columns';
 import { loadSalesFixture } from './context';
 import { createDataTableModule, DATA_TABLE_MODULE_ID, type DataTableModule } from './module';
 import { aggregateRows, filterRows, limitRows, sortRows } from './query';
-import type { DataRow } from './schemas';
+import { SEND_SAMPLE_MAX_ROWS, type DataRow } from './schemas';
 
 async function isLlmApiAvailable(): Promise<boolean> {
   try {
@@ -164,7 +164,7 @@ describe.skipIf(!llmApiAvailable)('dataTable system', () => {
     expect([...actualTotals].sort((left, right) => right - left)).toEqual(expectedTotals);
   });
 
-  it('sends the full buffer to the user without putting cells in the tool result', async () => {
+  it('sends the full buffer to the user and returns a short sample in the tool result', async () => {
     const events: CoreEvent[] = [];
     const bus = createEventBus();
     bus.subscribe((event) => events.push(event));
@@ -191,6 +191,12 @@ describe.skipIf(!llmApiAvailable)('dataTable system', () => {
         event.type === 'tool_result' && event.name === 'sendBufferToUser',
     );
     expect(toolResult?.content).toContain('"sent":true');
-    expect(toolResult?.content).not.toContain('Northwind Logistics');
+    expect(toolResult?.content).toContain(`all ${SALES_ROW_COUNT} rows were sent to the user`);
+    const toolPayload = JSON.parse(toolResult?.content ?? '{}') as {
+      sample?: unknown[];
+      omitted?: number;
+    };
+    expect(toolPayload.sample).toHaveLength(SEND_SAMPLE_MAX_ROWS);
+    expect(toolPayload.omitted).toBe(SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS);
   });
 });

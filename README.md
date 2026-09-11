@@ -28,7 +28,7 @@ The `smartHome` module is an **imaginary integration**: lights, AC units, TVs, a
 
 See also **[YAML repair](src/modules/yamlRepair/README.md)** — a format-fidelity stress test on a ~6 700-line config file (syntax errors, placeholders, exact whitespace in `replace`).
 
-See also **[Data table](src/modules/dataTable/README.md)** — a 50×50 sales fixture in an in-memory buffer. Filter, project, sort, limit, aggregate, and paginated preview go through tools so the model does not rewrite rows. `sendBufferToUser` delivers the current buffer to the user without putting cells in the model history.
+See also **[Data table](src/modules/dataTable/README.md)** — a 50×50 sales fixture in an in-memory buffer. Filter, project, sort, limit, aggregate, and paginated preview go through tools so the model does not rewrite rows. `sendBufferToUser` delivers the current buffer to the user and returns only a short sample of those rows to the model.
 
 ---
 

@@ -77,6 +77,8 @@ describe('createDataTableModule', () => {
     expect(DATA_TABLE_PROMPT).toContain('limitRows');
     expect(DATA_TABLE_PROMPT).toContain('that export is stale');
     expect(DATA_TABLE_PROMPT).toContain('The user cannot see the buffer');
+    expect(DATA_TABLE_PROMPT).toContain('Returns a short sample of the sent rows');
+    expect(DATA_TABLE_PROMPT).toContain('Do not invent rows that were not in the sample');
     expect(DATA_TABLE_PROMPT).not.toContain('You currently have no tools');
     expect(DATA_TABLE_PROMPT).not.toContain('There is no tool to send the full buffer');
     expect(DATA_TABLE_PROMPT).not.toContain('tool-calling harness');
@@ -228,7 +230,7 @@ describe('createDataTableModule', () => {
     });
   });
 
-  it('emits a full export payload and keeps cells out of the tool result', async () => {
+  it('emits a full export payload and returns a short sample in the tool result', async () => {
     const events: CoreEvent[] = [];
     const bus = createEventBus();
     bus.subscribe((event) => events.push(event));
@@ -270,7 +272,14 @@ describe('createDataTableModule', () => {
         event.type === 'tool_result' && event.name === 'sendBufferToUser',
     );
     expect(toolResult?.content).toContain('"sent":true');
-    expect(toolResult?.content).toContain('do not reprint these rows');
+    expect(toolResult?.content).toContain('all 50 rows were sent to the user');
+    const toolPayload = JSON.parse(toolResult?.content ?? '{}') as {
+      sample?: Array<{ customerName?: string }>;
+      omitted?: number;
+    };
+    expect(toolPayload.sample).toHaveLength(5);
+    expect(toolPayload.sample?.[0]?.customerName).toBe('Solaris Media');
+    expect(toolPayload.omitted).toBe(45);
     expect(toolResult?.content).not.toContain('Northwind Logistics');
   });
 });

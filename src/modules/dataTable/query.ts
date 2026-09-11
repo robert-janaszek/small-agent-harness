@@ -1,5 +1,6 @@
 import {
   DISTINCT_VALUES_CAP,
+  SEND_SAMPLE_MAX_ROWS,
   type AggregateArgs,
   type AggregateMetric,
   type CellValue,
@@ -252,6 +253,14 @@ export function roundExportRows(rows: DataRow[]): DataRow[] {
     }
     return next;
   });
+}
+
+export function sampleSentRows(
+  rows: DataRow[],
+  max = SEND_SAMPLE_MAX_ROWS,
+): { sample: DataRow[]; omitted: number } {
+  const sample = rows.slice(0, max);
+  return { sample, omitted: rows.length - sample.length };
 }
 
 function roundExportValue(value: CellValue): CellValue {

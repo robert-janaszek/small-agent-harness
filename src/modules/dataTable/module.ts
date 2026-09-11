@@ -38,14 +38,14 @@ Tools:
 - limitRows: set a send window (SQL LIMIT / OFFSET) without dropping rows. offset is 1-based, default 1. Pass next: true for the following page — do not re-sort. previewRows does not set the window.
 - aggregate: groupBy + count/sum/avg/min/max. Replaces the buffer with the result table and returns those rows.
 - previewRows: paginated cells for you (offset 1-based, max 10 rows). Optional columns project the read without changing the buffer. Does not show anything to the user.
-- sendBufferToUser: the only way to give the user rows. Sends the window if one is set, otherwise the full buffer. Rows bypass you; do not reprint them.
+- sendBufferToUser: the only way to give the user rows. Sends the window if one is set, otherwise the full buffer. Returns a short sample of the sent rows. The user already has the full table; do not invent the rest.
 - resetBuffer: restore the original sales fixture after a filter, select, sort, or aggregate.
 
 After filterRows, selectColumns, or sortRows, the turn is not done until you call sendBufferToUser. Call it after the last mutation this turn, even if you already exported earlier in the session — that export is stale.
 After limitRows, call sendBufferToUser so the user sees the window. The working set stays intact so you can call limitRows with next for the following page.
 After aggregate, call sendBufferToUser so the user sees the result table. You may also answer from the aggregate tool result. Do not preview for confirmation if those rows are already in the tool result.
 filterRows, selectColumns, sortRows, and aggregate replace the working set and clear the send window. Call resetBuffer when you need the original table again.
-After sendBufferToUser, do not quote or rewrite the exported rows.
+After sendBufferToUser, the user already has every sent row. You may mention the sample from the tool result. Do not invent rows that were not in the sample. Do not call previewRows to confirm.
 
 Do not ask the user a question.`;
 

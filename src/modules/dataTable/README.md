@@ -40,7 +40,7 @@ npm run data-table
 npm run data-table:harness -- --serve
 ```
 
-The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events. `sendBufferToUser` emits `{ type: 'module', event: 'export' }` with the **full** current table for JSONL consumers (numeric cells rounded to two decimal places). The TUI log shows up to 15 rows and as many columns as fit, marked `(truncated)`.
+The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events. `sendBufferToUser` emits `{ type: 'module', event: 'export' }` with the **full** current table for JSONL consumers (numeric cells rounded to two decimal places). The TUI log shows up to 15 rows and as many columns as fit, marked `(truncated)`. The tool result given to the model includes a sample of up to 5 of those sent rows plus a note that the user already has the rest.
 
 System tests (`npm run test:system`) run the same live-model loop as smart home when `GET {OPENAI_BASE_URL}/models` is reachable: filter to EMEA, `SUM(lineTotal)` grouped by currency, and `sendBufferToUser`. They are skipped automatically if the API is down.
 
@@ -59,7 +59,7 @@ The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRow
 | `limitRows` | no (window) | `{ rowCount, windowCount, offset, limit, hasMore, next }` |
 | `aggregate` | yes (replaces with the result table) | Grouped rows plus `warnings` and `next` |
 | `previewRows` | no | Up to 10 rows, 1-based `offset`; optional `columns` project the read |
-| `sendBufferToUser` | no | Counts only; window rows if set, otherwise the full buffer, via `export` |
+| `sendBufferToUser` | no | Counts plus a short sample of sent rows; full table goes to the user via `export` |
 | `resetBuffer` | yes (fixture) | `{ rowCount, columnCount }` |
 
 Mutating tools return `next: call sendBufferToUser` because the user cannot see the buffer. A previous export is stale after a later `sortRows` / `filterRows` / `selectColumns` / `aggregate`. After `limitRows`, send the window; the ranked buffer stays so `next: true` can page forward.
@@ -68,6 +68,6 @@ Typical sequences:
 
 - Totals in EMEA per currency: `describeTable` → `filterRows` `region = EMEA` → `aggregate` `groupBy: [currency]`, `sum(lineTotal)` → `sendBufferToUser`.
 - Show expensive lines: `sortRows` `lineTotal desc` → `limitRows` `limit: 5` → `sendBufferToUser`. The next five: `limitRows` `next: true` → `sendBufferToUser` (do not re-sort). `previewRows` is only for you and does not set the window.
-- Hand the user a slice: `filterRows` → `selectColumns` → `sendBufferToUser` (do not reprint the rows).
+- Hand the user a slice: `filterRows` → `selectColumns` → `sendBufferToUser` (you may mention the sample; do not invent the rest).
 
 The buffer starts as a clone of `sales.json`. Session reset restores rows **and** columns.

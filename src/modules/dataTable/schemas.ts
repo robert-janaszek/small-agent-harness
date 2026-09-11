@@ -93,6 +93,7 @@ export type SalesTable = z.infer<typeof salesTableSchema>;
 export type DataRow = Record<string, CellValue>;
 
 export const PREVIEW_MAX_LIMIT = 10;
+export const SEND_SAMPLE_MAX_ROWS = 5;
 export const DISTINCT_VALUES_CAP = 20;
 
 export const filterOpSchema = z.enum([

@@ -7,7 +7,7 @@ import { describeTableTool } from './describeTable.tool';
 import { filterRowsTool } from './filterRows.tool';
 import { aggregateTool } from './aggregate.tool';
 import { createDataTableModule } from './module';
-import { PREVIEW_MAX_LIMIT } from './schemas';
+import { PREVIEW_MAX_LIMIT, SEND_SAMPLE_MAX_ROWS } from './schemas';
 import { limitRowsTool } from './limitRows.tool';
 import { previewRowsTool } from './previewRows.tool';
 import { resetBufferTool } from './resetBuffer.tool';
@@ -128,7 +128,11 @@ describe('dataTable tools', () => {
       offset: 1,
       limit: 5,
       hasMore: true,
+      sampleTruncated: false,
+      omitted: 0,
     });
+    expect(first.sample).toHaveLength(5);
+    expect(first.message).toContain('all 5 rows were sent to the user');
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
     const firstExport = emitted[0]?.payload as { rows: Array<{ lineTotal: number }> };
     expect(firstExport.rows).toHaveLength(5);
@@ -312,7 +316,7 @@ describe('dataTable tools', () => {
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
   });
 
-  it('sendBufferToUser emits the full buffer and omits cells from the tool result', async () => {
+  it('sendBufferToUser emits the full buffer and returns a short sample to the model', async () => {
     const context = createContext();
     const emitted: Array<{ event: string; payload?: unknown }> = [];
     context.emit = (event, payload) => {
@@ -325,9 +329,15 @@ describe('dataTable tools', () => {
       rowCount: SALES_ROW_COUNT,
       bufferRowCount: SALES_ROW_COUNT,
       columnCount: SALES_COLUMN_COUNT,
-      message: 'do not reprint these rows',
+      sampleTruncated: true,
+      omitted: SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS,
     });
-    expect(JSON.stringify(result)).not.toContain('Northwind Logistics');
+    expect(result.sample).toHaveLength(SEND_SAMPLE_MAX_ROWS);
+    expect(result.message).toContain(`all ${SALES_ROW_COUNT} rows were sent to the user`);
+    expect(result.message).toContain(`do not invent the remaining ${SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS} rows`);
+    const sample = result.sample as Array<{ customerName?: string }>;
+    expect(sample[0]?.customerName).toBe('Solaris Media');
+    expect(JSON.stringify(sample)).not.toContain('Northwind Logistics');
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
 
     expect(emitted).toHaveLength(1);
@@ -352,6 +362,26 @@ describe('dataTable tools', () => {
     expect(context.rows[0]?.amount).toBe(10.126);
     const payload = emitted[0]?.payload as { rows: Array<{ amount: number; label: string }> };
     expect(payload.rows).toEqual([{ amount: 10.13, label: 'keep' }]);
+  });
+
+  it('sendBufferToUser sample uses the same rounded cells as the export', async () => {
+    const context = createContext();
+    context.columns = ['amount', 'label'];
+    context.rows = [
+      { amount: 10.126, label: 'keep' },
+      { amount: 2, label: 'two' },
+    ];
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    const result = parseJson(await sendBufferToUserTool(context).call({}));
+    expect(result.sample).toEqual([{ amount: 10.13, label: 'keep' }, { amount: 2, label: 'two' }]);
+    expect(result.omitted).toBe(0);
+    expect(result.message).toContain('all 2 rows were sent to the user');
+    const payload = emitted[0]?.payload as { rows: Array<{ amount: number; label: string }> };
+    expect(payload.rows).toEqual(result.sample);
   });
 });
 

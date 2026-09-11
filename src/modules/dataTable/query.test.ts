@@ -11,10 +11,11 @@ import {
   previewRows,
   resolveLimitWindow,
   roundExportRows,
+  sampleSentRows,
   selectColumns,
   sortRows,
 } from './query';
-import { DISTINCT_VALUES_CAP, type DataRow } from './schemas';
+import { DISTINCT_VALUES_CAP, SEND_SAMPLE_MAX_ROWS, type DataRow } from './schemas';
 
 const COLUMNS = ['name', 'region', 'amount', 'note', 'currency'] as const;
 
@@ -196,6 +197,17 @@ describe('roundExportRows', () => {
       { name: 'alpha', amount: 10.126, ratio: 1 / 3, count: 4, note: null },
     ]);
     expect(rounded).toEqual([{ name: 'alpha', amount: 10.13, ratio: 0.33, count: 4, note: null }]);
+  });
+});
+
+describe('sampleSentRows', () => {
+  it('returns the first rows and how many were omitted', () => {
+    const many = Array.from({ length: SEND_SAMPLE_MAX_ROWS + 2 }, (_, index) => ({ id: index + 1 }));
+    expect(sampleSentRows(many)).toEqual({
+      sample: many.slice(0, SEND_SAMPLE_MAX_ROWS),
+      omitted: 2,
+    });
+    expect(sampleSentRows(ROWS)).toEqual({ sample: ROWS, omitted: 0 });
   });
 });
 
