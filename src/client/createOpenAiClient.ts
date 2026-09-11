@@ -1,11 +1,68 @@
 import OpenAI from 'openai';
-import { observeOpenAI } from '@langfuse/openai';
+import type { LangfuseGenerationAttributes } from '@langfuse/tracing';
 
 import { getHarnessConfig } from '../core/config';
 import type { HarnessConfig } from '../core/config.validate';
-import { isLangfuseEnabled } from '../observability/langfuse';
+import { withGenerationObservation } from '../observability/langfuse';
 import { consumeChatCompletionStream } from './assembleChatCompletionStream';
 import type { ChatCompletionClient } from './llmClient.type';
+
+type ChatCompletionParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming;
+type ChatCompletion = OpenAI.Chat.Completions.ChatCompletion;
+
+function toolNamesFromParams(tools: ChatCompletionParams['tools']): string[] {
+  if (!tools) {
+    return [];
+  }
+
+  const names: string[] = [];
+  for (const tool of tools) {
+    if (tool.type === 'function' && 'function' in tool && typeof tool.function.name === 'string') {
+      names.push(tool.function.name);
+    }
+  }
+  return names;
+}
+
+/** ChatML input only — tool JSON schemas must not go on generation.input (Langfuse dumps them as Additional Input). */
+export function toChatCompletionGenerationAttrs(params: ChatCompletionParams): {
+  name: 'chat-completion';
+  input: ChatCompletionParams['messages'];
+  model: string;
+  modelParameters?: LangfuseGenerationAttributes['modelParameters'];
+  metadata?: { tools: string[] };
+} {
+  const toolNames = toolNamesFromParams(params.tools);
+  const modelParameters: NonNullable<LangfuseGenerationAttributes['modelParameters']> = {};
+  if (params.max_tokens !== undefined && params.max_tokens !== null) {
+    modelParameters.max_tokens = params.max_tokens;
+  }
+  if (typeof params.tool_choice === 'string') {
+    modelParameters.tool_choice = params.tool_choice;
+  }
+
+  return {
+    name: 'chat-completion',
+    input: params.messages,
+    model: params.model,
+    ...(Object.keys(modelParameters).length > 0 ? { modelParameters } : {}),
+    ...(toolNames.length > 0 ? { metadata: { tools: toolNames } } : {}),
+  };
+}
+
+function usageDetailsFromCompletion(
+  usage: ChatCompletion['usage'],
+): LangfuseGenerationAttributes['usageDetails'] | undefined {
+  if (!usage) {
+    return undefined;
+  }
+
+  return {
+    input: usage.prompt_tokens,
+    output: usage.completion_tokens,
+    total: usage.total_tokens,
+  };
+}
 
 export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): ChatCompletionClient {
   const openai = new OpenAI({
@@ -13,28 +70,34 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
     apiKey: config.openaiApiKey,
   });
 
-  const client = isLangfuseEnabled()
-    ? observeOpenAI(openai, { generationName: 'chat-completion' })
-    : openai;
-
   return {
     async createChatCompletion(params, options) {
       const { onTextDelta, onReasoningDelta, onTextDeltaCancel, onToolCallStart, ...requestOptions } = options ?? {};
-      const stream = (await client.chat.completions.create(
-        {
-          ...params,
-          stream: true,
-          stream_options: { include_usage: true },
-        },
-        requestOptions,
-      )) as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
 
-      return consumeChatCompletionStream(stream, {
-        onTextDelta,
-        onReasoningDelta,
-        onTextDeltaCancel,
-        onToolCallStart,
-        signal: requestOptions.signal ?? undefined,
+      return withGenerationObservation(toChatCompletionGenerationAttrs(params), async (observation) => {
+        const stream = (await openai.chat.completions.create(
+          {
+            ...params,
+            stream: true,
+            stream_options: { include_usage: true },
+          },
+          requestOptions,
+        )) as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
+
+        const completion = await consumeChatCompletionStream(stream, {
+          onTextDelta,
+          onReasoningDelta,
+          onTextDeltaCancel,
+          onToolCallStart,
+          signal: requestOptions.signal ?? undefined,
+        });
+
+        observation.update({
+          output: completion.choices[0]?.message ?? null,
+          usageDetails: usageDetailsFromCompletion(completion.usage),
+        });
+
+        return completion;
       });
     },
   };

@@ -28,7 +28,6 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@langfuse/openai": "^5.9.1",
     "@langfuse/otel": "^5.9.1",
     "@langfuse/tracing": "^5.9.1",
     "@opentelemetry/sdk-node": "^0.220.0",

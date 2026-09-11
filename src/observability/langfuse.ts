@@ -1,13 +1,21 @@
 import { randomUUID } from 'node:crypto';
 
 import { LangfuseSpanProcessor } from '@langfuse/otel';
-import { propagateAttributes, startActiveObservation } from '@langfuse/tracing';
+import {
+  propagateAttributes,
+  startActiveObservation,
+  type LangfuseGenerationAttributes,
+} from '@langfuse/tracing';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 
 import { loadEnv } from '../core/loadEnv';
 
 export type ObservationHandle = {
   update: (attributes: { input?: unknown; output?: unknown; metadata?: Record<string, unknown> }) => void;
+};
+
+export type GenerationObservationHandle = {
+  update: (attributes: LangfuseGenerationAttributes) => void;
 };
 
 let initialized = false;
@@ -139,5 +147,48 @@ export async function withToolObservation<T>(
       return result;
     },
     { asType: 'tool' },
+  );
+}
+
+export async function withGenerationObservation<T>(
+  params: {
+    name?: string;
+    input: unknown;
+    model?: string;
+    modelParameters?: LangfuseGenerationAttributes['modelParameters'];
+    metadata?: Record<string, unknown>;
+  },
+  fn: (observation: GenerationObservationHandle) => Promise<T>,
+): Promise<T> {
+  if (!isLangfuseEnabled()) {
+    return fn({ update: () => {} });
+  }
+
+  const name = params.name ?? 'chat-completion';
+
+  return startActiveObservation(
+    name,
+    async (generation) => {
+      generation.update({
+        input: params.input,
+        model: params.model,
+        modelParameters: params.modelParameters,
+        metadata: params.metadata,
+      });
+      try {
+        return await fn({
+          update: (attributes) => {
+            generation.update(attributes);
+          },
+        });
+      } catch (error) {
+        generation.update({
+          level: 'ERROR',
+          statusMessage: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    },
+    { asType: 'generation' },
   );
 }

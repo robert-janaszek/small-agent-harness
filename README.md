@@ -130,7 +130,7 @@ Set both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to send traces to [Lang
 
 Each `harness.run` turn becomes an agent trace that includes:
 
-- LLM generations (`observeOpenAI`) — prompts, completions, tool_calls, and token usage
+- LLM generations — prompts, completions, tool_calls, and token usage (tool schemas are omitted from generation input so Langfuse can render ChatML)
 - Tool spans — tool name, args, and result for every tool execution
 - A shared `sessionId` across turns in the same CLI / `--serve` session
 

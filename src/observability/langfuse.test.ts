@@ -8,6 +8,7 @@ import {
   isLangfuseEnabled,
   resetLangfuseTracingForTests,
   withAgentObservation,
+  withGenerationObservation,
   withToolObservation,
 } from './langfuse';
 
@@ -117,5 +118,20 @@ describe('langfuse observability', () => {
     );
 
     expect(result).toBe('echo:hi');
+  });
+
+  it('withGenerationObservation runs the callback when disabled', async () => {
+    vi.stubEnv('LANGFUSE_PUBLIC_KEY', '');
+    vi.stubEnv('LANGFUSE_SECRET_KEY', '');
+
+    const result = await withGenerationObservation(
+      { input: [{ role: 'user', content: 'hi' }], model: 'test-model' },
+      async (observation) => {
+        observation.update({ output: { role: 'assistant', content: 'ok' } });
+        return 7;
+      },
+    );
+
+    expect(result).toBe(7);
   });
 });
