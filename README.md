@@ -16,7 +16,7 @@ This repo provides a repeatable testbed: a generic agent loop, a fake integratio
 - A **benchmark / experiment setup** for edge models — swap `MODEL_NAME`, run the same scenarios, compare behaviour.
 - An **example domain module** (`smartHome`) that simulates device control in memory — no real hardware, no external APIs.
 - A **second benchmark module** ([`yamlRepair`](src/modules/yamlRepair/README.md)) — repair a large broken YAML file via file tools (`grep`, `read`, `replace`, `yamlParse`).
-- A **third benchmark module** ([`dataTable`](src/modules/dataTable/README.md)) — in-memory tabular buffer (50×50 sales fixture; filter / select / sort / aggregate / preview / `sendBufferToUser`).
+- A **third benchmark module** ([`dataTable`](src/modules/dataTable/README.md)) — in-memory tabular buffer (50×50 sales fixture; filter / select / sort / limit / aggregate / preview / `sendBufferToUser`).
 
 ## What this repo is not
 
@@ -28,7 +28,7 @@ The `smartHome` module is an **imaginary integration**: lights, AC units, TVs, a
 
 See also **[YAML repair](src/modules/yamlRepair/README.md)** — a format-fidelity stress test on a ~6 700-line config file (syntax errors, placeholders, exact whitespace in `replace`).
 
-See also **[Data table](src/modules/dataTable/README.md)** — a 50×50 sales fixture in an in-memory buffer. Filter, project, sort, aggregate, and paginated preview go through tools so the model does not rewrite rows. `sendBufferToUser` delivers the current buffer to the user without putting cells in the model history.
+See also **[Data table](src/modules/dataTable/README.md)** — a 50×50 sales fixture in an in-memory buffer. Filter, project, sort, limit, aggregate, and paginated preview go through tools so the model does not rewrite rows. `sendBufferToUser` delivers the current buffer to the user and returns only a short sample of those rows to the model.
 
 ---
 
@@ -201,7 +201,7 @@ npm run test:watch
 |-------|----------------|
 | `npm test` | Config validation, `Harness` loop (mocked LLM), `runTools`, all smart home tools, integration scenario with poisoned tool |
 | `npm run test:coverage` | Same as `npm test`, plus V8 coverage (`text` + `html` under `coverage/`) |
-| `npm run test:system` | Full agent runs against a live model: smart home (lights, AC, valve) and dataTable (filter EMEA, sum by currency, send buffer) — skipped automatically if the API is unreachable |
+| `npm run test:system` | Full agent runs against a live model: smart home (lights, AC, valve) and dataTable (filter EMEA, sum by currency, top 5 lineTotal, send buffer) — skipped automatically if the API is unreachable |
 
 System tests probe `GET {OPENAI_BASE_URL}/models` and use `describe.skipIf` when no server is available, so CI and offline development still work with unit tests only. They check `HarnessRunResult.iterations < maxIterations` and domain state in `module.context` — not only side effects that could occur before the loop fails.
 

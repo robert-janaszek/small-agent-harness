@@ -12,6 +12,7 @@ import {
 } from './context';
 import { describeTableTool } from './describeTable.tool';
 import { filterRowsTool } from './filterRows.tool';
+import { limitRowsTool } from './limitRows.tool';
 import { previewRowsTool } from './previewRows.tool';
 import { paintBufferPanel } from './renderer/bufferPanel';
 import { resetBufferTool } from './resetBuffer.tool';
@@ -23,7 +24,7 @@ export const DATA_TABLE_MODULE_ID = 'dataTable';
 
 export const DATA_TABLE_PROMPT = `You work on an in-memory tabular buffer of sales line items.
 
-Small models drop, duplicate, and invent records when they scan tables in the prompt. Do not count, filter, sort, or aggregate rows in your head. Do not quote row payloads unless a tool returned them. Numbers and row lists in your reply must come from a tool result.
+Small models drop, duplicate, and invent records when they scan tables in the prompt. Do not count, filter, sort, limit, or aggregate rows in your head. Do not quote row payloads unless a tool returned them. Numbers and row lists in your reply must come from a tool result.
 
 The buffer starts as the sales fixture (${SALES_ROW_COUNT} rows x ${SALES_COLUMN_COUNT} columns). Module state only reports rowCount, columnCount, and column names — not the cells. The user cannot see the buffer. Call describeTable to learn column types and distinct values.
 
@@ -33,16 +34,18 @@ Tools:
 - describeTable: column stats; pass column to list distinct values (capped).
 - filterRows: keep matching rows (AND by default). Mutates the buffer.
 - selectColumns: keep only the given columns, in order. Mutates the buffer.
-- sortRows: order the buffer. Mutates the buffer.
+- sortRows: order the buffer. Mutates the buffer and clears the send window.
+- limitRows: set a send window (SQL LIMIT / OFFSET) without dropping rows. offset is 1-based, default 1. Pass next: true for the following page — do not re-sort. previewRows does not set the window.
 - aggregate: groupBy + count/sum/avg/min/max. Replaces the buffer with the result table and returns those rows.
 - previewRows: paginated cells for you (offset 1-based, max 10 rows). Optional columns project the read without changing the buffer. Does not show anything to the user.
-- sendBufferToUser: the only way to give the user the current buffer. Rows bypass you; do not reprint them.
+- sendBufferToUser: the only way to give the user rows. Sends the window if one is set, otherwise the full buffer. The user already has every sent row and column. Returns a short sample (capped rows, and capped columns unless you already called selectColumns). If the user asked for a slice or top-N, call limitRows first. If they asked for specific columns, call selectColumns first. Do not invent the rest.
 - resetBuffer: restore the original sales fixture after a filter, select, sort, or aggregate.
 
 After filterRows, selectColumns, or sortRows, the turn is not done until you call sendBufferToUser. Call it after the last mutation this turn, even if you already exported earlier in the session — that export is stale.
+After limitRows, call sendBufferToUser so the user sees the window. The working set stays intact so you can call limitRows with next for the following page.
 After aggregate, call sendBufferToUser so the user sees the result table. You may also answer from the aggregate tool result. Do not preview for confirmation if those rows are already in the tool result.
-filterRows, selectColumns, sortRows, and aggregate replace the working set. Call resetBuffer when you need the original table again.
-After sendBufferToUser, do not quote or rewrite the exported rows.
+filterRows, selectColumns, sortRows, and aggregate replace the working set and clear the send window. Call resetBuffer when you need the original table again.
+After sendBufferToUser, the user already has every sent row and column. You may mention the sample from the tool result. Do not invent rows or columns that were not in the sample. Do not call previewRows to confirm.
 
 Do not ask the user a question.`;
 
@@ -54,6 +57,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function isNonNegativeFinite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isPositiveFinite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1;
 }
 
 export function isDataTableStateSnapshot(payload: unknown): payload is DataTableStateSnapshot {
@@ -73,7 +80,19 @@ export function isDataTableStateSnapshot(payload: unknown): payload is DataTable
     return false;
   }
 
-  return payload.columnCount === payload.columns.length;
+  if (payload.columnCount !== payload.columns.length) {
+    return false;
+  }
+
+  if (payload.window === undefined || payload.window === null) {
+    return true;
+  }
+
+  if (!isPlainObject(payload.window)) {
+    return false;
+  }
+
+  return isPositiveFinite(payload.window.offset) && isPositiveFinite(payload.window.limit);
 }
 
 export function createDataTablePanel(): ModulePanel {
@@ -110,6 +129,7 @@ export function createDataTableModule(): DataTableModule {
       filterRowsTool(context),
       selectColumnsTool(context),
       sortRowsTool(context),
+      limitRowsTool(context),
       aggregateTool(context),
       previewRowsTool(context),
       sendBufferToUserTool(context),

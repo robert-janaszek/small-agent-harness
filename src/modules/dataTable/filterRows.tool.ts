@@ -1,5 +1,5 @@
 import { defineTool, toolFailure } from '../../core/tool';
-import type { DataTableContext } from './context';
+import { clearWindow, type DataTableContext } from './context';
 import { QueryError, filterRows } from './query';
 import { filterRowsArgsSchema, type FilterRowsArgs } from './schemas';
 import { withSendBufferGate } from './sendBufferToUser.tool';
@@ -26,6 +26,7 @@ export const filterRowsTool = defineTool<FilterRowsArgs, DataTableContext>({
       const next = filterRows(context.rows, context.columns, args);
       const dropped = context.rows.length - next.length;
       context.rows = next;
+      clearWindow(context);
       return withSendBufferGate({ rowCount: next.length, dropped });
     } catch (error) {
       if (error instanceof QueryError) {

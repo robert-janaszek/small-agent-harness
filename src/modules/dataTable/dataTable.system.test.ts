@@ -7,8 +7,8 @@ import type { CoreEvent } from '../../core/protocol';
 import { SALES_COLUMNS, SALES_ROW_COUNT } from './columns';
 import { loadSalesFixture } from './context';
 import { createDataTableModule, DATA_TABLE_MODULE_ID, type DataTableModule } from './module';
-import { aggregateRows, filterRows } from './query';
-import type { DataRow } from './schemas';
+import { aggregateRows, filterRows, limitRows, sortRows } from './query';
+import { SEND_SAMPLE_MAX_ROWS, type DataRow } from './schemas';
 
 async function isLlmApiAvailable(): Promise<boolean> {
   try {
@@ -32,6 +32,11 @@ const expectedByCurrency = aggregateRows(fixtureRows, fixtureColumns, {
   groupBy: ['currency'],
   metrics: [{ op: 'sum', column: 'lineTotal', as: 'total' }],
 });
+
+const expectedTopLineTotals = limitRows(
+  sortRows(fixtureRows, fixtureColumns, [{ column: 'lineTotal', direction: 'desc' }]),
+  { offset: 1, limit: 5 },
+);
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -131,7 +136,41 @@ describe.skipIf(!llmApiAvailable)('dataTable system', () => {
     }
   });
 
-  it('sends the full buffer to the user without putting cells in the tool result', async () => {
+  it('windows the five highest lineTotal rows without truncating the buffer', async () => {
+    const events: CoreEvent[] = [];
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
+    const module = createDataTableModule();
+    const harness = new Harness({ modules: [module], bus });
+    harness.startSession();
+
+    const result = await harness.run(
+      'Show the 5 rows with the highest lineTotal. Sort, then set a limitRows window of 5, then sendBufferToUser. Do not drop the other rows. Do not use previewRows for this.',
+    );
+
+    expectCompletedHarnessRun(result);
+    expect(toolNames(events)).toContain('sortRows');
+    expect(toolNames(events)).toContain('limitRows');
+    expect(toolNames(events)).toContain('sendBufferToUser');
+    expect(module.context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(module.context.window).toMatchObject({ limit: 5 });
+
+    const window = module.context.window;
+    expect(window).not.toBeNull();
+    const windowRows = limitRows(module.context.rows, window!);
+    expect(windowRows).toHaveLength(5);
+
+    const expectedTotals = expectedTopLineTotals.map((row) => round2(asNumber(row.lineTotal)));
+    const actualTotals = windowRows.map((row) => round2(asNumber(row.lineTotal)));
+    expect([...actualTotals].sort((left, right) => right - left)).toEqual(expectedTotals);
+
+    const payload = exportPayload(events);
+    expect(payload.rows).toHaveLength(5);
+    const exportTotals = payload.rows.map((row) => round2(asNumber(row.lineTotal)));
+    expect([...exportTotals].sort((left, right) => right - left)).toEqual(expectedTotals);
+  });
+
+  it('sends the full buffer to the user and returns a short sample in the tool result', async () => {
     const events: CoreEvent[] = [];
     const bus = createEventBus();
     bus.subscribe((event) => events.push(event));
@@ -158,6 +197,12 @@ describe.skipIf(!llmApiAvailable)('dataTable system', () => {
         event.type === 'tool_result' && event.name === 'sendBufferToUser',
     );
     expect(toolResult?.content).toContain('"sent":true');
-    expect(toolResult?.content).not.toContain('Northwind Logistics');
+    expect(toolResult?.content).toContain(`all ${SALES_ROW_COUNT} rows were sent to the user`);
+    const toolPayload = JSON.parse(toolResult?.content ?? '{}') as {
+      sample?: unknown[];
+      omitted?: number;
+    };
+    expect(toolPayload.sample).toHaveLength(SEND_SAMPLE_MAX_ROWS);
+    expect(toolPayload.omitted).toBe(SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS);
   });
 });

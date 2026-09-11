@@ -1,5 +1,5 @@
 import { defineTool, quoteActivityTarget, toolFailure } from '../../core/tool';
-import type { DataTableContext } from './context';
+import { clearWindow, type DataTableContext } from './context';
 import { QueryError, selectColumns } from './query';
 import { selectColumnsArgsSchema, type SelectColumnsArgs } from './schemas';
 import { withSendBufferGate } from './sendBufferToUser.tool';
@@ -22,6 +22,7 @@ export const selectColumnsTool = defineTool<SelectColumnsArgs, DataTableContext>
       const result = selectColumns(context.rows, context.columns, args.columns);
       context.rows = result.rows;
       context.columns = result.columns;
+      clearWindow(context);
       return withSendBufferGate({
         rowCount: result.rows.length,
         columnCount: result.columns.length,

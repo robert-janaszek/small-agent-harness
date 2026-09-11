@@ -7,7 +7,8 @@ import { describeTableTool } from './describeTable.tool';
 import { filterRowsTool } from './filterRows.tool';
 import { aggregateTool } from './aggregate.tool';
 import { createDataTableModule } from './module';
-import { PREVIEW_MAX_LIMIT } from './schemas';
+import { PREVIEW_MAX_LIMIT, SEND_SAMPLE_MAX_COLUMNS, SEND_SAMPLE_MAX_ROWS } from './schemas';
+import { limitRowsTool } from './limitRows.tool';
 import { previewRowsTool } from './previewRows.tool';
 import { resetBufferTool } from './resetBuffer.tool';
 import { selectColumnsTool } from './selectColumns.tool';
@@ -75,6 +76,144 @@ describe('dataTable tools', () => {
     const totals = context.rows.map((row) => Number(row.lineTotal));
     const sorted = [...totals].sort((left, right) => right - left);
     expect(totals).toEqual(sorted);
+  });
+
+  it('limitRows sets a send window without truncating the buffer', async () => {
+    const context = createContext();
+    const sort = sortRowsTool(context);
+    const limit = limitRowsTool(context);
+
+    await sort.call({
+      keys: [{ column: 'lineTotal', direction: 'desc' }],
+    });
+    const result = parseJson(
+      await limit.call({
+        limit: 5,
+      }),
+    );
+
+    expect(result).toEqual({
+      rowCount: SALES_ROW_COUNT,
+      windowCount: 5,
+      offset: 1,
+      limit: 5,
+      hasMore: true,
+      next: SEND_BUFFER_AFTER_MUTATION,
+    });
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(context.window).toEqual({ offset: 1, limit: 5 });
+    const totals = context.rows.map((row) => Number(row.lineTotal));
+    expect(totals).toEqual([...totals].sort((left, right) => right - left));
+    expect(JSON.stringify(result)).not.toContain('orderId');
+  });
+
+  it('limitRows next pages the window and sendBufferToUser exports only that slice', async () => {
+    const context = createContext();
+    const sort = sortRowsTool(context);
+    const limit = limitRowsTool(context);
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    await sort.call({
+      keys: [{ column: 'lineTotal', direction: 'desc' }],
+    });
+    await limit.call({ limit: 5 });
+    const first = parseJson(await sendBufferToUserTool(context).call({}));
+    expect(first).toMatchObject({
+      sent: true,
+      rowCount: 5,
+      bufferRowCount: SALES_ROW_COUNT,
+      offset: 1,
+      limit: 5,
+      hasMore: true,
+      windowSet: true,
+      sampleTruncated: false,
+      omitted: 0,
+      omittedColumns: SALES_COLUMN_COUNT - SEND_SAMPLE_MAX_COLUMNS,
+    });
+    expect(first.sample).toHaveLength(5);
+    expect(first.sampleColumns).toEqual([...SALES_COLUMNS].slice(0, SEND_SAMPLE_MAX_COLUMNS));
+    expect(first.message).toContain('all 5 rows and 50 columns were sent to the user');
+    expect(first.message).toContain('call selectColumns to choose columns before sending');
+    expect(first.message).not.toContain('no send window is set');
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    const firstExport = emitted[0]?.payload as { rows: Array<{ lineTotal: number }> };
+    expect(firstExport.rows).toHaveLength(5);
+
+    const next = parseJson(await limit.call({ next: true }));
+    expect(next).toMatchObject({
+      rowCount: SALES_ROW_COUNT,
+      windowCount: 5,
+      offset: 6,
+      limit: 5,
+      hasMore: true,
+    });
+    expect(context.window).toEqual({ offset: 6, limit: 5 });
+
+    emitted.length = 0;
+    await sendBufferToUserTool(context).call({});
+    const secondExport = emitted[0]?.payload as {
+      rows: Array<{ lineTotal: number }>;
+      window: { offset: number };
+    };
+    expect(secondExport.rows).toHaveLength(5);
+    expect(secondExport.window).toMatchObject({ offset: 6 });
+    expect(Number(secondExport.rows[0]?.lineTotal)).toBeLessThanOrEqual(
+      Number(firstExport.rows[firstExport.rows.length - 1]?.lineTotal),
+    );
+  });
+
+  it('limitRows applies a 1-based offset and fails past the end without changing the window', async () => {
+    const context = createContext();
+    const limit = limitRowsTool(context);
+
+    const page = parseJson(await limit.call({ offset: 48, limit: 10 }));
+    expect(page).toMatchObject({
+      rowCount: SALES_ROW_COUNT,
+      windowCount: 3,
+      offset: 48,
+      limit: 10,
+      hasMore: false,
+      next: SEND_BUFFER_AFTER_MUTATION,
+    });
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(context.window).toEqual({ offset: 48, limit: 10 });
+
+    const pastEnd = await limit.execute({ offset: 51, limit: 1 });
+    expect(pastEnd.failed).toBe(true);
+    expect(pastEnd.content).toContain('past the end of the buffer');
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(context.window).toEqual({ offset: 48, limit: 10 });
+
+    const noWindow = await limitRowsTool(createContext()).execute({ next: true });
+    expect(noWindow.failed).toBe(true);
+    expect(noWindow.content).toContain('No window to advance');
+
+    const empty = createContext();
+    empty.rows = [];
+    const emptyLimit = limitRowsTool(empty);
+    const emptyOk = parseJson(await emptyLimit.call({ limit: 5 }));
+    expect(emptyOk).toMatchObject({ rowCount: 0, windowCount: 0, offset: 1, hasMore: false });
+    expect(empty.window).toEqual({ offset: 1, limit: 5 });
+
+    const emptyPast = await emptyLimit.execute({ offset: 2, limit: 1 });
+    expect(emptyPast.failed).toBe(true);
+    expect(emptyPast.content).toContain('past the end of the buffer (0 rows)');
+    expect(empty.window).toEqual({ offset: 1, limit: 5 });
+  });
+
+  it('clears the send window on a later sort', async () => {
+    const context = createContext();
+    await limitRowsTool(context).call({ limit: 5 });
+    expect(context.window).toEqual({ offset: 1, limit: 5 });
+
+    await sortRowsTool(context).call({
+      keys: [{ column: 'lineTotal', direction: 'asc' }],
+    });
+    expect(context.window).toBeNull();
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
   });
 
   it('aggregate replaces the buffer with the grouped table', async () => {
@@ -194,7 +333,33 @@ describe('dataTable tools', () => {
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
   });
 
-  it('sendBufferToUser emits the full buffer and omits cells from the tool result', async () => {
+  it('sendBufferToUser keeps all selected columns in the sample', async () => {
+    const context = createContext();
+    await selectColumnsTool(context).call({
+      columns: ['orderId', 'lineTotal', 'currency', 'customerName'],
+    });
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    const result = parseJson(await sendBufferToUserTool(context).call({}));
+    expect(result.sampleColumns).toEqual(['orderId', 'lineTotal', 'currency', 'customerName']);
+    expect(result.omittedColumns).toBe(0);
+    expect(result.windowSet).toBe(false);
+    expect(result.message).toContain('all 50 rows and 4 columns were sent to the user');
+    expect(result.message).not.toContain('call selectColumns');
+    expect(result.message).toContain('no send window is set; call limitRows first');
+    expect((result.sample as Array<{ customerName?: string }>)[0]?.customerName).toBe('Solaris Media');
+    expect((emitted[0]?.payload as { columns: string[] }).columns).toEqual([
+      'orderId',
+      'lineTotal',
+      'currency',
+      'customerName',
+    ]);
+  });
+
+  it('sendBufferToUser emits the full buffer and returns a short sample to the model', async () => {
     const context = createContext();
     const emitted: Array<{ event: string; payload?: unknown }> = [];
     context.emit = (event, payload) => {
@@ -205,10 +370,24 @@ describe('dataTable tools', () => {
     expect(result).toMatchObject({
       sent: true,
       rowCount: SALES_ROW_COUNT,
+      bufferRowCount: SALES_ROW_COUNT,
       columnCount: SALES_COLUMN_COUNT,
-      message: 'do not reprint these rows',
+      windowSet: false,
+      sampleTruncated: true,
+      omitted: SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS,
+      omittedColumns: SALES_COLUMN_COUNT - SEND_SAMPLE_MAX_COLUMNS,
     });
-    expect(JSON.stringify(result)).not.toContain('Northwind Logistics');
+    expect(result.sample).toHaveLength(SEND_SAMPLE_MAX_ROWS);
+    expect(result.sampleColumns).toEqual([...SALES_COLUMNS].slice(0, SEND_SAMPLE_MAX_COLUMNS));
+    expect(Object.keys((result.sample as object[])[0] ?? {})).toEqual(result.sampleColumns);
+    expect(result.message).toContain(`all ${SALES_ROW_COUNT} rows and ${SALES_COLUMN_COUNT} columns were sent to the user`);
+    expect(result.message).toContain(`do not invent the remaining ${SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS} rows`);
+    expect(result.message).toContain('call selectColumns to choose columns before sending');
+    expect(result.message).toContain('no send window is set; call limitRows first');
+    const sample = result.sample as Array<{ orderId?: string; customerName?: string }>;
+    expect(sample[0]?.orderId).toBe('ORD-18420');
+    expect(sample[0]?.customerName).toBeUndefined();
+    expect(JSON.stringify(sample)).not.toContain('Northwind Logistics');
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
 
     expect(emitted).toHaveLength(1);
@@ -233,6 +412,30 @@ describe('dataTable tools', () => {
     expect(context.rows[0]?.amount).toBe(10.126);
     const payload = emitted[0]?.payload as { rows: Array<{ amount: number; label: string }> };
     expect(payload.rows).toEqual([{ amount: 10.13, label: 'keep' }]);
+  });
+
+  it('sendBufferToUser sample uses the same rounded cells as the export', async () => {
+    const context = createContext();
+    context.columns = ['amount', 'label'];
+    context.rows = [
+      { amount: 10.126, label: 'keep' },
+      { amount: 2, label: 'two' },
+    ];
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    const result = parseJson(await sendBufferToUserTool(context).call({}));
+    expect(result.sample).toEqual([{ amount: 10.13, label: 'keep' }, { amount: 2, label: 'two' }]);
+    expect(result.omitted).toBe(0);
+    expect(result.omittedColumns).toBe(0);
+    expect(result.sampleColumns).toEqual(['amount', 'label']);
+    expect(result.message).toContain('all 2 rows and 2 columns were sent to the user');
+    expect(result.message).toContain('no send window is set; call limitRows first');
+    expect(result.message).not.toContain('call selectColumns');
+    const payload = emitted[0]?.payload as { rows: Array<{ amount: number; label: string }> };
+    expect(payload.rows).toEqual(result.sample);
   });
 });
 
@@ -264,6 +467,14 @@ describe('dataTable tool activity', () => {
       'sorting "lineTotal"',
       'sorted "lineTotal"',
     ],
+    ['limitRows', { limit: 5 }, 'limiting rows 1-5', 'limited rows 1-5'],
+    [
+      'limitRows',
+      { offset: 3, limit: 2 },
+      'limiting rows 3-4',
+      'limited rows 3-4',
+    ],
+    ['limitRows', { next: true }, 'limiting next page', 'limited next page'],
     [
       'aggregate',
       { groupBy: ['currency'], metrics: [{ op: 'count' }] },

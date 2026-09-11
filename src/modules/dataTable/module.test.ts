@@ -68,14 +68,18 @@ function moduleStateEvents(events: CoreEvent[]) {
 
 describe('createDataTableModule', () => {
   it('tells the model not to invent or drop rows from memory', () => {
-    expect(DATA_TABLE_PROMPT).toContain('Do not count, filter, sort, or aggregate rows in your head');
+    expect(DATA_TABLE_PROMPT).toContain('Do not count, filter, sort, limit, or aggregate rows in your head');
     expect(DATA_TABLE_PROMPT).toContain('Do not ask the user a question');
     expect(DATA_TABLE_PROMPT).toContain('Call describeTable');
     expect(DATA_TABLE_PROMPT).toContain('Call resetBuffer when you need the original table again');
     expect(DATA_TABLE_PROMPT).toContain('sendBufferToUser');
     expect(DATA_TABLE_PROMPT).toContain('selectColumns');
+    expect(DATA_TABLE_PROMPT).toContain('limitRows');
     expect(DATA_TABLE_PROMPT).toContain('that export is stale');
     expect(DATA_TABLE_PROMPT).toContain('The user cannot see the buffer');
+    expect(DATA_TABLE_PROMPT).toContain('Returns a short sample (capped rows, and capped columns unless you already called selectColumns)');
+    expect(DATA_TABLE_PROMPT).toContain('call limitRows first');
+    expect(DATA_TABLE_PROMPT).toContain('Do not invent rows or columns that were not in the sample');
     expect(DATA_TABLE_PROMPT).not.toContain('You currently have no tools');
     expect(DATA_TABLE_PROMPT).not.toContain('There is no tool to send the full buffer');
     expect(DATA_TABLE_PROMPT).not.toContain('tool-calling harness');
@@ -108,6 +112,7 @@ describe('createDataTableModule', () => {
       rowCount: SALES_ROW_COUNT,
       columnCount: SALES_COLUMN_COUNT,
       columns: [...SALES_COLUMNS],
+      window: null,
     });
     expect(JSON.stringify(started?.payload)).not.toContain('Northwind Logistics');
 
@@ -135,6 +140,7 @@ describe('createDataTableModule', () => {
       'filterRows',
       'selectColumns',
       'sortRows',
+      'limitRows',
       'aggregate',
       'previewRows',
       'sendBufferToUser',
@@ -184,7 +190,48 @@ describe('createDataTableModule', () => {
     });
   });
 
-  it('emits a full export payload and keeps cells out of the tool result', async () => {
+  it('emits a send window after limitRows without shrinking the buffer', async () => {
+    const events: CoreEvent[] = [];
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
+    const module = createDataTableModule();
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [
+          {
+            message: assistantToolCall('limitRows', {
+              limit: 5,
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('windowed to five rows') }],
+      });
+    const harness = new Harness({
+      modules: [module],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+
+    harness.startSession();
+    await harness.run('keep the first five rows');
+
+    expect(module.context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(module.context.window).toEqual({ offset: 1, limit: 5 });
+
+    const afterLimit = moduleStateEvents(events).at(-1);
+    expect(afterLimit?.payload).toMatchObject({
+      sourceId: SALES_TABLE_ID,
+      rowCount: SALES_ROW_COUNT,
+      columnCount: SALES_COLUMN_COUNT,
+      window: { offset: 1, limit: 5 },
+    });
+  });
+
+  it('emits a full export payload and returns a short sample in the tool result', async () => {
     const events: CoreEvent[] = [];
     const bus = createEventBus();
     bus.subscribe((event) => events.push(event));
@@ -226,7 +273,21 @@ describe('createDataTableModule', () => {
         event.type === 'tool_result' && event.name === 'sendBufferToUser',
     );
     expect(toolResult?.content).toContain('"sent":true');
-    expect(toolResult?.content).toContain('do not reprint these rows');
+    expect(toolResult?.content).toContain('all 50 rows and 50 columns were sent to the user');
+    expect(toolResult?.content).toContain('call selectColumns to choose columns before sending');
+    expect(toolResult?.content).toContain('no send window is set; call limitRows first');
+    const toolPayload = JSON.parse(toolResult?.content ?? '{}') as {
+      sample?: Array<{ orderId?: string; customerName?: string }>;
+      sampleColumns?: string[];
+      omitted?: number;
+      omittedColumns?: number;
+    };
+    expect(toolPayload.sample).toHaveLength(5);
+    expect(toolPayload.sampleColumns).toHaveLength(6);
+    expect(toolPayload.sample?.[0]?.orderId).toBe('ORD-18420');
+    expect(toolPayload.sample?.[0]?.customerName).toBeUndefined();
+    expect(toolPayload.omitted).toBe(45);
+    expect(toolPayload.omittedColumns).toBe(44);
     expect(toolResult?.content).not.toContain('Northwind Logistics');
   });
 });
@@ -328,5 +389,25 @@ describe('isDataTableStateSnapshot', () => {
     expect(isDataTableStateSnapshot({ currentIndex: 0, steps: [] })).toBe(false);
     expect(isDataTableStateSnapshot({})).toBe(false);
     expect(isDataTableStateSnapshot({ sourceId: 'sales' })).toBe(false);
+    expect(
+      isDataTableStateSnapshot({
+        sourceId: 'sales',
+        description: 'fixture',
+        rowCount: 50,
+        columnCount: 1,
+        columns: ['rowId'],
+        window: { offset: 1, limit: 5 },
+      }),
+    ).toBe(true);
+    expect(
+      isDataTableStateSnapshot({
+        sourceId: 'sales',
+        description: 'fixture',
+        rowCount: 50,
+        columnCount: 1,
+        columns: ['rowId'],
+        window: { offset: 0, limit: 5 },
+      }),
+    ).toBe(false);
   });
 });

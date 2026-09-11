@@ -6,12 +6,18 @@ import { salesTableSchema, type DataRow, type SalesRow, type SalesTable } from '
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'sales.json');
 
+export type BufferWindow = {
+  offset: number;
+  limit: number;
+};
+
 export type DataTableStateSnapshot = {
   sourceId: string;
   description: string;
   rowCount: number;
   columnCount: number;
   columns: string[];
+  window: BufferWindow | null;
 };
 
 export type DataTableContext = {
@@ -19,6 +25,7 @@ export type DataTableContext = {
   description: string;
   columns: string[];
   rows: DataRow[];
+  window: BufferWindow | null;
   initialSourceId: string;
   initialDescription: string;
   initialColumns: string[];
@@ -52,6 +59,7 @@ export function createContext(): DataTableContext {
     description: table.description,
     columns,
     rows,
+    window: null,
     initialSourceId: table.id,
     initialDescription: table.description,
     initialColumns: [...columns],
@@ -65,6 +73,18 @@ export function resetContext(context: DataTableContext): void {
   context.description = context.initialDescription;
   context.columns = [...context.initialColumns];
   context.rows = cloneRows(context.initialRows);
+  context.window = null;
+}
+
+export function clearWindow(context: DataTableContext): void {
+  context.window = null;
+}
+
+export function isOriginalColumnSchema(context: DataTableContext): boolean {
+  if (context.columns.length !== context.initialColumns.length) {
+    return false;
+  }
+  return context.columns.every((name, index) => name === context.initialColumns[index]);
 }
 
 export function snapshotDataTableState(context: DataTableContext): DataTableStateSnapshot {
@@ -74,6 +94,7 @@ export function snapshotDataTableState(context: DataTableContext): DataTableStat
     rowCount: context.rows.length,
     columnCount: context.columns.length,
     columns: [...context.columns],
+    window: context.window ? { ...context.window } : null,
   };
 }
 
@@ -84,5 +105,6 @@ export function createEmptySnapshot(): DataTableStateSnapshot {
     rowCount: 0,
     columnCount: 0,
     columns: [],
+    window: null,
   };
 }

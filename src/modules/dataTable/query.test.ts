@@ -7,12 +7,15 @@ import {
   aggregateRows,
   describeTable,
   filterRows,
+  limitRows,
   previewRows,
+  resolveLimitWindow,
   roundExportRows,
+  sampleSentRows,
   selectColumns,
   sortRows,
 } from './query';
-import { DISTINCT_VALUES_CAP, type DataRow } from './schemas';
+import { DISTINCT_VALUES_CAP, SEND_SAMPLE_MAX_ROWS, type DataRow } from './schemas';
 
 const COLUMNS = ['name', 'region', 'amount', 'note', 'currency'] as const;
 
@@ -197,6 +200,36 @@ describe('roundExportRows', () => {
   });
 });
 
+describe('sampleSentRows', () => {
+  it('returns the first rows and how many were omitted', () => {
+    const many = Array.from({ length: SEND_SAMPLE_MAX_ROWS + 2 }, (_, index) => ({ id: index + 1 }));
+    expect(sampleSentRows(many, ['id'])).toEqual({
+      sample: many.slice(0, SEND_SAMPLE_MAX_ROWS),
+      omitted: 2,
+      sampleColumns: ['id'],
+      omittedColumns: 0,
+    });
+    expect(sampleSentRows(ROWS, [...COLUMNS])).toEqual({
+      sample: ROWS,
+      omitted: 0,
+      sampleColumns: [...COLUMNS],
+      omittedColumns: 0,
+    });
+  });
+
+  it('projects sample columns when maxColumns is below the schema width', () => {
+    const result = sampleSentRows(ROWS, [...COLUMNS], { maxColumns: 2 });
+    expect(result.sampleColumns).toEqual(['name', 'region']);
+    expect(result.omittedColumns).toBe(COLUMNS.length - 2);
+    expect(result.sample).toEqual([
+      { name: 'alpha', region: 'EMEA' },
+      { name: 'beta', region: 'AMER' },
+      { name: 'gamma', region: 'EMEA' },
+      { name: 'delta', region: 'APAC' },
+    ]);
+  });
+});
+
 describe('selectColumns', () => {
   it('projects columns in the requested order', () => {
     const result = selectColumns(ROWS, [...COLUMNS], ['amount', 'name']);
@@ -240,6 +273,45 @@ describe('previewRows', () => {
     expect(() => previewRows(ROWS, [...COLUMNS], { offset: 5, limit: 1 })).toThrow(
       'offset 5 is past the end of the buffer (4 rows).',
     );
+  });
+});
+
+describe('limitRows', () => {
+  it('keeps a 1-based slice', () => {
+    expect(limitRows(ROWS, { offset: 1, limit: 2 }).map((row) => row.name)).toEqual(['alpha', 'beta']);
+    expect(limitRows(ROWS, { offset: 2, limit: 2 }).map((row) => row.name)).toEqual(['beta', 'gamma']);
+  });
+
+  it('keeps the remainder when limit overruns the buffer', () => {
+    expect(limitRows(ROWS, { offset: 3, limit: 10 }).map((row) => row.name)).toEqual(['gamma', 'delta']);
+  });
+
+  it('returns an empty list for an empty buffer and rejects an offset past the end', () => {
+    expect(limitRows([], { offset: 1, limit: 3 })).toEqual([]);
+    expect(() => limitRows([], { offset: 2, limit: 1 })).toThrow(
+      'offset 2 is past the end of the buffer (0 rows).',
+    );
+    expect(() => limitRows(ROWS, { offset: 5, limit: 1 })).toThrow(
+      'offset 5 is past the end of the buffer (4 rows).',
+    );
+  });
+});
+
+describe('resolveLimitWindow', () => {
+  it('defaults offset to 1 and advances from the current window', () => {
+    expect(resolveLimitWindow(null, { limit: 5 })).toEqual({ offset: 1, limit: 5 });
+    expect(resolveLimitWindow({ offset: 1, limit: 5 }, { next: true })).toEqual({
+      offset: 6,
+      limit: 5,
+    });
+    expect(resolveLimitWindow({ offset: 1, limit: 5 }, { next: true, limit: 3 })).toEqual({
+      offset: 6,
+      limit: 3,
+    });
+  });
+
+  it('rejects next without a window', () => {
+    expect(() => resolveLimitWindow(null, { next: true })).toThrow('No window to advance');
   });
 });
 
@@ -287,5 +359,14 @@ describe('sales fixture queries', () => {
     });
     const expected = round2(table.rows.reduce((sum, row) => sum + row.shippingCost, 0));
     expect(round2(asNumber(result.rows[0]?.sum_shippingCost))).toBe(expected);
+  });
+
+  it('takes the top lineTotals after a descending sort', () => {
+    const ranked = sortRows(rows, columns, [{ column: 'lineTotal', direction: 'desc' }]);
+    const top = limitRows(ranked, { offset: 1, limit: 5 });
+    expect(top).toHaveLength(5);
+    const totals = top.map((row) => asNumber(row.lineTotal));
+    expect(totals).toEqual([...totals].sort((left, right) => right - left));
+    expect(asNumber(top[0]?.lineTotal)).toBe(asNumber(ranked[0]?.lineTotal));
   });
 });

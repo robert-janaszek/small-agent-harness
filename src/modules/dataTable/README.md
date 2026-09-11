@@ -40,7 +40,7 @@ npm run data-table
 npm run data-table:harness -- --serve
 ```
 
-The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events. `sendBufferToUser` emits `{ type: 'module', event: 'export' }` with the **full** current table for JSONL consumers (numeric cells rounded to two decimal places). The TUI log shows up to 15 rows and as many columns as fit, marked `(truncated)`.
+The right panel shows buffer size (`50 rows x 50 cols`) and column names. Row payloads stay in process memory — they are not streamed in module `state` events. `sendBufferToUser` emits `{ type: 'module', event: 'export' }` with the **full** current table for JSONL consumers (numeric cells rounded to two decimal places). The TUI log shows up to 15 rows and as many columns as fit, marked `(truncated)`. The tool result given to the model includes a sample of up to 5 rows (and 6 columns unless `selectColumns` already narrowed the schema), plus a note that the user already has the rest. If no send window is set, the result tells the model to call `limitRows` first for a slice or top-N.
 
 System tests (`npm run test:system`) run the same live-model loop as smart home when `GET {OPENAI_BASE_URL}/models` is reachable: filter to EMEA, `SUM(lineTotal)` grouped by currency, and `sendBufferToUser`. They are skipped automatically if the API is down.
 
@@ -48,7 +48,7 @@ System tests (`npm run test:system`) run the same live-model loop as smart home 
 
 ## Tools
 
-The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRows`, and `aggregate` replace it. `resetBuffer` (and session reset) restore the sales fixture.
+The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRows`, and `aggregate` replace it and clear the send window. `limitRows` only sets a window for `sendBufferToUser`. `resetBuffer` (and session reset) restore the sales fixture.
 
 | Tool | Mutates buffer? | What the model sees |
 |------|-----------------|---------------------|
@@ -56,17 +56,18 @@ The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRow
 | `filterRows` | yes (WHERE) | `{ rowCount, dropped, next }` |
 | `selectColumns` | yes (SELECT) | `{ rowCount, columnCount, columns, next }` |
 | `sortRows` | yes (ORDER BY) | `{ rowCount, next }` |
+| `limitRows` | no (window) | `{ rowCount, windowCount, offset, limit, hasMore, next }` |
 | `aggregate` | yes (replaces with the result table) | Grouped rows plus `warnings` and `next` |
 | `previewRows` | no | Up to 10 rows, 1-based `offset`; optional `columns` project the read |
-| `sendBufferToUser` | no | Counts only; full rows go to the user via `export` |
+| `sendBufferToUser` | no | Counts plus a short sample (rows and columns capped unless already projected); full table goes to the user via `export` |
 | `resetBuffer` | yes (fixture) | `{ rowCount, columnCount }` |
 
-Mutating tools return `next: call sendBufferToUser` because the user cannot see the buffer. A previous export is stale after a later `sortRows` / `filterRows` / `selectColumns` / `aggregate`.
+Mutating tools return `next: call sendBufferToUser` because the user cannot see the buffer. A previous export is stale after a later `sortRows` / `filterRows` / `selectColumns` / `aggregate`. After `limitRows`, send the window; the ranked buffer stays so `next: true` can page forward.
 
 Typical sequences:
 
 - Totals in EMEA per currency: `describeTable` → `filterRows` `region = EMEA` → `aggregate` `groupBy: [currency]`, `sum(lineTotal)` → `sendBufferToUser`.
-- Show expensive lines: `sortRows` `lineTotal desc` → `sendBufferToUser` (do not stop after sort; `previewRows` is only for you).
-- Hand the user a slice: `filterRows` → `selectColumns` → `sendBufferToUser` (do not reprint the rows).
+- Show expensive lines: `sortRows` `lineTotal desc` → `selectColumns` → `limitRows` `limit: 5` → `sendBufferToUser`. The next five: `limitRows` `next: true` → `sendBufferToUser` (do not re-sort). `previewRows` is only for you and does not set the window.
+- Hand the user a slice: `filterRows` → `selectColumns` → `sendBufferToUser` (you may mention the sample; do not invent the rest).
 
 The buffer starts as a clone of `sales.json`. Session reset restores rows **and** columns.
