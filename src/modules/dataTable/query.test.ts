@@ -203,11 +203,30 @@ describe('roundExportRows', () => {
 describe('sampleSentRows', () => {
   it('returns the first rows and how many were omitted', () => {
     const many = Array.from({ length: SEND_SAMPLE_MAX_ROWS + 2 }, (_, index) => ({ id: index + 1 }));
-    expect(sampleSentRows(many)).toEqual({
+    expect(sampleSentRows(many, ['id'])).toEqual({
       sample: many.slice(0, SEND_SAMPLE_MAX_ROWS),
       omitted: 2,
+      sampleColumns: ['id'],
+      omittedColumns: 0,
     });
-    expect(sampleSentRows(ROWS)).toEqual({ sample: ROWS, omitted: 0 });
+    expect(sampleSentRows(ROWS, [...COLUMNS])).toEqual({
+      sample: ROWS,
+      omitted: 0,
+      sampleColumns: [...COLUMNS],
+      omittedColumns: 0,
+    });
+  });
+
+  it('projects sample columns when maxColumns is below the schema width', () => {
+    const result = sampleSentRows(ROWS, [...COLUMNS], { maxColumns: 2 });
+    expect(result.sampleColumns).toEqual(['name', 'region']);
+    expect(result.omittedColumns).toBe(COLUMNS.length - 2);
+    expect(result.sample).toEqual([
+      { name: 'alpha', region: 'EMEA' },
+      { name: 'beta', region: 'AMER' },
+      { name: 'gamma', region: 'EMEA' },
+      { name: 'delta', region: 'APAC' },
+    ]);
   });
 });
 

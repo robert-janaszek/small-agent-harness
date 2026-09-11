@@ -77,8 +77,9 @@ describe('createDataTableModule', () => {
     expect(DATA_TABLE_PROMPT).toContain('limitRows');
     expect(DATA_TABLE_PROMPT).toContain('that export is stale');
     expect(DATA_TABLE_PROMPT).toContain('The user cannot see the buffer');
-    expect(DATA_TABLE_PROMPT).toContain('Returns a short sample of the sent rows');
-    expect(DATA_TABLE_PROMPT).toContain('Do not invent rows that were not in the sample');
+    expect(DATA_TABLE_PROMPT).toContain('Returns a short sample (capped rows, and capped columns unless you already called selectColumns)');
+    expect(DATA_TABLE_PROMPT).toContain('call limitRows first');
+    expect(DATA_TABLE_PROMPT).toContain('Do not invent rows or columns that were not in the sample');
     expect(DATA_TABLE_PROMPT).not.toContain('You currently have no tools');
     expect(DATA_TABLE_PROMPT).not.toContain('There is no tool to send the full buffer');
     expect(DATA_TABLE_PROMPT).not.toContain('tool-calling harness');
@@ -272,14 +273,21 @@ describe('createDataTableModule', () => {
         event.type === 'tool_result' && event.name === 'sendBufferToUser',
     );
     expect(toolResult?.content).toContain('"sent":true');
-    expect(toolResult?.content).toContain('all 50 rows were sent to the user');
+    expect(toolResult?.content).toContain('all 50 rows and 50 columns were sent to the user');
+    expect(toolResult?.content).toContain('call selectColumns to choose columns before sending');
+    expect(toolResult?.content).toContain('no send window is set; call limitRows first');
     const toolPayload = JSON.parse(toolResult?.content ?? '{}') as {
-      sample?: Array<{ customerName?: string }>;
+      sample?: Array<{ orderId?: string; customerName?: string }>;
+      sampleColumns?: string[];
       omitted?: number;
+      omittedColumns?: number;
     };
     expect(toolPayload.sample).toHaveLength(5);
-    expect(toolPayload.sample?.[0]?.customerName).toBe('Solaris Media');
+    expect(toolPayload.sampleColumns).toHaveLength(6);
+    expect(toolPayload.sample?.[0]?.orderId).toBe('ORD-18420');
+    expect(toolPayload.sample?.[0]?.customerName).toBeUndefined();
     expect(toolPayload.omitted).toBe(45);
+    expect(toolPayload.omittedColumns).toBe(44);
     expect(toolResult?.content).not.toContain('Northwind Logistics');
   });
 });

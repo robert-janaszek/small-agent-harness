@@ -257,10 +257,26 @@ export function roundExportRows(rows: DataRow[]): DataRow[] {
 
 export function sampleSentRows(
   rows: DataRow[],
-  max = SEND_SAMPLE_MAX_ROWS,
-): { sample: DataRow[]; omitted: number } {
-  const sample = rows.slice(0, max);
-  return { sample, omitted: rows.length - sample.length };
+  columns: string[],
+  options?: { maxRows?: number; maxColumns?: number },
+): {
+  sample: DataRow[];
+  omitted: number;
+  sampleColumns: string[];
+  omittedColumns: number;
+} {
+  const maxRows = options?.maxRows ?? SEND_SAMPLE_MAX_ROWS;
+  const sampleColumns =
+    options?.maxColumns !== undefined && columns.length > options.maxColumns
+      ? columns.slice(0, options.maxColumns)
+      : [...columns];
+  const sliced = rows.slice(0, maxRows);
+  return {
+    sample: sliced.map((row) => projectRow(row, sampleColumns)),
+    omitted: rows.length - sliced.length,
+    sampleColumns,
+    omittedColumns: columns.length - sampleColumns.length,
+  };
 }
 
 function roundExportValue(value: CellValue): CellValue {

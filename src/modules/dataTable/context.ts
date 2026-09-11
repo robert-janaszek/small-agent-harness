@@ -80,6 +80,13 @@ export function clearWindow(context: DataTableContext): void {
   context.window = null;
 }
 
+export function isOriginalColumnSchema(context: DataTableContext): boolean {
+  if (context.columns.length !== context.initialColumns.length) {
+    return false;
+  }
+  return context.columns.every((name, index) => name === context.initialColumns[index]);
+}
+
 export function snapshotDataTableState(context: DataTableContext): DataTableStateSnapshot {
   return {
     sourceId: context.sourceId,

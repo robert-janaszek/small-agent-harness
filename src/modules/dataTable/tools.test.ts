@@ -7,7 +7,7 @@ import { describeTableTool } from './describeTable.tool';
 import { filterRowsTool } from './filterRows.tool';
 import { aggregateTool } from './aggregate.tool';
 import { createDataTableModule } from './module';
-import { PREVIEW_MAX_LIMIT, SEND_SAMPLE_MAX_ROWS } from './schemas';
+import { PREVIEW_MAX_LIMIT, SEND_SAMPLE_MAX_COLUMNS, SEND_SAMPLE_MAX_ROWS } from './schemas';
 import { limitRowsTool } from './limitRows.tool';
 import { previewRowsTool } from './previewRows.tool';
 import { resetBufferTool } from './resetBuffer.tool';
@@ -128,11 +128,16 @@ describe('dataTable tools', () => {
       offset: 1,
       limit: 5,
       hasMore: true,
+      windowSet: true,
       sampleTruncated: false,
       omitted: 0,
+      omittedColumns: SALES_COLUMN_COUNT - SEND_SAMPLE_MAX_COLUMNS,
     });
     expect(first.sample).toHaveLength(5);
-    expect(first.message).toContain('all 5 rows were sent to the user');
+    expect(first.sampleColumns).toEqual([...SALES_COLUMNS].slice(0, SEND_SAMPLE_MAX_COLUMNS));
+    expect(first.message).toContain('all 5 rows and 50 columns were sent to the user');
+    expect(first.message).toContain('call selectColumns to choose columns before sending');
+    expect(first.message).not.toContain('no send window is set');
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
     const firstExport = emitted[0]?.payload as { rows: Array<{ lineTotal: number }> };
     expect(firstExport.rows).toHaveLength(5);
@@ -328,6 +333,32 @@ describe('dataTable tools', () => {
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
   });
 
+  it('sendBufferToUser keeps all selected columns in the sample', async () => {
+    const context = createContext();
+    await selectColumnsTool(context).call({
+      columns: ['orderId', 'lineTotal', 'currency', 'customerName'],
+    });
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    const result = parseJson(await sendBufferToUserTool(context).call({}));
+    expect(result.sampleColumns).toEqual(['orderId', 'lineTotal', 'currency', 'customerName']);
+    expect(result.omittedColumns).toBe(0);
+    expect(result.windowSet).toBe(false);
+    expect(result.message).toContain('all 50 rows and 4 columns were sent to the user');
+    expect(result.message).not.toContain('call selectColumns');
+    expect(result.message).toContain('no send window is set; call limitRows first');
+    expect((result.sample as Array<{ customerName?: string }>)[0]?.customerName).toBe('Solaris Media');
+    expect((emitted[0]?.payload as { columns: string[] }).columns).toEqual([
+      'orderId',
+      'lineTotal',
+      'currency',
+      'customerName',
+    ]);
+  });
+
   it('sendBufferToUser emits the full buffer and returns a short sample to the model', async () => {
     const context = createContext();
     const emitted: Array<{ event: string; payload?: unknown }> = [];
@@ -341,14 +372,21 @@ describe('dataTable tools', () => {
       rowCount: SALES_ROW_COUNT,
       bufferRowCount: SALES_ROW_COUNT,
       columnCount: SALES_COLUMN_COUNT,
+      windowSet: false,
       sampleTruncated: true,
       omitted: SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS,
+      omittedColumns: SALES_COLUMN_COUNT - SEND_SAMPLE_MAX_COLUMNS,
     });
     expect(result.sample).toHaveLength(SEND_SAMPLE_MAX_ROWS);
-    expect(result.message).toContain(`all ${SALES_ROW_COUNT} rows were sent to the user`);
+    expect(result.sampleColumns).toEqual([...SALES_COLUMNS].slice(0, SEND_SAMPLE_MAX_COLUMNS));
+    expect(Object.keys((result.sample as object[])[0] ?? {})).toEqual(result.sampleColumns);
+    expect(result.message).toContain(`all ${SALES_ROW_COUNT} rows and ${SALES_COLUMN_COUNT} columns were sent to the user`);
     expect(result.message).toContain(`do not invent the remaining ${SALES_ROW_COUNT - SEND_SAMPLE_MAX_ROWS} rows`);
-    const sample = result.sample as Array<{ customerName?: string }>;
-    expect(sample[0]?.customerName).toBe('Solaris Media');
+    expect(result.message).toContain('call selectColumns to choose columns before sending');
+    expect(result.message).toContain('no send window is set; call limitRows first');
+    const sample = result.sample as Array<{ orderId?: string; customerName?: string }>;
+    expect(sample[0]?.orderId).toBe('ORD-18420');
+    expect(sample[0]?.customerName).toBeUndefined();
     expect(JSON.stringify(sample)).not.toContain('Northwind Logistics');
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
 
@@ -391,7 +429,11 @@ describe('dataTable tools', () => {
     const result = parseJson(await sendBufferToUserTool(context).call({}));
     expect(result.sample).toEqual([{ amount: 10.13, label: 'keep' }, { amount: 2, label: 'two' }]);
     expect(result.omitted).toBe(0);
-    expect(result.message).toContain('all 2 rows were sent to the user');
+    expect(result.omittedColumns).toBe(0);
+    expect(result.sampleColumns).toEqual(['amount', 'label']);
+    expect(result.message).toContain('all 2 rows and 2 columns were sent to the user');
+    expect(result.message).toContain('no send window is set; call limitRows first');
+    expect(result.message).not.toContain('call selectColumns');
     const payload = emitted[0]?.payload as { rows: Array<{ amount: number; label: string }> };
     expect(payload.rows).toEqual(result.sample);
   });
