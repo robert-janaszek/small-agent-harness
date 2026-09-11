@@ -72,6 +72,11 @@ export function renderBufferLines(snapshot: DataTableStateSnapshot, maxLines: nu
 
   lines.push(...wrapText(size, width));
 
+  if (snapshot.window) {
+    const last = snapshot.window.offset + snapshot.window.limit - 1;
+    lines.push(...wrapText(`window ${snapshot.window.offset}-${last}`, width));
+  }
+
   if (snapshot.columns.length > 0) {
     lines.push(...wrapText(formatColumnSummary(snapshot.columns), width));
   }

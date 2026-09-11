@@ -6,9 +6,15 @@ import {
   type DataRow,
   type FilterClause,
   type FilterRowsArgs,
+  type LimitRowsArgs,
   type PreviewRowsArgs,
   type SortKey,
 } from './schemas';
+
+export type BufferWindowSpec = {
+  offset: number;
+  limit: number;
+};
 
 export const MONEY_COLUMNS = new Set([
   'lineTotal',
@@ -253,6 +259,44 @@ function roundExportValue(value: CellValue): CellValue {
     return value;
   }
   return Math.round(value * 100) / 100;
+}
+
+export function resolveLimitWindow(
+  current: BufferWindowSpec | null,
+  args: LimitRowsArgs,
+): BufferWindowSpec {
+  if (args.next) {
+    if (!current) {
+      throw new QueryError('No window to advance. Call limitRows with limit first.');
+    }
+    return {
+      offset: current.offset + current.limit,
+      limit: args.limit ?? current.limit,
+    };
+  }
+  if (args.limit === undefined) {
+    throw new QueryError('limit is required unless next is true');
+  }
+  return {
+    offset: args.offset ?? 1,
+    limit: args.limit,
+  };
+}
+
+export function limitRows(rows: DataRow[], spec: BufferWindowSpec): DataRow[] {
+  const offset = spec.offset;
+  if (rows.length === 0) {
+    return [];
+  }
+  if (offset > rows.length) {
+    throw new QueryError(`offset ${offset} is past the end of the buffer (${rows.length} rows).`);
+  }
+  const start = offset - 1;
+  return rows.slice(start, start + spec.limit);
+}
+
+export function windowHasMore(rowCount: number, spec: BufferWindowSpec, windowCount: number): boolean {
+  return spec.offset - 1 + windowCount < rowCount;
 }
 
 export function previewRows(rows: DataRow[], columns: string[], spec: PreviewRowsArgs): PreviewResult {

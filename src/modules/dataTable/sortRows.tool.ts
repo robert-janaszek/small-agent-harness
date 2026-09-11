@@ -1,5 +1,5 @@
 import { defineTool, quoteActivityTarget, toolFailure } from '../../core/tool';
-import type { DataTableContext } from './context';
+import { clearWindow, type DataTableContext } from './context';
 import { QueryError, sortRows } from './query';
 import { sortRowsArgsSchema, type SortRowsArgs } from './schemas';
 import { withSendBufferGate } from './sendBufferToUser.tool';
@@ -19,6 +19,7 @@ export const sortRowsTool = defineTool<SortRowsArgs, DataTableContext>({
   call(context, args) {
     try {
       context.rows = sortRows(context.rows, context.columns, args.keys);
+      clearWindow(context);
       return withSendBufferGate({ rowCount: context.rows.length });
     } catch (error) {
       if (error instanceof QueryError) {

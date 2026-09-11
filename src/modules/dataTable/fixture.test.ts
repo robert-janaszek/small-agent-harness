@@ -147,6 +147,7 @@ describe('createContext', () => {
     context.sourceId = 'mutated';
     context.description = 'mutated';
     context.rows = [];
+    context.window = { offset: 1, limit: 5 };
 
     resetContext(context);
 
@@ -154,5 +155,6 @@ describe('createContext', () => {
     expect(context.sourceId).toBe('sales');
     expect(context.description).toBe(loadSalesFixture().description);
     expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(context.window).toBeNull();
   });
 });

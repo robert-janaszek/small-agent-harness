@@ -68,12 +68,13 @@ function moduleStateEvents(events: CoreEvent[]) {
 
 describe('createDataTableModule', () => {
   it('tells the model not to invent or drop rows from memory', () => {
-    expect(DATA_TABLE_PROMPT).toContain('Do not count, filter, sort, or aggregate rows in your head');
+    expect(DATA_TABLE_PROMPT).toContain('Do not count, filter, sort, limit, or aggregate rows in your head');
     expect(DATA_TABLE_PROMPT).toContain('Do not ask the user a question');
     expect(DATA_TABLE_PROMPT).toContain('Call describeTable');
     expect(DATA_TABLE_PROMPT).toContain('Call resetBuffer when you need the original table again');
     expect(DATA_TABLE_PROMPT).toContain('sendBufferToUser');
     expect(DATA_TABLE_PROMPT).toContain('selectColumns');
+    expect(DATA_TABLE_PROMPT).toContain('limitRows');
     expect(DATA_TABLE_PROMPT).toContain('that export is stale');
     expect(DATA_TABLE_PROMPT).toContain('The user cannot see the buffer');
     expect(DATA_TABLE_PROMPT).not.toContain('You currently have no tools');
@@ -108,6 +109,7 @@ describe('createDataTableModule', () => {
       rowCount: SALES_ROW_COUNT,
       columnCount: SALES_COLUMN_COUNT,
       columns: [...SALES_COLUMNS],
+      window: null,
     });
     expect(JSON.stringify(started?.payload)).not.toContain('Northwind Logistics');
 
@@ -135,6 +137,7 @@ describe('createDataTableModule', () => {
       'filterRows',
       'selectColumns',
       'sortRows',
+      'limitRows',
       'aggregate',
       'previewRows',
       'sendBufferToUser',
@@ -181,6 +184,47 @@ describe('createDataTableModule', () => {
       sourceId: SALES_TABLE_ID,
       rowCount: module.context.rows.length,
       columnCount: SALES_COLUMN_COUNT,
+    });
+  });
+
+  it('emits a send window after limitRows without shrinking the buffer', async () => {
+    const events: CoreEvent[] = [];
+    const bus = createEventBus();
+    bus.subscribe((event) => events.push(event));
+    const module = createDataTableModule();
+    const createChatCompletion = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [
+          {
+            message: assistantToolCall('limitRows', {
+              limit: 5,
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: assistantMessage('windowed to five rows') }],
+      });
+    const harness = new Harness({
+      modules: [module],
+      llmClient: { createChatCompletion },
+      config: testConfig,
+      bus,
+    });
+
+    harness.startSession();
+    await harness.run('keep the first five rows');
+
+    expect(module.context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(module.context.window).toEqual({ offset: 1, limit: 5 });
+
+    const afterLimit = moduleStateEvents(events).at(-1);
+    expect(afterLimit?.payload).toMatchObject({
+      sourceId: SALES_TABLE_ID,
+      rowCount: SALES_ROW_COUNT,
+      columnCount: SALES_COLUMN_COUNT,
+      window: { offset: 1, limit: 5 },
     });
   });
 
@@ -328,5 +372,25 @@ describe('isDataTableStateSnapshot', () => {
     expect(isDataTableStateSnapshot({ currentIndex: 0, steps: [] })).toBe(false);
     expect(isDataTableStateSnapshot({})).toBe(false);
     expect(isDataTableStateSnapshot({ sourceId: 'sales' })).toBe(false);
+    expect(
+      isDataTableStateSnapshot({
+        sourceId: 'sales',
+        description: 'fixture',
+        rowCount: 50,
+        columnCount: 1,
+        columns: ['rowId'],
+        window: { offset: 1, limit: 5 },
+      }),
+    ).toBe(true);
+    expect(
+      isDataTableStateSnapshot({
+        sourceId: 'sales',
+        description: 'fixture',
+        rowCount: 50,
+        columnCount: 1,
+        columns: ['rowId'],
+        window: { offset: 0, limit: 5 },
+      }),
+    ).toBe(false);
   });
 });

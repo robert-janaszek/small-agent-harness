@@ -48,7 +48,7 @@ System tests (`npm run test:system`) run the same live-model loop as smart home 
 
 ## Tools
 
-The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRows`, and `aggregate` replace it. `resetBuffer` (and session reset) restore the sales fixture.
+The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRows`, and `aggregate` replace it and clear the send window. `limitRows` only sets a window for `sendBufferToUser`. `resetBuffer` (and session reset) restore the sales fixture.
 
 | Tool | Mutates buffer? | What the model sees |
 |------|-----------------|---------------------|
@@ -56,17 +56,18 @@ The working set is the in-memory buffer. `filterRows`, `selectColumns`, `sortRow
 | `filterRows` | yes (WHERE) | `{ rowCount, dropped, next }` |
 | `selectColumns` | yes (SELECT) | `{ rowCount, columnCount, columns, next }` |
 | `sortRows` | yes (ORDER BY) | `{ rowCount, next }` |
+| `limitRows` | no (window) | `{ rowCount, windowCount, offset, limit, hasMore, next }` |
 | `aggregate` | yes (replaces with the result table) | Grouped rows plus `warnings` and `next` |
 | `previewRows` | no | Up to 10 rows, 1-based `offset`; optional `columns` project the read |
-| `sendBufferToUser` | no | Counts only; full rows go to the user via `export` |
+| `sendBufferToUser` | no | Counts only; window rows if set, otherwise the full buffer, via `export` |
 | `resetBuffer` | yes (fixture) | `{ rowCount, columnCount }` |
 
-Mutating tools return `next: call sendBufferToUser` because the user cannot see the buffer. A previous export is stale after a later `sortRows` / `filterRows` / `selectColumns` / `aggregate`.
+Mutating tools return `next: call sendBufferToUser` because the user cannot see the buffer. A previous export is stale after a later `sortRows` / `filterRows` / `selectColumns` / `aggregate`. After `limitRows`, send the window; the ranked buffer stays so `next: true` can page forward.
 
 Typical sequences:
 
 - Totals in EMEA per currency: `describeTable` → `filterRows` `region = EMEA` → `aggregate` `groupBy: [currency]`, `sum(lineTotal)` → `sendBufferToUser`.
-- Show expensive lines: `sortRows` `lineTotal desc` → `sendBufferToUser` (do not stop after sort; `previewRows` is only for you).
+- Show expensive lines: `sortRows` `lineTotal desc` → `limitRows` `limit: 5` → `sendBufferToUser`. The next five: `limitRows` `next: true` → `sendBufferToUser` (do not re-sort). `previewRows` is only for you and does not set the window.
 - Hand the user a slice: `filterRows` → `selectColumns` → `sendBufferToUser` (do not reprint the rows).
 
 The buffer starts as a clone of `sales.json`. Session reset restores rows **and** columns.

@@ -1,5 +1,5 @@
 import { defineTool, toolFailure } from '../../core/tool';
-import type { DataTableContext } from './context';
+import { clearWindow, type DataTableContext } from './context';
 import { QueryError, aggregateRows } from './query';
 import { aggregateArgsSchema, type AggregateArgs } from './schemas';
 import { withSendBufferGate } from './sendBufferToUser.tool';
@@ -27,6 +27,7 @@ export const aggregateTool = defineTool<AggregateArgs, DataTableContext>({
       const result = aggregateRows(context.rows, context.columns, args);
       context.rows = result.rows;
       context.columns = result.columns;
+      clearWindow(context);
       return withSendBufferGate({
         rowCount: result.rows.length,
         columns: result.columns,

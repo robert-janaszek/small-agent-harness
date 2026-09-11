@@ -8,6 +8,7 @@ import { filterRowsTool } from './filterRows.tool';
 import { aggregateTool } from './aggregate.tool';
 import { createDataTableModule } from './module';
 import { PREVIEW_MAX_LIMIT } from './schemas';
+import { limitRowsTool } from './limitRows.tool';
 import { previewRowsTool } from './previewRows.tool';
 import { resetBufferTool } from './resetBuffer.tool';
 import { selectColumnsTool } from './selectColumns.tool';
@@ -75,6 +76,123 @@ describe('dataTable tools', () => {
     const totals = context.rows.map((row) => Number(row.lineTotal));
     const sorted = [...totals].sort((left, right) => right - left);
     expect(totals).toEqual(sorted);
+  });
+
+  it('limitRows sets a send window without truncating the buffer', async () => {
+    const context = createContext();
+    const sort = sortRowsTool(context);
+    const limit = limitRowsTool(context);
+
+    await sort.call({
+      keys: [{ column: 'lineTotal', direction: 'desc' }],
+    });
+    const result = parseJson(
+      await limit.call({
+        limit: 5,
+      }),
+    );
+
+    expect(result).toEqual({
+      rowCount: SALES_ROW_COUNT,
+      windowCount: 5,
+      offset: 1,
+      limit: 5,
+      hasMore: true,
+      next: SEND_BUFFER_AFTER_MUTATION,
+    });
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(context.window).toEqual({ offset: 1, limit: 5 });
+    const totals = context.rows.map((row) => Number(row.lineTotal));
+    expect(totals).toEqual([...totals].sort((left, right) => right - left));
+    expect(JSON.stringify(result)).not.toContain('orderId');
+  });
+
+  it('limitRows next pages the window and sendBufferToUser exports only that slice', async () => {
+    const context = createContext();
+    const sort = sortRowsTool(context);
+    const limit = limitRowsTool(context);
+    const emitted: Array<{ event: string; payload?: unknown }> = [];
+    context.emit = (event, payload) => {
+      emitted.push({ event, payload });
+    };
+
+    await sort.call({
+      keys: [{ column: 'lineTotal', direction: 'desc' }],
+    });
+    await limit.call({ limit: 5 });
+    const first = parseJson(await sendBufferToUserTool(context).call({}));
+    expect(first).toMatchObject({
+      sent: true,
+      rowCount: 5,
+      bufferRowCount: SALES_ROW_COUNT,
+      offset: 1,
+      limit: 5,
+      hasMore: true,
+    });
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    const firstExport = emitted[0]?.payload as { rows: Array<{ lineTotal: number }> };
+    expect(firstExport.rows).toHaveLength(5);
+
+    const next = parseJson(await limit.call({ next: true }));
+    expect(next).toMatchObject({
+      rowCount: SALES_ROW_COUNT,
+      windowCount: 5,
+      offset: 6,
+      limit: 5,
+      hasMore: true,
+    });
+    expect(context.window).toEqual({ offset: 6, limit: 5 });
+
+    emitted.length = 0;
+    await sendBufferToUserTool(context).call({});
+    const secondExport = emitted[0]?.payload as {
+      rows: Array<{ lineTotal: number }>;
+      window: { offset: number };
+    };
+    expect(secondExport.rows).toHaveLength(5);
+    expect(secondExport.window).toMatchObject({ offset: 6 });
+    expect(Number(secondExport.rows[0]?.lineTotal)).toBeLessThanOrEqual(
+      Number(firstExport.rows[firstExport.rows.length - 1]?.lineTotal),
+    );
+  });
+
+  it('limitRows applies a 1-based offset and fails past the end without changing the window', async () => {
+    const context = createContext();
+    const limit = limitRowsTool(context);
+
+    const page = parseJson(await limit.call({ offset: 48, limit: 10 }));
+    expect(page).toMatchObject({
+      rowCount: SALES_ROW_COUNT,
+      windowCount: 3,
+      offset: 48,
+      limit: 10,
+      hasMore: false,
+      next: SEND_BUFFER_AFTER_MUTATION,
+    });
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(context.window).toEqual({ offset: 48, limit: 10 });
+
+    const pastEnd = await limit.execute({ offset: 51, limit: 1 });
+    expect(pastEnd.failed).toBe(true);
+    expect(pastEnd.content).toContain('past the end of the buffer');
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
+    expect(context.window).toEqual({ offset: 48, limit: 10 });
+
+    const noWindow = await limitRowsTool(createContext()).execute({ next: true });
+    expect(noWindow.failed).toBe(true);
+    expect(noWindow.content).toContain('No window to advance');
+  });
+
+  it('clears the send window on a later sort', async () => {
+    const context = createContext();
+    await limitRowsTool(context).call({ limit: 5 });
+    expect(context.window).toEqual({ offset: 1, limit: 5 });
+
+    await sortRowsTool(context).call({
+      keys: [{ column: 'lineTotal', direction: 'asc' }],
+    });
+    expect(context.window).toBeNull();
+    expect(context.rows).toHaveLength(SALES_ROW_COUNT);
   });
 
   it('aggregate replaces the buffer with the grouped table', async () => {
@@ -205,6 +323,7 @@ describe('dataTable tools', () => {
     expect(result).toMatchObject({
       sent: true,
       rowCount: SALES_ROW_COUNT,
+      bufferRowCount: SALES_ROW_COUNT,
       columnCount: SALES_COLUMN_COUNT,
       message: 'do not reprint these rows',
     });
@@ -264,6 +383,14 @@ describe('dataTable tool activity', () => {
       'sorting "lineTotal"',
       'sorted "lineTotal"',
     ],
+    ['limitRows', { limit: 5 }, 'limiting rows 1-5', 'limited rows 1-5'],
+    [
+      'limitRows',
+      { offset: 3, limit: 2 },
+      'limiting rows 3-4',
+      'limited rows 3-4',
+    ],
+    ['limitRows', { next: true }, 'limiting next page', 'limited next page'],
     [
       'aggregate',
       { groupBy: ['currency'], metrics: [{ op: 'count' }] },

@@ -9,6 +9,7 @@ const snapshot: DataTableStateSnapshot = {
   rowCount: 50,
   columnCount: 50,
   columns: ['rowId', 'orderId', 'lineTotal'],
+  window: null,
 };
 
 describe('renderBufferLines', () => {
@@ -29,5 +30,11 @@ describe('renderBufferLines', () => {
     expect(lines.join(' ')).toContain('orderId');
     expect(lines.join(' ')).toContain('(+1)');
     expect(lines.join(' ')).not.toContain('lineTotal');
+  });
+
+  it('shows the send window when one is set', () => {
+    const lines = renderBufferLines({ ...snapshot, window: { offset: 6, limit: 5 } }, 12, 40);
+
+    expect(lines).toContain('window 6-10');
   });
 });

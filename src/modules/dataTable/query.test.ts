@@ -7,7 +7,9 @@ import {
   aggregateRows,
   describeTable,
   filterRows,
+  limitRows,
   previewRows,
+  resolveLimitWindow,
   roundExportRows,
   selectColumns,
   sortRows,
@@ -243,6 +245,42 @@ describe('previewRows', () => {
   });
 });
 
+describe('limitRows', () => {
+  it('keeps a 1-based slice', () => {
+    expect(limitRows(ROWS, { offset: 1, limit: 2 }).map((row) => row.name)).toEqual(['alpha', 'beta']);
+    expect(limitRows(ROWS, { offset: 2, limit: 2 }).map((row) => row.name)).toEqual(['beta', 'gamma']);
+  });
+
+  it('keeps the remainder when limit overruns the buffer', () => {
+    expect(limitRows(ROWS, { offset: 3, limit: 10 }).map((row) => row.name)).toEqual(['gamma', 'delta']);
+  });
+
+  it('returns an empty list for an empty buffer and rejects an offset past the end', () => {
+    expect(limitRows([], { offset: 1, limit: 3 })).toEqual([]);
+    expect(() => limitRows(ROWS, { offset: 5, limit: 1 })).toThrow(
+      'offset 5 is past the end of the buffer (4 rows).',
+    );
+  });
+});
+
+describe('resolveLimitWindow', () => {
+  it('defaults offset to 1 and advances from the current window', () => {
+    expect(resolveLimitWindow(null, { limit: 5 })).toEqual({ offset: 1, limit: 5 });
+    expect(resolveLimitWindow({ offset: 1, limit: 5 }, { next: true })).toEqual({
+      offset: 6,
+      limit: 5,
+    });
+    expect(resolveLimitWindow({ offset: 1, limit: 5 }, { next: true, limit: 3 })).toEqual({
+      offset: 6,
+      limit: 3,
+    });
+  });
+
+  it('rejects next without a window', () => {
+    expect(() => resolveLimitWindow(null, { next: true })).toThrow('No window to advance');
+  });
+});
+
 describe('sales fixture queries', () => {
   const table = loadSalesFixture();
   const rows = table.rows as unknown as DataRow[];
@@ -287,5 +325,14 @@ describe('sales fixture queries', () => {
     });
     const expected = round2(table.rows.reduce((sum, row) => sum + row.shippingCost, 0));
     expect(round2(asNumber(result.rows[0]?.sum_shippingCost))).toBe(expected);
+  });
+
+  it('takes the top lineTotals after a descending sort', () => {
+    const ranked = sortRows(rows, columns, [{ column: 'lineTotal', direction: 'desc' }]);
+    const top = limitRows(ranked, { offset: 1, limit: 5 });
+    expect(top).toHaveLength(5);
+    const totals = top.map((row) => asNumber(row.lineTotal));
+    expect(totals).toEqual([...totals].sort((left, right) => right - left));
+    expect(asNumber(top[0]?.lineTotal)).toBe(asNumber(ranked[0]?.lineTotal));
   });
 });

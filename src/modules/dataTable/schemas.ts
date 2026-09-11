@@ -200,6 +200,49 @@ export const previewRowsArgsSchema = z.object({
     .describe('Optional column projection for this read only. Does not change the buffer.'),
 });
 
+export const limitRowsArgsSchema = z
+  .object({
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe(
+        'Window size. Required unless next is true. Does not drop rows from the buffer — sendBufferToUser uses this window.',
+      ),
+    offset: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('1-based row number to start from. Default 1. Do not pass offset with next.'),
+    next: z
+      .boolean()
+      .optional()
+      .describe(
+        'Advance the existing window by one page (same size unless you also pass limit). Use this for "the next 5" after a previous limitRows. Do not re-sort.',
+      ),
+  })
+  .superRefine((args, ctx) => {
+    if (args.next) {
+      if (args.offset !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Do not pass offset when next is true',
+          path: ['offset'],
+        });
+      }
+      return;
+    }
+    if (args.limit === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'limit is required unless next is true',
+        path: ['limit'],
+      });
+    }
+  });
+
 export const selectColumnsArgsSchema = z.object({
   columns: z
     .array(z.string().min(1))
@@ -220,6 +263,7 @@ export type AggregateMetric = z.infer<typeof aggregateMetricSchema>;
 export type AggregateArgs = z.infer<typeof aggregateArgsSchema>;
 export type DescribeTableArgs = z.infer<typeof describeTableArgsSchema>;
 export type PreviewRowsArgs = z.infer<typeof previewRowsArgsSchema>;
+export type LimitRowsArgs = z.infer<typeof limitRowsArgsSchema>;
 export type SelectColumnsArgs = z.infer<typeof selectColumnsArgsSchema>;
 export type SendBufferToUserArgs = z.infer<typeof sendBufferToUserArgsSchema>;
 export type ResetBufferArgs = z.infer<typeof resetBufferArgsSchema>;
