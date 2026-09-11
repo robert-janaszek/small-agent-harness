@@ -3,51 +3,24 @@ import type { DiffTerminal } from '../../../core/tui/diffTerminal';
 import { graphemes } from '../../../core/tui/unicode';
 import type { DataTableStateSnapshot } from '../context';
 
-function wrapText(text: string, width: number): string[] {
+function displayWidth(text: string): number {
+  return graphemes(text).length;
+}
+
+function truncateLine(text: string, width: number): string {
   if (width <= 0) {
-    return [];
+    return '';
   }
 
-  const words = text.split(/\s+/).filter((word) => word.length > 0);
-  if (words.length === 0) {
-    return [''];
+  const chars = graphemes(text);
+  if (chars.length <= width) {
+    return chars.join('');
+  }
+  if (width === 1) {
+    return '…';
   }
 
-  const lines: string[] = [];
-  let current = '';
-
-  for (const word of words) {
-    if (current.length === 0) {
-      current = word;
-      continue;
-    }
-
-    if (current.length + 1 + word.length <= width) {
-      current = `${current} ${word}`;
-      continue;
-    }
-
-    lines.push(current);
-    current = word;
-  }
-
-  if (current.length > 0) {
-    lines.push(current);
-  }
-
-  const wrapped: string[] = [];
-  for (const line of lines) {
-    if (line.length <= width) {
-      wrapped.push(line);
-      continue;
-    }
-
-    for (let index = 0; index < line.length; index += width) {
-      wrapped.push(line.slice(index, index + width));
-    }
-  }
-
-  return wrapped.length > 0 ? wrapped : [''];
+  return `${chars.slice(0, width - 1).join('')}…`;
 }
 
 export function renderBufferLines(snapshot: DataTableStateSnapshot, maxLines: number, width: number): string[] {
@@ -56,41 +29,50 @@ export function renderBufferLines(snapshot: DataTableStateSnapshot, maxLines: nu
   }
 
   if (snapshot.rowCount === 0 && snapshot.columns.length === 0) {
-    return wrapText('Waiting for buffer...', width).slice(0, maxLines);
+    return [truncateLine('Waiting for buffer...', width)].slice(0, maxLines);
   }
 
   const size = `${snapshot.rowCount} rows x ${snapshot.columnCount} cols`;
   const lines: string[] = [
-    ...wrapText('Data buffer', width),
+    truncateLine('Data buffer', width),
     '-'.repeat(Math.min(width, 24)),
-    ...wrapText(snapshot.sourceId || 'unknown', width),
+    truncateLine(snapshot.sourceId || 'unknown', width),
+    truncateLine(size, width),
   ];
-
-  if (snapshot.description.length > 0) {
-    lines.push(...wrapText(snapshot.description, width));
-  }
-
-  lines.push(...wrapText(size, width));
 
   if (snapshot.window && snapshot.rowCount > 0) {
     const last = Math.min(snapshot.window.offset + snapshot.window.limit - 1, snapshot.rowCount);
-    lines.push(...wrapText(`window ${snapshot.window.offset}-${last}`, width));
+    lines.push(truncateLine(`window ${snapshot.window.offset}-${last}`, width));
   }
 
   if (snapshot.columns.length > 0) {
-    lines.push(...wrapText(formatColumnSummary(snapshot.columns), width));
+    lines.push(formatColumnSummary(snapshot.columns, width));
+  }
+
+  if (snapshot.description.length > 0) {
+    lines.push(truncateLine(snapshot.description, width));
   }
 
   return lines.slice(0, maxLines);
 }
 
-export function formatColumnSummary(columns: string[]): string {
-  if (columns.length <= 2) {
-    return `Columns: ${columns.join(', ')}`;
+export function formatColumnSummary(columns: string[], width: number): string {
+  if (columns.length === 0) {
+    return truncateLine('Columns:', width);
   }
 
-  const rest = columns.length - 2;
-  return `Columns: ${columns[0]}, ${columns[1]}, … (+${rest})`;
+  const prefix = 'Columns: ';
+  for (let count = columns.length; count >= 1; count--) {
+    const extra = columns.length - count;
+    const names = columns.slice(0, count).join(', ');
+    const suffix = extra > 0 ? `, … (+${extra})` : '';
+    const line = `${prefix}${names}${suffix}`;
+    if (displayWidth(line) <= width || count === 1) {
+      return truncateLine(line, width);
+    }
+  }
+
+  return truncateLine(`${prefix}${columns[0]}`, width);
 }
 
 function lineColor(text: string, row: number): number {

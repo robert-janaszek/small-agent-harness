@@ -64,4 +64,29 @@ describe('formatTablePreview', () => {
     expect(text).toMatch(/\+?\d+/);
     expect(text).toContain('… +');
   });
+
+  it('truncates a wide sales header so the preview stays on one row', () => {
+    const columns = [
+      'rowId',
+      'orderId',
+      'lineNumber',
+      'orderDate',
+      'shipDate',
+      'customerEmail',
+      'customerSegment',
+      'industry',
+    ];
+    const preview = formatTablePreview(
+      {
+        columns,
+        rows: [Object.fromEntries(columns.map((column) => [column, 'x']))],
+      },
+      40,
+    );
+
+    expect(preview[0]).toMatch(/exported 1\/1 rows, \d+\/8 cols \(truncated\)/);
+    expect(preview[1]?.length).toBeLessThanOrEqual(40);
+    expect(preview[1]).toContain('… +');
+    expect(preview.join('\n')).not.toContain('customerSegment');
+  });
 });
