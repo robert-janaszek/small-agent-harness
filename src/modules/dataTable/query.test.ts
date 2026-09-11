@@ -269,6 +269,9 @@ describe('limitRows', () => {
 
   it('returns an empty list for an empty buffer and rejects an offset past the end', () => {
     expect(limitRows([], { offset: 1, limit: 3 })).toEqual([]);
+    expect(() => limitRows([], { offset: 2, limit: 1 })).toThrow(
+      'offset 2 is past the end of the buffer (0 rows).',
+    );
     expect(() => limitRows(ROWS, { offset: 5, limit: 1 })).toThrow(
       'offset 5 is past the end of the buffer (4 rows).',
     );

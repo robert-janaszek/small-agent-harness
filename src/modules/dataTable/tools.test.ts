@@ -185,6 +185,18 @@ describe('dataTable tools', () => {
     const noWindow = await limitRowsTool(createContext()).execute({ next: true });
     expect(noWindow.failed).toBe(true);
     expect(noWindow.content).toContain('No window to advance');
+
+    const empty = createContext();
+    empty.rows = [];
+    const emptyLimit = limitRowsTool(empty);
+    const emptyOk = parseJson(await emptyLimit.call({ limit: 5 }));
+    expect(emptyOk).toMatchObject({ rowCount: 0, windowCount: 0, offset: 1, hasMore: false });
+    expect(empty.window).toEqual({ offset: 1, limit: 5 });
+
+    const emptyPast = await emptyLimit.execute({ offset: 2, limit: 1 });
+    expect(emptyPast.failed).toBe(true);
+    expect(emptyPast.content).toContain('past the end of the buffer (0 rows)');
+    expect(empty.window).toEqual({ offset: 1, limit: 5 });
   });
 
   it('clears the send window on a later sort', async () => {

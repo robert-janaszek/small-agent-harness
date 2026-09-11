@@ -37,4 +37,15 @@ describe('renderBufferLines', () => {
 
     expect(lines).toContain('window 6-10');
   });
+
+  it('clamps the window end to the buffer rowCount', () => {
+    const lines = renderBufferLines(
+      { ...snapshot, window: { offset: 48, limit: 10 } },
+      12,
+      40,
+    );
+
+    expect(lines).toContain('window 48-50');
+    expect(lines.join(' ')).not.toContain('window 48-57');
+  });
 });

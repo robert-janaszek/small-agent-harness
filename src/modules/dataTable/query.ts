@@ -295,6 +295,9 @@ export function resolveLimitWindow(
 export function limitRows(rows: DataRow[], spec: BufferWindowSpec): DataRow[] {
   const offset = spec.offset;
   if (rows.length === 0) {
+    if (offset > 1) {
+      throw new QueryError(`offset ${offset} is past the end of the buffer (0 rows).`);
+    }
     return [];
   }
   if (offset > rows.length) {

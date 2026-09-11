@@ -151,6 +151,7 @@ describe.skipIf(!llmApiAvailable)('dataTable system', () => {
     expectCompletedHarnessRun(result);
     expect(toolNames(events)).toContain('sortRows');
     expect(toolNames(events)).toContain('limitRows');
+    expect(toolNames(events)).toContain('sendBufferToUser');
     expect(module.context.rows).toHaveLength(SALES_ROW_COUNT);
     expect(module.context.window).toMatchObject({ limit: 5 });
 
@@ -159,9 +160,14 @@ describe.skipIf(!llmApiAvailable)('dataTable system', () => {
     const windowRows = limitRows(module.context.rows, window!);
     expect(windowRows).toHaveLength(5);
 
-    const actualTotals = windowRows.map((row) => round2(asNumber(row.lineTotal)));
     const expectedTotals = expectedTopLineTotals.map((row) => round2(asNumber(row.lineTotal)));
+    const actualTotals = windowRows.map((row) => round2(asNumber(row.lineTotal)));
     expect([...actualTotals].sort((left, right) => right - left)).toEqual(expectedTotals);
+
+    const payload = exportPayload(events);
+    expect(payload.rows).toHaveLength(5);
+    const exportTotals = payload.rows.map((row) => round2(asNumber(row.lineTotal)));
+    expect([...exportTotals].sort((left, right) => right - left)).toEqual(expectedTotals);
   });
 
   it('sends the full buffer to the user and returns a short sample in the tool result', async () => {
