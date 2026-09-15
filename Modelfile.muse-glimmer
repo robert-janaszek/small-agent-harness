@@ -1,0 +1,22 @@
+# Muse Glimmer for this harness. Do not add TEMPLATE — the base model
+# already has the ATEM chat template and stop tokens. Overriding them
+# breaks tool calling.
+#
+# Apple Silicon (MLX). If create/pull fails, switch FROM to:
+#   muse-glimmer:latest
+FROM muse-glimmer:30b-mlx
+
+REQUIRES 0.32.7
+
+# Model card defaults. Do not lower temperature — Glimmer is trained at 1.0.
+PARAMETER temperature 1.0
+PARAMETER top_p 0.95
+PARAMETER top_k 64
+
+# 32k is enough for this agent loop and cheaper on RAM than the native 128k.
+# Raise toward 131072 if you hit context overflows.
+PARAMETER num_ctx 32768
+
+# Fallback for `ollama run` only. The harness sends its own system prompt
+# and that overrides this line. Valid values: low | medium | high | xhigh.
+SYSTEM """Reasoning strength: high."""
