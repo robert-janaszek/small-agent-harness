@@ -64,6 +64,25 @@ function usageDetailsFromCompletion(
   };
 }
 
+/** Prefer the model the API actually served — routers and aliases often differ from the request. */
+export function toChatCompletionGenerationResultAttrs(
+  completion: ChatCompletion,
+  requestedModel: string,
+): LangfuseGenerationAttributes {
+  const servedModel = completion.model?.trim() ?? '';
+  const metadata: Record<string, unknown> = {};
+  if (servedModel && servedModel !== requestedModel) {
+    metadata.requestedModel = requestedModel;
+  }
+
+  return {
+    output: completion.choices[0]?.message ?? null,
+    usageDetails: usageDetailsFromCompletion(completion.usage),
+    ...(servedModel ? { model: servedModel } : {}),
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+  };
+}
+
 export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): ChatCompletionClient {
   const openai = new OpenAI({
     baseURL: config.openaiBaseUrl,
@@ -92,10 +111,7 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
           signal: requestOptions.signal ?? undefined,
         });
 
-        observation.update({
-          output: completion.choices[0]?.message ?? null,
-          usageDetails: usageDetailsFromCompletion(completion.usage),
-        });
+        observation.update(toChatCompletionGenerationResultAttrs(completion, params.model));
 
         return completion;
       });

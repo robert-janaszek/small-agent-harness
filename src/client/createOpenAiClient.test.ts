@@ -30,7 +30,11 @@ vi.mock('./assembleChatCompletionStream', () => ({
 }));
 
 import { consumeChatCompletionStream } from './assembleChatCompletionStream';
-import { createOpenAiClient, toChatCompletionGenerationAttrs } from './createOpenAiClient';
+import {
+  createOpenAiClient,
+  toChatCompletionGenerationAttrs,
+  toChatCompletionGenerationResultAttrs,
+} from './createOpenAiClient';
 
 const testConfig = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',
@@ -90,6 +94,70 @@ describe('toChatCompletionGenerationAttrs', () => {
   });
 });
 
+describe('toChatCompletionGenerationResultAttrs', () => {
+  const message = { role: 'assistant' as const, content: 'ok', refusal: null };
+  const usage = { prompt_tokens: 10, completion_tokens: 4, total_tokens: 14 };
+
+  it('records the served model from the completion', () => {
+    expect(
+      toChatCompletionGenerationResultAttrs(
+        {
+          id: 'chatcmpl-1',
+          object: 'chat.completion',
+          created: 1,
+          model: 'muse-glimmer:30b-mlx',
+          choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message }],
+          usage,
+        },
+        'muse-glimmer-harness',
+      ),
+    ).toEqual({
+      output: message,
+      usageDetails: { input: 10, output: 4, total: 14 },
+      model: 'muse-glimmer:30b-mlx',
+      metadata: { requestedModel: 'muse-glimmer-harness' },
+    });
+  });
+
+  it('omits requestedModel when the API served the requested name', () => {
+    expect(
+      toChatCompletionGenerationResultAttrs(
+        {
+          id: 'chatcmpl-1',
+          object: 'chat.completion',
+          created: 1,
+          model: 'test-model',
+          choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message }],
+        },
+        'test-model',
+      ),
+    ).toEqual({
+      output: message,
+      usageDetails: undefined,
+      model: 'test-model',
+    });
+  });
+
+  it('omits model from the end-update when the API did not report one', () => {
+    const attrs = toChatCompletionGenerationResultAttrs(
+      {
+        id: 'chatcmpl-1',
+        object: 'chat.completion',
+        created: 1,
+        model: '  ',
+        choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message }],
+      },
+      'test-model',
+    );
+
+    expect(attrs).toEqual({
+      output: message,
+      usageDetails: undefined,
+    });
+    expect(attrs).not.toHaveProperty('model');
+  });
+});
+
 describe('createOpenAiClient', () => {
   afterEach(() => {
     withGenerationObservation.mockClear();
@@ -137,9 +205,37 @@ describe('createOpenAiClient', () => {
     const client = createOpenAiClient(testConfig);
     await client.createChatCompletion({ model: 'test-model', messages });
 
+    expect(withGenerationObservation).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'test-model' }),
+      expect.any(Function),
+    );
     expect(update).toHaveBeenCalledWith({
       output: { role: 'assistant', content: 'ok', refusal: null },
       usageDetails: { input: 10, output: 4, total: 14 },
+    });
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('model');
+  });
+
+  it('overwrites the generation model with the name the API served', async () => {
+    createStream.mockResolvedValue((async function* () {})());
+    const update = vi.fn();
+    withGenerationObservation.mockImplementationOnce(async (_params, fn) => fn({ update }));
+    vi.mocked(consumeChatCompletionStream).mockResolvedValueOnce({
+      id: 'chatcmpl-1',
+      object: 'chat.completion',
+      created: 1,
+      model: 'served-model',
+      choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message: { role: 'assistant', content: 'ok', refusal: null } }],
+    });
+
+    const client = createOpenAiClient(testConfig);
+    await client.createChatCompletion({ model: 'test-model', messages });
+
+    expect(update).toHaveBeenCalledWith({
+      output: { role: 'assistant', content: 'ok', refusal: null },
+      usageDetails: undefined,
+      model: 'served-model',
+      metadata: { requestedModel: 'test-model' },
     });
   });
 });

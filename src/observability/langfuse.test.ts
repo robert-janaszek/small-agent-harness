@@ -98,7 +98,7 @@ describe('langfuse observability', () => {
     vi.stubEnv('LANGFUSE_SECRET_KEY', '');
 
     const result = await withAgentObservation(
-      { sessionId: 'session-1', input: { command: 'hi' } },
+      { sessionId: 'session-1', input: { command: 'hi' }, model: 'muse-glimmer-harness' },
       async (observation) => {
         observation.update({ output: { ok: true } });
         return 42;

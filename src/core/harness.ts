@@ -138,6 +138,7 @@ export class Harness {
           name: 'harness-turn',
           sessionId: this.sessionId,
           input: { command: userCommand },
+          model: this.config.modelName,
         },
         async (observation) => {
           this.bus.emit({ type: 'user_command', command: userCommand });
