@@ -98,20 +98,23 @@ describe('toChatCompletionGenerationResultAttrs', () => {
   const message = { role: 'assistant' as const, content: 'ok', refusal: null };
   const usage = { prompt_tokens: 10, completion_tokens: 4, total_tokens: 14 };
 
+  function completionWith(
+    model: string,
+    assistant: typeof message & { reasoning_content?: string },
+    extras: { usage?: typeof usage } = {},
+  ) {
+    return {
+      id: 'chatcmpl-1',
+      object: 'chat.completion' as const,
+      created: 1,
+      model,
+      choices: [{ index: 0, finish_reason: 'stop' as const, logprobs: null, message: assistant }],
+      ...extras,
+    };
+  }
+
   it('records the served model from the completion', () => {
-    expect(
-      toChatCompletionGenerationResultAttrs(
-        {
-          id: 'chatcmpl-1',
-          object: 'chat.completion',
-          created: 1,
-          model: 'muse-glimmer:30b-mlx',
-          choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message }],
-          usage,
-        },
-        'muse-glimmer-harness',
-      ),
-    ).toEqual({
+    expect(toChatCompletionGenerationResultAttrs(completionWith('muse-glimmer:30b-mlx', message, { usage }), 'muse-glimmer-harness')).toEqual({
       output: message,
       usageDetails: { input: 10, output: 4, total: 14 },
       model: 'muse-glimmer:30b-mlx',
@@ -120,18 +123,7 @@ describe('toChatCompletionGenerationResultAttrs', () => {
   });
 
   it('omits requestedModel when the API served the requested name', () => {
-    expect(
-      toChatCompletionGenerationResultAttrs(
-        {
-          id: 'chatcmpl-1',
-          object: 'chat.completion',
-          created: 1,
-          model: 'test-model',
-          choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message }],
-        },
-        'test-model',
-      ),
-    ).toEqual({
+    expect(toChatCompletionGenerationResultAttrs(completionWith('test-model', message), 'test-model')).toEqual({
       output: message,
       usageDetails: undefined,
       model: 'test-model',
@@ -139,22 +131,54 @@ describe('toChatCompletionGenerationResultAttrs', () => {
   });
 
   it('omits model from the end-update when the API did not report one', () => {
-    const attrs = toChatCompletionGenerationResultAttrs(
-      {
-        id: 'chatcmpl-1',
-        object: 'chat.completion',
-        created: 1,
-        model: '  ',
-        choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message }],
-      },
-      'test-model',
-    );
+    const attrs = toChatCompletionGenerationResultAttrs(completionWith('  ', message), 'test-model');
 
     expect(attrs).toEqual({
       output: message,
       usageDetails: undefined,
     });
     expect(attrs).not.toHaveProperty('model');
+  });
+
+  it('maps reasoning_content to a Langfuse thinking block next to the answer', () => {
+    expect(
+      toChatCompletionGenerationResultAttrs(
+        completionWith('test-model', { ...message, reasoning_content: 'hmm' }),
+        'test-model',
+      ),
+    ).toEqual({
+      output: {
+        role: 'assistant',
+        content: 'ok',
+        refusal: null,
+        thinking: [{ type: 'thinking', content: 'hmm' }],
+      },
+      usageDetails: undefined,
+      model: 'test-model',
+    });
+  });
+
+  it('does not duplicate thinking when content is the reasoning fallback', () => {
+    expect(
+      toChatCompletionGenerationResultAttrs(
+        completionWith('test-model', {
+          role: 'assistant',
+          content: 'thinking about tools',
+          refusal: null,
+          reasoning_content: 'thinking about tools',
+        }),
+        'test-model',
+      ),
+    ).toEqual({
+      output: {
+        role: 'assistant',
+        content: null,
+        refusal: null,
+        thinking: [{ type: 'thinking', content: 'thinking about tools' }],
+      },
+      usageDetails: undefined,
+      model: 'test-model',
+    });
   });
 });
 

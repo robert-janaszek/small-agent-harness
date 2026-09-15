@@ -64,6 +64,36 @@ function usageDetailsFromCompletion(
   };
 }
 
+type MessageWithReasoning = ChatCompletion['choices'][number]['message'] & {
+  reasoning_content?: string;
+};
+
+function extraString(value: object, key: string): string {
+  const extra = (value as Record<string, unknown>)[key];
+  return typeof extra === 'string' ? extra : '';
+}
+
+/** ChatML thinking blocks — Langfuse renders these as a Thinking section. */
+function toLangfuseGenerationOutput(
+  message: ChatCompletion['choices'][number]['message'] | undefined,
+): unknown {
+  if (!message) {
+    return null;
+  }
+
+  const reasoning = extraString(message, 'reasoning_content');
+  const { reasoning_content: _reasoningContent, ...rest } = message as MessageWithReasoning;
+  if (!reasoning) {
+    return rest;
+  }
+
+  return {
+    ...rest,
+    ...(rest.content === reasoning ? { content: null } : {}),
+    thinking: [{ type: 'thinking', content: reasoning }],
+  };
+}
+
 /** Prefer the model the API actually served — routers and aliases often differ from the request. */
 export function toChatCompletionGenerationResultAttrs(
   completion: ChatCompletion,
@@ -76,7 +106,7 @@ export function toChatCompletionGenerationResultAttrs(
   }
 
   return {
-    output: completion.choices[0]?.message ?? null,
+    output: toLangfuseGenerationOutput(completion.choices[0]?.message),
     usageDetails: usageDetailsFromCompletion(completion.usage),
     ...(servedModel ? { model: servedModel } : {}),
     ...(Object.keys(metadata).length > 0 ? { metadata } : {}),

@@ -148,6 +148,9 @@ describe('createChatCompletionStreamAssembler', () => {
     });
 
     expect(assembler.toChatCompletion().choices[0]?.message.content).toBe('ok');
+    expect(
+      (assembler.toChatCompletion().choices[0]?.message as { reasoning_content?: string }).reasoning_content,
+    ).toBe('hmm');
   });
 
   it('falls back to reasoning when the model never produced content', () => {
@@ -161,6 +164,9 @@ describe('createChatCompletionStreamAssembler', () => {
     assembler.push(chunk({}, { finish_reason: 'length' }));
 
     expect(assembler.toChatCompletion().choices[0]?.message.content).toBe('thinking about tools');
+    expect(
+      (assembler.toChatCompletion().choices[0]?.message as { reasoning_content?: string }).reasoning_content,
+    ).toBe('thinking about tools');
     expect(assembler.toChatCompletion().choices[0]?.finish_reason).toBe('length');
   });
 
@@ -188,6 +194,9 @@ describe('createChatCompletionStreamAssembler', () => {
 
     const completion = assembler.toChatCompletion();
     expect(completion.choices[0]?.message.content).toBeNull();
+    expect((completion.choices[0]?.message as { reasoning_content?: string }).reasoning_content).toBe(
+      'I should call listDevices',
+    );
     expect(completion.choices[0]?.message.tool_calls?.[0]).toMatchObject({
       function: { name: 'listDevices', arguments: '{}' },
     });
@@ -203,6 +212,9 @@ describe('createChatCompletionStreamAssembler', () => {
     );
 
     expect(assembler.toChatCompletion().choices[0]?.message.content).toBe('hmm');
+    expect(
+      (assembler.toChatCompletion().choices[0]?.message as { reasoning_content?: string }).reasoning_content,
+    ).toBe('hmm');
   });
 
   it('reads text from content parts used by some local servers', () => {
