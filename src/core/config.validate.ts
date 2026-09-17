@@ -53,10 +53,20 @@ const maxCompletionTokensSchema = z.union([z.number(), z.string()]).optional().t
   return parsed;
 });
 
+const optionalDisplayNameSchema = z.union([z.string(), z.undefined()]).optional().transform((value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+});
+
 export const harnessConfigSchema = z.object({
   openaiBaseUrl: openaiBaseUrlSchema,
   openaiApiKey: trimmedNonEmpty('OPENAI_API_KEY is required'),
   modelName: trimmedNonEmpty('MODEL_NAME is required'),
+  modelDisplayName: optionalDisplayNameSchema,
   maxIterations: maxIterationsSchema,
   maxCompletionTokens: maxCompletionTokensSchema,
 });
@@ -69,6 +79,7 @@ export function readHarnessConfigFromEnv(env: NodeJS.ProcessEnv = process.env): 
     openaiBaseUrl: env.OPENAI_BASE_URL ?? '',
     openaiApiKey: env.OPENAI_API_KEY ?? '',
     modelName: env.MODEL_NAME ?? '',
+    modelDisplayName: env.MODEL_DISPLAY_NAME,
     maxIterations: env.HARNESS_MAX_ITERATIONS ?? '',
     maxCompletionTokens: env.HARNESS_MAX_COMPLETION_TOKENS,
   };
@@ -81,4 +92,9 @@ export function validateHarnessConfig(input: HarnessConfigInput): HarnessConfig 
   }
 
   return result.data;
+}
+
+/** Name shown in Langfuse. Falls back to the API identifier when unset. */
+export function tracedModelName(config: { modelName: string; modelDisplayName?: string }): string {
+  return config.modelDisplayName ?? config.modelName;
 }

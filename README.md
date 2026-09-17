@@ -116,6 +116,7 @@ npm run harness -- --serve
 | `OPENAI_BASE_URL` | Base URL of an OpenAI-compatible API (e.g. `http://127.0.0.1:1234/v1`) |
 | `OPENAI_API_KEY` | API key — many local servers accept any non-empty string |
 | `MODEL_NAME` | Model identifier as exposed by your server |
+| `MODEL_DISPLAY_NAME` | Optional. Name recorded in Langfuse when it should differ from `MODEL_NAME` (e.g. Ollama alias `muse-glimmer-harness` → `meta/muse-glimmer`) |
 | `HARNESS_MAX_ITERATIONS` | Safety cap on agent loop iterations (positive integer) |
 | `HARNESS_MAX_COMPLETION_TOKENS` | Optional. Max tokens generated per LLM call (default `16384`). Stops runaway local completions that never emit an EOS token |
 | `LANGFUSE_PUBLIC_KEY` | Optional. Langfuse public key — enables tracing when set with the secret key |
@@ -130,8 +131,8 @@ Set both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to send traces to [Lang
 
 Each `harness.run` turn becomes an agent trace that includes:
 
-- LLM generations — prompts, completions, tool_calls, token usage, and the model the API actually served (tool schemas are omitted from generation input so Langfuse can render ChatML)
-- Trace metadata/tags with `MODEL_NAME`, so sessions can be filtered by the configured model
+- LLM generations — prompts, completions, tool_calls, token usage, and the traced model (`MODEL_DISPLAY_NAME` or `MODEL_NAME`; tool schemas are omitted from generation input so Langfuse can render ChatML)
+- Trace metadata/tags with the same traced model, so sessions can be filtered by one name
 - Tool spans — tool name, args, and result for every tool execution
 - A shared `sessionId` across turns in the same CLI / `--serve` session
 

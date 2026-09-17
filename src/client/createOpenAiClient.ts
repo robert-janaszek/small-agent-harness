@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import type { LangfuseGenerationAttributes } from '@langfuse/tracing';
 
 import { getHarnessConfig } from '../core/config';
-import type { HarnessConfig } from '../core/config.validate';
+import { tracedModelName, type HarnessConfig } from '../core/config.validate';
 import { withGenerationObservation } from '../observability/langfuse';
 import { consumeChatCompletionStream } from './assembleChatCompletionStream';
 import type { ChatCompletionClient } from './llmClient.type';
@@ -25,7 +25,10 @@ function toolNamesFromParams(tools: ChatCompletionParams['tools']): string[] {
 }
 
 /** ChatML input only — tool JSON schemas must not go on generation.input (Langfuse dumps them as Additional Input). */
-export function toChatCompletionGenerationAttrs(params: ChatCompletionParams): {
+export function toChatCompletionGenerationAttrs(
+  params: ChatCompletionParams,
+  tracedModel = params.model,
+): {
   name: 'chat-completion';
   input: ChatCompletionParams['messages'];
   model: string;
@@ -44,7 +47,7 @@ export function toChatCompletionGenerationAttrs(params: ChatCompletionParams): {
   return {
     name: 'chat-completion',
     input: params.messages,
-    model: params.model,
+    model: tracedModel,
     ...(Object.keys(modelParameters).length > 0 ? { modelParameters } : {}),
     ...(toolNames.length > 0 ? { metadata: { tools: toolNames } } : {}),
   };
@@ -94,21 +97,24 @@ function toLangfuseGenerationOutput(
   };
 }
 
-/** Prefer the model the API actually served — routers and aliases often differ from the request. */
+/** Keep the traced model on the generation. API aliases go in metadata, not the Model column. */
 export function toChatCompletionGenerationResultAttrs(
   completion: ChatCompletion,
   requestedModel: string,
+  tracedModel = requestedModel,
 ): LangfuseGenerationAttributes {
   const servedModel = completion.model?.trim() ?? '';
   const metadata: Record<string, unknown> = {};
-  if (servedModel && servedModel !== requestedModel) {
+  if (requestedModel !== tracedModel) {
     metadata.requestedModel = requestedModel;
+  }
+  if (servedModel && servedModel !== tracedModel && servedModel !== requestedModel) {
+    metadata.servedModel = servedModel;
   }
 
   return {
     output: toLangfuseGenerationOutput(completion.choices[0]?.message),
     usageDetails: usageDetailsFromCompletion(completion.usage),
-    ...(servedModel ? { model: servedModel } : {}),
     ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
   };
 }
@@ -118,12 +124,13 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
     baseURL: config.openaiBaseUrl,
     apiKey: config.openaiApiKey,
   });
+  const tracedModel = tracedModelName(config);
 
   return {
     async createChatCompletion(params, options) {
       const { onTextDelta, onReasoningDelta, onTextDeltaCancel, onToolCallStart, ...requestOptions } = options ?? {};
 
-      return withGenerationObservation(toChatCompletionGenerationAttrs(params), async (observation) => {
+      return withGenerationObservation(toChatCompletionGenerationAttrs(params, tracedModel), async (observation) => {
         const stream = (await openai.chat.completions.create(
           {
             ...params,
@@ -141,7 +148,7 @@ export function createOpenAiClient(config: HarnessConfig = getHarnessConfig()): 
           signal: requestOptions.signal ?? undefined,
         });
 
-        observation.update(toChatCompletionGenerationResultAttrs(completion, params.model));
+        observation.update(toChatCompletionGenerationResultAttrs(completion, params.model, tracedModel));
 
         return completion;
       });

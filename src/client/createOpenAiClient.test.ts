@@ -92,6 +92,16 @@ describe('toChatCompletionGenerationAttrs', () => {
       model: 'test-model',
     });
   });
+
+  it('records the traced display name instead of the API identifier', () => {
+    expect(
+      toChatCompletionGenerationAttrs({ model: 'muse-glimmer-harness', messages }, 'meta/muse-glimmer'),
+    ).toEqual({
+      name: 'chat-completion',
+      input: messages,
+      model: 'meta/muse-glimmer',
+    });
+  });
 });
 
 describe('toChatCompletionGenerationResultAttrs', () => {
@@ -113,20 +123,42 @@ describe('toChatCompletionGenerationResultAttrs', () => {
     };
   }
 
-  it('records the served model from the completion', () => {
-    expect(toChatCompletionGenerationResultAttrs(completionWith('muse-glimmer:30b-mlx', message, { usage }), 'muse-glimmer-harness')).toEqual({
+  it('does not overwrite the traced model with the served API name', () => {
+    const attrs = toChatCompletionGenerationResultAttrs(
+      completionWith('muse-glimmer-harness', message, { usage }),
+      'muse-glimmer-harness',
+      'meta/muse-glimmer',
+    );
+
+    expect(attrs).toEqual({
       output: message,
       usageDetails: { input: 10, output: 4, total: 14 },
-      model: 'muse-glimmer:30b-mlx',
       metadata: { requestedModel: 'muse-glimmer-harness' },
+    });
+    expect(attrs).not.toHaveProperty('model');
+  });
+
+  it('records servedModel only when it differs from both traced and requested names', () => {
+    expect(
+      toChatCompletionGenerationResultAttrs(
+        completionWith('muse-glimmer:30b-mlx', message),
+        'muse-glimmer-harness',
+        'meta/muse-glimmer',
+      ),
+    ).toEqual({
+      output: message,
+      usageDetails: undefined,
+      metadata: {
+        requestedModel: 'muse-glimmer-harness',
+        servedModel: 'muse-glimmer:30b-mlx',
+      },
     });
   });
 
-  it('omits requestedModel when the API served the requested name', () => {
+  it('omits alias metadata when traced, requested, and served names match', () => {
     expect(toChatCompletionGenerationResultAttrs(completionWith('test-model', message), 'test-model')).toEqual({
       output: message,
       usageDetails: undefined,
-      model: 'test-model',
     });
   });
 
@@ -154,7 +186,6 @@ describe('toChatCompletionGenerationResultAttrs', () => {
         thinking: [{ type: 'thinking', content: 'hmm' }],
       },
       usageDetails: undefined,
-      model: 'test-model',
     });
   });
 
@@ -177,7 +208,6 @@ describe('toChatCompletionGenerationResultAttrs', () => {
         thinking: [{ type: 'thinking', content: 'thinking about tools' }],
       },
       usageDetails: undefined,
-      model: 'test-model',
     });
   });
 });
@@ -240,7 +270,7 @@ describe('createOpenAiClient', () => {
     expect(update.mock.calls[0]?.[0]).not.toHaveProperty('model');
   });
 
-  it('overwrites the generation model with the name the API served', async () => {
+  it('traces the display name and does not overwrite it with the served API name', async () => {
     createStream.mockResolvedValue((async function* () {})());
     const update = vi.fn();
     withGenerationObservation.mockImplementationOnce(async (_params, fn) => fn({ update }));
@@ -248,18 +278,26 @@ describe('createOpenAiClient', () => {
       id: 'chatcmpl-1',
       object: 'chat.completion',
       created: 1,
-      model: 'served-model',
+      model: 'muse-glimmer-harness',
       choices: [{ index: 0, finish_reason: 'stop', logprobs: null, message: { role: 'assistant', content: 'ok', refusal: null } }],
     });
 
-    const client = createOpenAiClient(testConfig);
-    await client.createChatCompletion({ model: 'test-model', messages });
+    const client = createOpenAiClient({
+      ...testConfig,
+      modelName: 'muse-glimmer-harness',
+      modelDisplayName: 'meta/muse-glimmer',
+    });
+    await client.createChatCompletion({ model: 'muse-glimmer-harness', messages });
 
+    expect(withGenerationObservation).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'meta/muse-glimmer' }),
+      expect.any(Function),
+    );
     expect(update).toHaveBeenCalledWith({
       output: { role: 'assistant', content: 'ok', refusal: null },
       usageDetails: undefined,
-      model: 'served-model',
-      metadata: { requestedModel: 'test-model' },
+      metadata: { requestedModel: 'muse-glimmer-harness' },
     });
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('model');
   });
 });
