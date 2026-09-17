@@ -102,6 +102,7 @@ export async function withAgentObservation<T>(
     name?: string;
     sessionId: string;
     input: unknown;
+    model?: string;
   },
   fn: (observation: ObservationHandle) => Promise<T>,
 ): Promise<T> {
@@ -110,20 +111,30 @@ export async function withAgentObservation<T>(
   }
 
   const name = params.name ?? 'harness-turn';
+  const model = params.model?.trim() ?? '';
 
-  return propagateAttributes({ sessionId: params.sessionId, traceName: name }, () =>
-    startActiveObservation(
-      name,
-      async (agent) => {
-        agent.update({ input: params.input });
-        return fn({
-          update: (attributes) => {
-            agent.update(attributes);
-          },
-        });
-      },
-      { asType: 'agent' },
-    ),
+  return propagateAttributes(
+    {
+      sessionId: params.sessionId,
+      traceName: name,
+      ...(model ? { metadata: { model }, tags: [model] } : {}),
+    },
+    () =>
+      startActiveObservation(
+        name,
+        async (agent) => {
+          agent.update({
+            input: params.input,
+            ...(model ? { metadata: { model } } : {}),
+          });
+          return fn({
+            update: (attributes) => {
+              agent.update(attributes);
+            },
+          });
+        },
+        { asType: 'agent' },
+      ),
   );
 }
 

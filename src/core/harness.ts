@@ -4,7 +4,7 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { createOpenAiClient } from '../client/createOpenAiClient';
 import type { ChatCompletionClient } from '../client/llmClient.type';
 import { getHarnessConfig } from './config';
-import { DEFAULT_MAX_COMPLETION_TOKENS, type HarnessConfig } from './config.validate';
+import { DEFAULT_MAX_COMPLETION_TOKENS, type HarnessConfig, tracedModelName } from './config.validate';
 import { createLangfuseSessionId, withAgentObservation } from '../observability/langfuse';
 import {
   assertUniqueModuleIds,
@@ -138,6 +138,7 @@ export class Harness {
           name: 'harness-turn',
           sessionId: this.sessionId,
           input: { command: userCommand },
+          model: tracedModelName(this.config),
         },
         async (observation) => {
           this.bus.emit({ type: 'user_command', command: userCommand });

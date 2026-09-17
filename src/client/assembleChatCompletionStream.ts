@@ -132,6 +132,9 @@ export function createChatCompletionStreamAssembler(): ChatCompletionStreamAssem
         content: visible.length > 0 ? visible : null,
         refusal,
       };
+      if (reasoning.length > 0) {
+        Object.assign(message, { reasoning_content: reasoning });
+      }
       const assembledToolCalls = toolCalls
         .filter((toolCall) => toolCall !== undefined)
         .map(({ id: toolCallId, type, function: fn }) => ({

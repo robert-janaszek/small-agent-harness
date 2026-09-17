@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_MAX_COMPLETION_TOKENS, readHarnessConfigFromEnv, validateHarnessConfig } from './config.validate';
+import { DEFAULT_MAX_COMPLETION_TOKENS, readHarnessConfigFromEnv, tracedModelName, validateHarnessConfig } from './config.validate';
 
 const validInput = {
   openaiBaseUrl: 'http://127.0.0.1:1234/v1',
@@ -82,6 +82,21 @@ describe('validateHarnessConfig', () => {
     expect(validateHarnessConfig({ ...validInput, maxCompletionTokens: '2048' }).maxCompletionTokens).toBe(2048);
     expect(validateHarnessConfig({ ...validInput, maxCompletionTokens: '' }).maxCompletionTokens).toBeUndefined();
     expect(DEFAULT_MAX_COMPLETION_TOKENS).toBe(16384);
+  });
+
+  it('trims MODEL_DISPLAY_NAME and treats blank as unset', () => {
+    expect(validateHarnessConfig({ ...validInput, modelDisplayName: ' meta/muse-glimmer ' }).modelDisplayName).toBe(
+      'meta/muse-glimmer',
+    );
+    expect(validateHarnessConfig({ ...validInput, modelDisplayName: '  ' }).modelDisplayName).toBeUndefined();
+    expect(validateHarnessConfig(validInput).modelDisplayName).toBeUndefined();
+  });
+
+  it('tracedModelName prefers the display name', () => {
+    expect(tracedModelName({ modelName: 'muse-glimmer-harness' })).toBe('muse-glimmer-harness');
+    expect(tracedModelName({ modelName: 'muse-glimmer-harness', modelDisplayName: 'meta/muse-glimmer' })).toBe(
+      'meta/muse-glimmer',
+    );
   });
 
   it('rejects invalid HARNESS_MAX_COMPLETION_TOKENS', () => {
